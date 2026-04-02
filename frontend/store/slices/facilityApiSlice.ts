@@ -1,0 +1,211 @@
+import { apiSlice } from "./apiSlice";
+
+export interface FacilityDocument {
+  fileUrl: string;
+  fileType: "image" | "pdf";
+  fileName?: string;
+  uploadedAt?: string;
+}
+
+export interface AssignedAuditor {
+  _id?: string;
+  user_id: string;
+  assigned_by?: string;
+  createdAt?: string;
+}
+
+export interface Facility {
+  _id: string;
+  owner_user_id: string;
+  name: string;
+  city: string;
+  address?: string;
+  client_representative?: string;
+  client_contact_number?: string;
+  client_email?: string;
+  facility_type:
+    | "hospital"
+    | "hotel"
+    | "factory"
+    | "office"
+    | "mall"
+    | "other";
+  status: "active" | "inactive";
+  closure_date?: string;
+  created_by: string;
+  documents: FacilityDocument[];
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateFacilityRequest {
+  name: string;
+  city: string;
+  address?: string;
+  client_representative?: string;
+  client_contact_number?: string;
+  client_email?: string;
+  facility_type?: "hospital" | "hotel" | "factory" | "office" | "mall" | "other";
+  status?: "active" | "inactive";
+ closure_date?: string;
+  auditor_ids?: string[];
+  documents?: File[];
+}
+
+export interface UpdateFacilityRequest {
+  id: string;
+  name?: string;
+  city?: string;
+  address?: string;
+  client_representative?: string;
+  client_contact_number?: string;
+  client_email?: string;
+  facility_type?: "hospital" | "hotel" | "factory" | "office" | "mall" | "other";
+  status?: "active" | "inactive";
+  closure_date?: string;
+  auditor_ids?: string[];
+  documents?: File[];
+}
+
+export interface CreateFacilityResponse {
+  success: boolean;
+  message: string;
+  data: Facility;
+}
+
+export interface GetFacilitiesResponse {
+  success: boolean;
+  count: number;
+  data: Facility[];
+}
+
+export interface GetFacilityByIdResponse {
+  success: boolean;
+  data: {
+    facility: Facility;
+    assignedAuditors: AssignedAuditor[];
+  };
+}
+
+export interface UpdateFacilityResponse {
+  success: boolean;
+  message: string;
+  data: {
+    facility: Facility;
+    assignedAuditors: AssignedAuditor[];
+  };
+}
+
+export interface DeleteFacilityResponse {
+  success: boolean;
+  message: string;
+}
+
+// Build FormData
+const buildFacilityFormData = (
+  data: Partial<CreateFacilityRequest | UpdateFacilityRequest>
+) => {
+  const formData = new FormData();
+
+  if (data.name !== undefined) formData.append("name", data.name);
+  if (data.city !== undefined) formData.append("city", data.city);
+  if (data.address !== undefined) formData.append("address", data.address);
+  if (data.client_representative !== undefined) {
+    formData.append("client_representative", data.client_representative);
+  }
+  if (data.client_contact_number !== undefined) {
+    formData.append("client_contact_number", data.client_contact_number);
+  }
+  if (data.client_email !== undefined) {
+    formData.append("client_email", data.client_email);
+  }
+  if (data.facility_type !== undefined) {
+    formData.append("facility_type", data.facility_type);
+  }
+  if (data.status !== undefined) {
+    formData.append("status", data.status);
+  }
+  if (data.closure_date !== undefined) {
+    formData.append("closure_date", data.closure_date);
+  }
+
+  if (data.auditor_ids !== undefined) {
+    formData.append("auditor_ids", JSON.stringify(data.auditor_ids));
+  }
+
+  if (data.documents?.length) {
+    data.documents.forEach((file) => {
+      formData.append("documents", file);
+    });
+  }
+
+  return formData;
+};
+
+export const facilityApiSlice = apiSlice.injectEndpoints({
+  endpoints: (builder) => ({
+    createFacility: builder.mutation<
+      CreateFacilityResponse,
+      CreateFacilityRequest
+    >({
+      query: (data) => ({
+        url: "/v1/facilities",
+        method: "POST",
+        body: buildFacilityFormData(data),
+      }),
+      invalidatesTags: ["Facility"],
+    }),
+
+    getFacilities: builder.query<GetFacilitiesResponse, void>({
+      query: () => ({
+        url: "/v1/facilities",
+        method: "GET",
+      }),
+      providesTags: ["Facility"],
+    }),
+
+    getFacilityById: builder.query<GetFacilityByIdResponse, string>({
+      query: (id) => ({
+        url: `/v1/facilities/${id}`,
+        method: "GET",
+      }),
+      providesTags: (_result, _error, id) => [{ type: "Facility", id }],
+    }),
+
+    updateFacility: builder.mutation<
+      UpdateFacilityResponse,
+      UpdateFacilityRequest
+    >({
+      query: ({ id, ...data }) => ({
+        url: `/v1/facilities/${id}`,
+        method: "PUT",
+        body: buildFacilityFormData(data),
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        "Facility",
+        { type: "Facility", id },
+      ],
+    }),
+
+    deleteFacility: builder.mutation<DeleteFacilityResponse, string>({
+      query: (id) => ({
+        url: `/v1/facilities/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "Facility",
+        { type: "Facility", id },
+      ],
+    }),
+  }),
+});
+
+export const {
+  useCreateFacilityMutation,
+  useGetFacilitiesQuery,
+  useGetFacilityByIdQuery,
+  useUpdateFacilityMutation,
+  useDeleteFacilityMutation,
+} = facilityApiSlice;

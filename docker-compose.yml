@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: power-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: power-frontend
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: power-backend
+    env_file:
+      - ./.env
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  worker-report:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: power-worker-report
+    command: npm run worker:report
+    env_file:
+      - ./.env
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: power-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
