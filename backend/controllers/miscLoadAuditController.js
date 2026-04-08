@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import MiscLoadAuditRecord from "../modals/miscLoadAuditRecord.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -11,11 +12,15 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload documents
-const uploadMiscLoadDocuments = async (files = []) => {
+const uploadMiscLoadDocuments = async (files = [], recordId) => {
   const docs = [];
 
   for (const file of files || []) {
-    const uploaded = await uploadBufferToCloudinary(file, "misc-load-audits");
+    const uploaded = await uploadBufferToFileManagement(
+      file,
+      "misc-load-audits",
+      recordId,
+    );
 
     docs.push({
       fileUrl: uploaded.secure_url,
@@ -128,9 +133,11 @@ const createMiscLoadAuditRecord = asyncHandler(async (req, res) => {
   let payload = { ...req.body };
   payload = computeValues(payload);
 
-  const docs = await uploadMiscLoadDocuments(req.files || []);
+  const recordId = new mongoose.Types.ObjectId();
+  const docs = await uploadMiscLoadDocuments(req.files || [], recordId);
 
   const record = await MiscLoadAuditRecord.create({
+    _id: recordId,
     ...payload,
     auditor_id: req.user?._id || req.body.auditor_id,
     documents: docs,
@@ -321,7 +328,7 @@ const updateMiscLoadAuditRecord = asyncHandler(async (req, res) => {
 
   Object.assign(record, payload);
 
-  const docs = await uploadMiscLoadDocuments(req.files || []);
+  const docs = await uploadMiscLoadDocuments(req.files || [], record._id);
 
   if (docs.length > 0) {
     record.documents.push(...docs);

@@ -1,10 +1,11 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import SolarGenerationRecord from "../modals/solarGenerationRecord.js";
 import SolarPlant from "../modals/solarPlant.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
@@ -13,14 +14,15 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload solar generation documents
-const uploadSolarGenerationDocuments = async (files = []) => {
+const uploadSolarGenerationDocuments = async (files = [], recordId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(
+      const uploaded = await uploadBufferToFileManagement(
         file,
         "solar-generation-records",
+        recordId,
       );
 
       uploadedDocuments.push({
@@ -181,10 +183,15 @@ const createSolarGenerationRecord = asyncHandler(async (req, res) => {
     );
   }
 
-  const uploadedDocuments = await uploadSolarGenerationDocuments(req.files);
+  const recordId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadSolarGenerationDocuments(
+    req.files,
+    recordId,
+  );
   const { net_kWh, net_kVAh, net_kVA } = calculateNetValues(req.body);
 
   const solarGenerationRecord = await SolarGenerationRecord.create({
+    _id: recordId,
     solar_plant_id,
     utility_account_id,
     facility_id,
@@ -425,7 +432,10 @@ const updateSolarGenerationRecord = asyncHandler(async (req, res) => {
   }
 
   const updatedFields = Object.keys(req.body || {});
-  const uploadedDocuments = await uploadSolarGenerationDocuments(req.files);
+  const uploadedDocuments = await uploadSolarGenerationDocuments(
+    req.files,
+    solarGenerationRecord._id,
+  );
 
   Object.keys(req.body).forEach((key) => {
     solarGenerationRecord[key] = req.body[key] ?? solarGenerationRecord[key];

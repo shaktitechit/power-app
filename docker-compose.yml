@@ -1,16 +1,67 @@
 version: "3.9"
 
+networks:
+  power_net:
+    driver: bridge
+
 services:
-  nginx:
-    image: nginx:alpine
-    container_name: power-nginx
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: power-backend
+    env_file:
+      - ./.env
+    environment:
+      # Required in Docker: .env often sets HOST=127.0.0.1 for local runs; that binds only
+      # loopback inside the container so other services (frontend) get ECONNREFUSED.
+      HOST: "0.0.0.0"
+      # Prefer container DNS name on the Compose network (fast, no host firewall hop).
+      # Service name "redis" can fail on some Docker Desktop setups; container_name usually resolves.
+      REDIS_URL: redis://power-redis:6379
     depends_on:
-      - frontend
-      - backend
+      redis:
+        condition: service_healthy
+    networks:
+      - power_net
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  worker-report:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: power-worker-report
+    command: npm run worker:report
+    env_file:
+      - ./.env
+    environment:
+      REDIS_URL: redis://power-redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - power_net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: power-redis
+    ports:
+      # Optional host access (redis-cli / GUI). App containers use power-redis:6379 on power_net.
+      # Use 6380 on the host if a local Windows Redis already binds 6379.
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - power_net
     restart: unless-stopped
 
   frontend:
@@ -22,35 +73,8 @@ services:
       - ./frontend/.env
     depends_on:
       - backend
-    restart: unless-stopped
-
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: power-backend
-    env_file:
-      - ./.env
-    depends_on:
-      - redis
-    restart: unless-stopped
-
-  worker-report:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: power-worker-report
-    command: npm run worker:report
-    env_file:
-      - ./.env
-    depends_on:
-      - redis
-      - backend
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: power-redis
+    networks:
+      - power_net
     ports:
-      - "6379:6379"
+      - "3000:3000"
     restart: unless-stopped

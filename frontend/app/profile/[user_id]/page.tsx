@@ -211,10 +211,10 @@ export default function UserProfilePage() {
             </CardHeader>
 
             <CardContent className="space-y-6">
-              {error && <div className="text-sm text-red-600">{error}</div>}
+              {error && <div className="text-sm text-destructive">{error}</div>}
 
               {successMessage && (
-                <div className="text-sm text-green-600">{successMessage}</div>
+                <div className="text-sm text-primary">{successMessage}</div>
               )}
 
               <div className="grid gap-5 md:grid-cols-2">

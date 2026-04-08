@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import UtilityBillingRecord from "../modals/utilityBillingRecord.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -11,14 +12,15 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // helper: upload documents
-const uploadBillingDocuments = async (files = []) => {
+const uploadBillingDocuments = async (files = [], billingRecordId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(
+      const uploaded = await uploadBufferToFileManagement(
         file,
         "utility-billing-records",
+        billingRecordId,
       );
 
       uploadedDocuments.push({
@@ -118,9 +120,14 @@ const createUtilityBillingRecord = asyncHandler(async (req, res) => {
     throw new Error("Billing record already exists for this billing period");
   }
 
-  const uploadedDocuments = await uploadBillingDocuments(req.files);
+  const billingRecordId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadBillingDocuments(
+    req.files,
+    billingRecordId,
+  );
 
   const billingRecord = await UtilityBillingRecord.create({
+    _id: billingRecordId,
     utility_account_id,
     billing_period_start,
     billing_period_end,
@@ -312,7 +319,10 @@ const updateUtilityBillingRecord = asyncHandler(async (req, res) => {
   }
 
   const updatedFields = Object.keys(req.body || {});
-  const uploadedDocuments = await uploadBillingDocuments(req.files);
+  const uploadedDocuments = await uploadBillingDocuments(
+    req.files,
+    billingRecord._id,
+  );
 
   billingRecord.billing_period_start =
     billing_period_start ?? billingRecord.billing_period_start;

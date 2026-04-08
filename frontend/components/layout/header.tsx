@@ -20,6 +20,7 @@ import { useMyPresence } from "@/hooks/useMyPresence";
 import { usePresenceMap } from "@/hooks/presenceMap";
 import { socket } from "@/lib/socket";
 import { toastHandler } from "@/lib/toast";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface HeaderProps {
   title?: string;
@@ -110,6 +111,8 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
+        <ThemeToggle />
+
         <div className="relative hidden lg:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -148,7 +151,7 @@ export function Header({
                           ? "bg-green-500"
                           : status === "away"
                             ? "bg-yellow-400"
-                            : "bg-gray-400"
+                            : "bg-muted-foreground"
                       }`}
                     />
                   </span>

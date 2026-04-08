@@ -109,9 +109,9 @@ type ACAuditFormState = {
 };
 
 const editableInputClass =
-  "border-slate-300 bg-white text-black placeholder:text-slate-400";
+  "border-input bg-background text-foreground placeholder:text-muted-foreground";
 const autoInputClass =
-  "border-amber-300 bg-amber-50 text-black placeholder:text-slate-400";
+  "border-warning/50 bg-warning/10 text-foreground placeholder:text-muted-foreground";
 
 const createEmptyForm = (): ACAuditFormState => ({
   localId: `new-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -657,7 +657,7 @@ export function ACAuditRecordSection({
       </div>
 
       {backendError && (
-        <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {backendError}
         </div>
       )}
@@ -1352,12 +1352,12 @@ export function ACAuditRecordSection({
                           href={doc.fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm hover:bg-slate-50"
+                          className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 text-sm hover:bg-muted/50"
                         >
                           {doc.fileType === "pdf" ? (
-                            <FileText className="h-4 w-4 text-red-500" />
+                            <FileText className="h-4 w-4 text-destructive" />
                           ) : (
-                            <ImageIcon className="h-4 w-4 text-blue-500" />
+                            <ImageIcon className="h-4 w-4 text-primary" />
                           )}
                           <span className="truncate">
                             {doc.fileName || `Document ${idx + 1}`}
@@ -1397,13 +1397,13 @@ export function ACAuditRecordSection({
                       {form.newDocuments.map((file, idx) => (
                         <div
                           key={`${file.name}-${idx}`}
-                          className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 text-sm"
+                          className="flex items-center justify-between rounded-lg border border-border bg-card p-3 text-sm"
                         >
                           <div className="min-w-0 flex items-center gap-3">
                             {file.type === "application/pdf" ? (
-                              <FileText className="h-4 w-4 shrink-0 text-red-500" />
+                              <FileText className="h-4 w-4 shrink-0 text-destructive" />
                             ) : (
-                              <ImageIcon className="h-4 w-4 shrink-0 text-blue-500" />
+                              <ImageIcon className="h-4 w-4 shrink-0 text-primary" />
                             )}
                             <span className="truncate">{file.name}</span>
                           </div>

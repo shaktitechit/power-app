@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import Pump from "../modals/pump.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -11,12 +12,12 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload pump documents
-const uploadPumpDocuments = async (files = []) => {
+const uploadPumpDocuments = async (files = [], pumpId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "pumps");
+      const uploaded = await uploadBufferToFileManagement(file, "pumps", pumpId);
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -107,9 +108,11 @@ const createPump = asyncHandler(async (req, res) => {
     throw new Error("Pump tag already exists for this utility account");
   }
 
-  const uploadedDocuments = await uploadPumpDocuments(req.files);
+  const pumpId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadPumpDocuments(req.files, pumpId);
 
   const pump = await Pump.create({
+    _id: pumpId,
     facility_id,
     utility_account_id,
     pump_tag_number,
@@ -309,7 +312,7 @@ const updatePump = asyncHandler(async (req, res) => {
   }
 
   const updatedFields = Object.keys(req.body || {});
-  const uploadedDocuments = await uploadPumpDocuments(req.files);
+  const uploadedDocuments = await uploadPumpDocuments(req.files, pump._id);
 
   Object.keys(req.body).forEach((key) => {
     pump[key] = req.body[key] ?? pump[key];

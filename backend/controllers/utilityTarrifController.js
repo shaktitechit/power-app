@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import UtilityTariff from "../modals/utilityTarrif.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
@@ -12,12 +13,16 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload documents
-const uploadTariffDocuments = async (files = []) => {
+const uploadTariffDocuments = async (files = [], tariffId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "utility-tariffs");
+      const uploaded = await uploadBufferToFileManagement(
+        file,
+        "utility-tariffs",
+        tariffId,
+      );
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -92,9 +97,11 @@ const createUtilityTariff = asyncHandler(async (req, res) => {
     throw new Error("Access denied");
   }
 
-  const uploadedDocuments = await uploadTariffDocuments(req.files);
+  const tariffId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadTariffDocuments(req.files, tariffId);
 
   const tariff = await UtilityTariff.create({
+    _id: tariffId,
     utility_account_id,
     effective_from,
     effective_to: effective_to || null,
@@ -250,7 +257,7 @@ const updateUtilityTariff = asyncHandler(async (req, res) => {
     throw new Error("Access denied");
   }
 
-  const uploadedDocuments = await uploadTariffDocuments(req.files);
+  const uploadedDocuments = await uploadTariffDocuments(req.files, tariff._id);
 
   const updatedFields = Object.keys(req.body || {});
 

@@ -1,42 +1,42 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
 
 import User from "./modals/user.js";
 import PresenceLog from "./modals/presenceLog.js";
 
-dotenv.config();
+// fix __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-//Function to seed data
+// load .env from backend/.env
+dotenv.config({ path: path.join(__dirname, ".env") });
+
+// if your .env is in project root, use this instead:
+// dotenv.config({ path: path.join(__dirname, "../.env") });
 
 const seedData = async () => {
   try {
-    //Clear existing data
     await connectDB();
 
     await PresenceLog.deleteMany();
     await User.deleteMany();
 
-    // Create default Admin User
-
-    const createdUser = await User.create([
+    await User.create([
       {
-        name: "Admin",
-        email: "admin@example.com",
-        password: "123456",
+        name: "Puneet Oberoi",
+        email: "puneet@spspl.com",
+        password: "Admin@2026##",
         role: "admin",
-      },
-      {
-        name: "Auditor",
-        email: "auditor@example.com",
-        password: "123456",
-        role: "auditor",
       },
     ]);
 
-    process.exit();
+    console.log("Data seeded successfully");
+    process.exit(0);
   } catch (error) {
-    console.error("Error seeding the data", error);
+    console.error("Error seeding the data:", error);
     process.exit(1);
   }
 };

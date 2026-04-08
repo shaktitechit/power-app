@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const backendUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://backend:5000";
+
 const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
@@ -11,9 +13,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost/api/:path*",
-        // destination:
-        //   "https://power-backend-production.up.railway.app/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

@@ -1,10 +1,11 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import TransformerAuditRecord from "../modals/transformerAuditRecord.js";
 import Transformer from "../modals/transformer.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -12,14 +13,15 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload transformer audit documents
-const uploadTransformerAuditDocuments = async (files = []) => {
+const uploadTransformerAuditDocuments = async (files = [], recordId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(
+      const uploaded = await uploadBufferToFileManagement(
         file,
         "transformer-audit-records",
+        recordId,
       );
 
       uploadedDocuments.push({
@@ -161,9 +163,14 @@ const createTransformerAuditRecord = asyncHandler(async (req, res) => {
     );
   }
 
-  const uploadedDocuments = await uploadTransformerAuditDocuments(req.files);
+  const transformerAuditRecordId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadTransformerAuditDocuments(
+    req.files,
+    transformerAuditRecordId,
+  );
 
   const transformerAuditRecord = await TransformerAuditRecord.create({
+    _id: transformerAuditRecordId,
     transformer_id,
     utility_account_id,
     facility_id,
@@ -402,7 +409,10 @@ const updateTransformerAuditRecord = asyncHandler(async (req, res) => {
   }
 
   const updatedFields = Object.keys(req.body || {});
-  const uploadedDocuments = await uploadTransformerAuditDocuments(req.files);
+  const uploadedDocuments = await uploadTransformerAuditDocuments(
+    req.files,
+    transformerAuditRecord._id,
+  );
 
   Object.keys(req.body).forEach((key) => {
     transformerAuditRecord[key] = req.body[key] ?? transformerAuditRecord[key];

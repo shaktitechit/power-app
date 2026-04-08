@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -11,8 +12,6 @@ import {
   BarChart3,
   FileText,
   Users,
-  Settings,
-  Zap,
   ChevronLeft,
   ChevronRight,
   X,
@@ -113,8 +112,15 @@ export function Sidebar({
             className="flex items-center gap-3"
             onClick={handleLinkClick}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
-              <Zap className="h-5 w-5 text-primary-foreground" />
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-sidebar-border/60">
+              <Image
+                src="/spspl-logo.jpeg"
+                alt="Shakti Powers"
+                fill
+                className="object-contain p-0.5"
+                sizes="64px"
+                priority
+              />
             </div>
 
             {(!isCollapsed || isMobileOpen) && (

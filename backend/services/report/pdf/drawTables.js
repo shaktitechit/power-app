@@ -1,0 +1,282 @@
+import {
+  formatCellValue,
+  getRowCell,
+  isKeyValueSubsection,
+  normalizeColumns,
+  toLabel,
+} from "./formatting.js";
+import { PDF_THEME } from "./styles.js";
+import {
+  contentLeft,
+  contentWidth,
+  drawSubsectionHeading,
+  ensureSpace,
+} from "./drawPrimitives.js";
+
+const kvKeys = (sub) => {
+  const cols = sub.columns || [];
+  const keys = cols.map((c) => (typeof c === "string" ? c : c?.key));
+  return { labelKey: keys[0], valueKey: keys[1] };
+};
+
+export const drawKeyValueBlock = (
+  doc,
+  theme,
+  y,
+  heading,
+  rows = [],
+  labelKey = "label",
+  valueKey = "value",
+) => {
+  const x = contentLeft(doc);
+  const w = contentWidth(doc);
+  let cursor = y;
+
+  if (heading) {
+    cursor = drawSubsectionHeading(doc, heading, theme, cursor);
+  }
+
+  if (!Array.isArray(rows) || !rows.length) {
+    doc.save();
+    cursor = ensureSpace(doc, cursor, 20);
+    doc
+      .font(theme.font.family)
+      .fontSize(theme.font.caption)
+      .fillColor(theme.colors.muted)
+      .text("No data available", x, cursor, { width: w });
+    doc.restore();
+    return doc.y + theme.spacing.blockGap;
+  }
+
+  const labelColW = Math.min(w * 0.36, 200);
+  const valueColW = w - labelColW - 10;
+  doc.font(theme.font.family).fontSize(theme.font.body);
+
+  rows.forEach((row, i) => {
+    const label = formatCellValue(row?.[labelKey]);
+    const value = formatCellValue(row?.[valueKey]);
+    if (!label && !value) return;
+
+    const lh = doc.heightOfString(String(label), { width: labelColW - 14 });
+    const vh = doc.heightOfString(String(value || "—"), {
+      width: valueColW - 14,
+    });
+    const rowH = Math.max(lh, vh, 12) + 12;
+    cursor = ensureSpace(doc, cursor, rowH);
+
+    if (i % 2 === 0) {
+      doc.save();
+      doc.rect(x, cursor, w, rowH).fill(theme.colors.accentLight);
+      doc.restore();
+    }
+
+    doc.save();
+    doc
+      .fillColor(theme.colors.text)
+      .font(theme.font.familyBold)
+      .fontSize(theme.font.body)
+      .text(String(label), x + 8, cursor + 6, { width: labelColW - 14 });
+    doc
+      .font(theme.font.family)
+      .fontSize(theme.font.body)
+      .text(String(value || "—"), x + labelColW + 6, cursor + 6, {
+        width: valueColW - 14,
+        lineGap: 1,
+      });
+    doc.restore();
+    cursor += rowH;
+  });
+
+  return cursor + theme.spacing.blockGap;
+};
+
+export const drawDataTable = (
+  doc,
+  theme,
+  y,
+  heading,
+  columns = [],
+  rows = [],
+) => {
+  const x = contentLeft(doc);
+  const totalWidth = contentWidth(doc);
+  const cols = normalizeColumns(columns);
+  if (!cols.length) return y;
+
+  let cursor = y;
+  if (heading) {
+    cursor = drawSubsectionHeading(doc, heading, theme, cursor);
+  }
+
+  if (!Array.isArray(rows) || !rows.length) {
+    doc.save();
+    cursor = ensureSpace(doc, cursor, 20);
+    doc
+      .font(theme.font.family)
+      .fontSize(theme.font.caption)
+      .fillColor(theme.colors.muted)
+      .text("No data available", x, cursor, { width: totalWidth });
+    doc.restore();
+    return doc.y + theme.spacing.blockGap;
+  }
+
+  const n = cols.length;
+  const gap = 2;
+  const cellPad = 4;
+  const colW = (totalWidth - gap * (n - 1)) / n;
+  const headerSize =
+    n > 12 ? 6.5 : n > 8 ? 7 : theme.font.tableHeader;
+  const bodySize =
+    n > 12 ? 6 : n > 8 ? 6.5 : theme.font.tableBody;
+
+  doc.font(theme.font.familyBold).fontSize(headerSize);
+  let headerTextH = 0;
+  cols.forEach((c) => {
+    const h = doc.heightOfString(c.label, { width: colW - 2 * cellPad });
+    headerTextH = Math.max(headerTextH, h);
+  });
+  const headerRowH = Math.max(headerTextH + 10, 18);
+  cursor = ensureSpace(doc, cursor, headerRowH + 4);
+
+  doc.save();
+  doc.rect(x, cursor, totalWidth, headerRowH).fill(theme.colors.headerBg);
+  cols.forEach((c, i) => {
+    const cx = x + i * (colW + gap);
+    doc
+      .fillColor(theme.colors.headerText)
+      .font(theme.font.familyBold)
+      .fontSize(headerSize)
+      .text(c.label, cx + cellPad, cursor + 5, {
+        width: colW - 2 * cellPad,
+        lineGap: 0.5,
+      });
+  });
+  doc.restore();
+  cursor += headerRowH;
+
+  doc.font(theme.font.family).fontSize(bodySize).fillColor(theme.colors.text);
+
+  rows.forEach((row, ri) => {
+    const vals = cols.map((c) => getRowCell(row, c.key));
+    let rowH = 0;
+    vals.forEach((v, i) => {
+      const h = doc.heightOfString(v || "—", {
+        width: colW - 2 * cellPad,
+      });
+      rowH = Math.max(rowH, h + 8);
+    });
+    rowH = Math.max(rowH, 16);
+    cursor = ensureSpace(doc, cursor, rowH + 1);
+
+    if (ri % 2 === 1) {
+      doc.save();
+      doc.rect(x, cursor, totalWidth, rowH).fill(theme.colors.zebra);
+      doc.restore();
+    }
+
+    vals.forEach((v, i) => {
+      const cx = x + i * (colW + gap);
+      doc
+        .fillColor(theme.colors.text)
+        .text(v || "—", cx + cellPad, cursor + 4, {
+          width: colW - 2 * cellPad,
+          lineGap: 0.5,
+        });
+    });
+    cursor += rowH;
+    doc.save();
+    doc.strokeColor(theme.colors.border).lineWidth(0.25);
+    doc.moveTo(x, cursor).lineTo(x + totalWidth, cursor).stroke();
+    doc.restore();
+  });
+
+  return cursor + theme.spacing.blockGap;
+};
+
+export const drawSummaryObject = (doc, theme, y, title, summaryObj) => {
+  const entries = Object.entries(summaryObj || {}).filter(
+    ([k]) => k && !String(k).startsWith("__"),
+  );
+  if (!entries.length) return y;
+
+  const rows = entries.map(([key, value]) => ({
+    label: toLabel(key),
+    value: formatCellValue(value),
+  }));
+  return drawKeyValueBlock(doc, theme, y, title || "Summary", rows);
+};
+
+export const drawSubSection = (doc, theme, y, sub) => {
+  if (!sub) return y;
+  const heading = sub.heading || "";
+  const columns = sub.columns || [];
+  const rows = sub.rows || [];
+
+  if (isKeyValueSubsection(sub)) {
+    const { labelKey, valueKey } = kvKeys(sub);
+    return drawKeyValueBlock(doc, theme, y, heading, rows, labelKey, valueKey);
+  }
+
+  return drawDataTable(doc, theme, y, heading, columns, rows);
+};
+
+export const drawBlocks = (doc, theme, y, section) => {
+  const blocks = section?.blocks;
+  if (!Array.isArray(blocks)) return y;
+  let cursor = y;
+
+  blocks.forEach((block) => {
+    if (!block) return;
+    if (block.type === "kv") {
+      cursor = drawKeyValueBlock(
+        doc,
+        theme,
+        cursor,
+        block.heading,
+        block.rows || [],
+      );
+      return;
+    }
+    if (block.type === "table") {
+      cursor = drawDataTable(
+        doc,
+        theme,
+        cursor,
+        block.heading,
+        block.columns || [],
+        block.items || [],
+      );
+      return;
+    }
+    if (block.type === "summary") {
+      cursor = drawSummaryObject(
+        doc,
+        theme,
+        cursor,
+        block.heading || "Summary",
+        block.data || {},
+      );
+      return;
+    }
+    if (block.type === "text") {
+      if (block.heading) {
+        cursor = drawSubsectionHeading(doc, block.heading, theme, cursor);
+      }
+      const x = contentLeft(doc);
+      const w = contentWidth(doc);
+      const text = formatCellValue(block.value || "");
+      const h = doc.heightOfString(text, { width: w });
+      cursor = ensureSpace(doc, cursor, h + 16);
+      doc.save();
+      doc
+        .font(theme.font.family)
+        .fontSize(theme.font.body)
+        .fillColor(theme.colors.text)
+        .text(text, x, cursor, { width: w, lineGap: 2 });
+      doc.restore();
+      cursor = doc.y + theme.spacing.blockGap;
+    }
+  });
+
+  return cursor;
+};

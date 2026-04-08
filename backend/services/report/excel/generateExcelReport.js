@@ -361,7 +361,10 @@ const addSectionWithSubsections = (workbook, section = {}) => {
     );
   }
 
-  if (hasSummary) {
+  // Section builders already embed a "* Summary" table inside `section.sections`
+  // and also expose the same metrics on `section.summary` for aggregates / PDF.
+  // Rendering both produces a duplicate "Summary" block on the sheet.
+  if (hasSummary && !hasSubSections) {
     addKeyValueBlock(
       sheet,
       "Summary",

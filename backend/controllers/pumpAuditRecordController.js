@@ -1,10 +1,11 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import PumpAuditRecord from "../modals/pumpAuditRecord.js";
 import Pump from "../modals/pump.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -12,14 +13,15 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload audit documents
-const uploadPumpAuditDocuments = async (files = []) => {
+const uploadPumpAuditDocuments = async (files = [], recordId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(
+      const uploaded = await uploadBufferToFileManagement(
         file,
         "pump-audit-records",
+        recordId,
       );
 
       uploadedDocuments.push({
@@ -148,9 +150,14 @@ const createPumpAuditRecord = asyncHandler(async (req, res) => {
     throw new Error("pump_id does not belong to the given facility_id");
   }
 
-  const uploadedDocuments = await uploadPumpAuditDocuments(req.files);
+  const pumpAuditRecordId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadPumpAuditDocuments(
+    req.files,
+    pumpAuditRecordId,
+  );
 
   const pumpAuditRecord = await PumpAuditRecord.create({
+    _id: pumpAuditRecordId,
     pump_id,
     utility_account_id,
     facility_id,
@@ -380,7 +387,10 @@ const updatePumpAuditRecord = asyncHandler(async (req, res) => {
   }
 
   const updatedFields = Object.keys(req.body || {});
-  const uploadedDocuments = await uploadPumpAuditDocuments(req.files);
+  const uploadedDocuments = await uploadPumpAuditDocuments(
+    req.files,
+    record._id,
+  );
 
   Object.keys(req.body).forEach((key) => {
     record[key] = req.body[key] ?? record[key];

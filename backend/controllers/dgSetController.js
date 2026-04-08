@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import DGSet from "../modals/dgSet.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -11,12 +12,16 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload DG set documents
-const uploadDGSetDocuments = async (files = []) => {
+const uploadDGSetDocuments = async (files = [], dgSetId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "dg-sets");
+      const uploaded = await uploadBufferToFileManagement(
+        file,
+        "dg-sets",
+        dgSetId,
+      );
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -107,9 +112,11 @@ const createDGSet = asyncHandler(async (req, res) => {
     throw new Error("DG number already exists for this utility account");
   }
 
-  const uploadedDocuments = await uploadDGSetDocuments(req.files);
+  const dgSetId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadDGSetDocuments(req.files, dgSetId);
 
   const dgSet = await DGSet.create({
+    _id: dgSetId,
     facility_id,
     utility_account_id,
     dg_number,
@@ -310,7 +317,7 @@ const updateDGSet = asyncHandler(async (req, res) => {
     }
   }
 
-  const uploadedDocuments = await uploadDGSetDocuments(req.files);
+  const uploadedDocuments = await uploadDGSetDocuments(req.files, dgSet._id);
 
   Object.keys(req.body).forEach((key) => {
     dgSet[key] = req.body[key] ?? dgSet[key];

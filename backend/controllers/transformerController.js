@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import Transformer from "../modals/transformer.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
@@ -12,12 +13,16 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload transformer documents
-const uploadTransformerDocuments = async (files = []) => {
+const uploadTransformerDocuments = async (files = [], transformerId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "transformers");
+      const uploaded = await uploadBufferToFileManagement(
+        file,
+        "transformers",
+        transformerId,
+      );
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -110,9 +115,14 @@ const createTransformer = asyncHandler(async (req, res) => {
     throw new Error("Transformer tag already exists for this utility account");
   }
 
-  const uploadedDocuments = await uploadTransformerDocuments(req.files);
+  const transformerId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadTransformerDocuments(
+    req.files,
+    transformerId,
+  );
 
   const transformer = await Transformer.create({
+    _id: transformerId,
     facility_id,
     utility_account_id,
     transformer_tag,
@@ -319,7 +329,10 @@ const updateTransformer = asyncHandler(async (req, res) => {
   }
 
   const updatedFields = Object.keys(req.body || {});
-  const uploadedDocuments = await uploadTransformerDocuments(req.files);
+  const uploadedDocuments = await uploadTransformerDocuments(
+    req.files,
+    transformer._id,
+  );
 
   Object.keys(req.body).forEach((key) => {
     transformer[key] = req.body[key] ?? transformer[key];

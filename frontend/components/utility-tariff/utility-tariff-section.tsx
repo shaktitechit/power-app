@@ -34,10 +34,10 @@ interface UtilityTariffSectionProps {
 }
 
 const editableInputClass =
-  "bg-white border border-gray-300 text-black focus:border-primary focus:ring-1 focus:ring-primary";
+  "border-input bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary";
 
 const autoInputClass =
-  "bg-white border border-dashed border-gray-400 text-black cursor-not-allowed opacity-90";
+  "cursor-not-allowed border border-dashed border-border bg-muted/50 text-muted-foreground opacity-90";
 
 const getInputClass = (disabled: boolean) =>
   disabled ? autoInputClass : editableInputClass;
@@ -526,9 +526,9 @@ export function UtilityTariffSection({
                   >
                     <div className="flex items-center gap-3">
                       {doc.fileType === "image" ? (
-                        <ImageIcon className="h-4 w-4 text-blue-600" />
+                        <ImageIcon className="h-4 w-4 text-primary" />
                       ) : (
-                        <FileText className="h-4 w-4 text-red-600" />
+                        <FileText className="h-4 w-4 text-destructive" />
                       )}
 
                       <a
@@ -571,9 +571,9 @@ export function UtilityTariffSection({
                   >
                     <div className="flex items-center gap-3">
                       {file.type.startsWith("image/") ? (
-                        <ImageIcon className="h-4 w-4 text-blue-600" />
+                        <ImageIcon className="h-4 w-4 text-primary" />
                       ) : (
-                        <FileText className="h-4 w-4 text-red-600" />
+                        <FileText className="h-4 w-4 text-destructive" />
                       )}
 
                       <span className="text-sm">{file.name}</span>

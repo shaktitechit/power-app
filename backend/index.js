@@ -7,6 +7,7 @@ import http from "http";
 import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
+import { assertFileManagementConfig } from "./config/fileManagement.js";
 
 import {
   apiRateLimiter,
@@ -43,10 +44,17 @@ import userProfileRoutes from "./routes/userProfileRoutes.js";
 
 import adminRoutes from "./routes/adminRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
+import fileManagementRoute from "./routes/fileManagementRoute.js";
 
 import socketServer from "./socket/socketServer.js";
 
 dotenv.config();
+assertFileManagementConfig();
+
+const frontendOrigins = (process.env.FRONTEND_URL ?? "https://power.spspl.com")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 connectDB();
 
@@ -60,10 +68,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://power-frontend-production.up.railway.app",
-    ],
+    origin: frontendOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
@@ -85,6 +90,7 @@ app.get("/", (req, res) => {
 app.use("/api", apiRateLimiter);
 
 app.use("/api/v1/email", emailRoutes);
+app.use("/api/v1/file-management", fileManagementRoute);
 
 app.use("/api/v1/users", usersRoute);
 app.use("/api/v1/facilities", facilityRoute);
@@ -123,10 +129,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "https://power-frontend-production.up.railway.app",
-    ],
+    origin: frontendOrigins,
     credentials: true,
   },
 });
@@ -138,7 +141,7 @@ socketServer(io);
 /* ---------------- START SERVER ---------------- */
 
 const PORT = process.env.PORT || 5000;
-const HOST = "0.0.0.0";
+const HOST = process.env.HOST || "0.0.0.0";
 const MODE = process.env.NODE_ENV || "development";
 
 server.listen(PORT, HOST, () => {

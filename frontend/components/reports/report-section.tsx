@@ -97,15 +97,15 @@ const REPORT_SCOPE_LABEL_MAP: Record<ReportScope, string> = {
 const getStatusClasses = (status?: string) => {
   switch (status) {
     case "queued":
-      return "border-blue-200 bg-blue-100 text-blue-700";
+      return "border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-300";
     case "completed":
-      return "border-green-200 bg-green-100 text-green-700";
+      return "border-green-200 bg-green-100 text-green-800 dark:border-green-500/40 dark:bg-green-500/15 dark:text-green-300";
     case "processing":
-      return "border-yellow-200 bg-yellow-100 text-yellow-700";
+      return "border-amber-200 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-200";
     case "failed":
-      return "border-red-200 bg-red-100 text-red-700";
+      return "border-red-200 bg-red-100 text-red-800 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-300";
     default:
-      return "border-gray-200 bg-gray-100 text-gray-700";
+      return "border-border bg-muted text-muted-foreground";
   }
 };
 
@@ -329,7 +329,7 @@ export default function ReportsSection({
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-2xl border border-gray-200 shadow-sm">
+      <Card className="rounded-2xl border border-border shadow-sm">
         <CardHeader>
           <CardTitle className="text-xl font-semibold">
             Generate Reports
@@ -338,7 +338,7 @@ export default function ReportsSection({
 
         <CardContent className="space-y-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label>Facility</Label>
               <Select
                 value={facilityId || undefined}
@@ -347,7 +347,7 @@ export default function ReportsSection({
                   setUtilityAccountId("");
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9 w-full max-w-full min-w-0">
                   <SelectValue
                     placeholder={
                       facilitiesLoading
@@ -386,14 +386,14 @@ export default function ReportsSection({
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label>Utility Account</Label>
               <Select
                 value={utilityAccountId || undefined}
                 onValueChange={setUtilityAccountId}
                 disabled={!facilityId || reportScope !== "utility_account"}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9 w-full max-w-full min-w-0">
                   <SelectValue
                     placeholder={
                       !facilityId
@@ -419,13 +419,13 @@ export default function ReportsSection({
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label>Report Type</Label>
               <Select
                 value={reportType}
                 onValueChange={(value: ReportType) => setReportType(value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9 w-full max-w-full min-w-0">
                   <SelectValue placeholder="Select report type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -439,21 +439,22 @@ export default function ReportsSection({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto]">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="min-w-0 space-y-2">
               <Label>Custom Title (Optional)</Label>
               <Input
                 value={customTitle}
                 onChange={(e) => setCustomTitle(e.target.value)}
                 placeholder="Enter report title or leave blank for auto title"
+                className="h-9 w-full"
               />
             </div>
 
-            <div className="flex items-end">
+            <div className="flex w-full shrink-0 items-end md:w-auto md:justify-end">
               <Button
                 onClick={handleGenerateReport}
                 disabled={isSubmitDisabled}
-                className="w-full md:w-auto"
+                className="inline-flex h-9 w-full min-w-[11.5rem] md:w-auto"
               >
                 {isGenerating ? (
                   <>
@@ -472,7 +473,7 @@ export default function ReportsSection({
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border border-gray-200 shadow-sm">
+      <Card className="rounded-2xl border border-border shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-xl font-semibold">
             Generated Reports
@@ -495,19 +496,19 @@ export default function ReportsSection({
 
         <CardContent>
           {reportsLoading ? (
-            <div className="flex items-center justify-center py-10 text-sm text-gray-500">
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Loading reports...
             </div>
           ) : reports.length === 0 ? (
-            <div className="py-10 text-center text-sm text-gray-500">
+            <div className="py-10 text-center text-sm text-muted-foreground">
               No reports found.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full overflow-hidden rounded-xl border border-gray-200 border-separate border-spacing-0">
-                <thead className="bg-gray-50">
-                  <tr className="text-left text-sm font-medium text-gray-700">
+              <table className="min-w-full overflow-hidden rounded-xl border border-border border-separate border-spacing-0">
+                <thead className="bg-muted/50">
+                  <tr className="text-left text-sm font-medium text-foreground">
                     <th className="border-b px-4 py-3">Title</th>
                     <th className="border-b px-4 py-3">Facility</th>
                     <th className="border-b px-4 py-3">Utility Account</th>
@@ -520,9 +521,9 @@ export default function ReportsSection({
                   </tr>
                 </thead>
 
-                <tbody className="bg-white">
+                <tbody className="bg-card">
                   {reports.map((report) => (
-                    <tr key={report._id} className="text-sm text-gray-700">
+                    <tr key={report._id} className="text-sm text-foreground">
                       <td className="border-b px-4 py-3 font-medium">
                         {report.title || "-"}
                       </td>
@@ -565,7 +566,7 @@ export default function ReportsSection({
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="border-green-200 text-green-700 hover:bg-green-50"
+                            className="border-green-200 text-green-800 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10"
                             disabled={!report.excel_file?.fileUrl}
                             onClick={() => {
                               if (report.excel_file?.fileUrl) {
@@ -579,10 +580,26 @@ export default function ReportsSection({
                             <FileSpreadsheet className="mr-2 h-4 w-4" />
                             Excel
                           </Button>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="border-blue-200 text-blue-800 hover:bg-blue-50 dark:border-blue-500/40 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                            disabled={!report.pdf_file?.fileUrl}
+                            onClick={() => {
+                              if (report.pdf_file?.fileUrl) {
+                                window.open(report.pdf_file.fileUrl, "_blank");
+                              }
+                            }}
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            PDF
+                          </Button>
                         </div>
 
                         {report.status === "failed" && report.error_message ? (
-                          <p className="mt-2 text-xs text-red-600">
+                          <p className="mt-2 text-xs text-destructive">
                             {report.error_message}
                           </p>
                         ) : null}
@@ -609,7 +626,7 @@ export default function ReportsSection({
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="border-red-200 text-red-700 hover:bg-red-50"
+                            className="border-red-200 text-red-800 hover:bg-red-50 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
                             disabled={isDeleting}
                             onClick={() => handleDeleteReport(report._id)}
                           >

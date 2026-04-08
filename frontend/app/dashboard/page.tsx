@@ -2,6 +2,7 @@
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Building2, Activity, TrendingUp } from "lucide-react";
 import Link from "next/link";
@@ -39,7 +40,7 @@ const getPresenceDotClass = (status?: string) => {
     case "away":
       return "bg-yellow-500";
     default:
-      return "bg-gray-400";
+      return "bg-muted-foreground";
   }
 };
 
@@ -76,7 +77,17 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
-  const recentActivities = dashboardData?.data?.recentActivities || [];
+  const recentActivities = useMemo(() => {
+    const list = dashboardData?.data?.recentActivities || [];
+    if (!Array.isArray(list)) return [];
+    return [...list]
+      .sort((a, b) => {
+        const tb = new Date(b.createdAt || 0).getTime();
+        const ta = new Date(a.createdAt || 0).getTime();
+        return tb - ta;
+      })
+      .slice(0, 10);
+  }, [dashboardData?.data?.recentActivities]);
   const userAppearance: TeamMember[] =
     dashboardData?.data?.userAppearance || [];
 
@@ -197,45 +208,47 @@ export default function DashboardPage() {
                 Recent activity
               </CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Latest actions in your workspace
+                Latest 10 actions in your workspace
               </p>
             </div>
             <Activity className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
 
           <CardContent className="pt-6">
-            <div className="space-y-3">
-              {dashboardLoading || dashboardFetching ? (
-                <p className="text-sm text-muted-foreground">
-                  Loading activities...
-                </p>
-              ) : recentActivities.length > 0 ? (
-                recentActivities.slice(0, 6).map((activity) => (
-                  <div
-                    key={activity._id}
-                    className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3"
-                  >
-                    <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {activity.message || activity.entity_name || "Activity"}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {activity.facility?.name || "No facility"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.actor?.name || "User"} •{" "}
-                        {formatRelativeTime(activity.createdAt)}
-                      </p>
+            {dashboardLoading || dashboardFetching ? (
+              <p className="text-sm text-muted-foreground">
+                Loading activities...
+              </p>
+            ) : recentActivities.length > 0 ? (
+              <ScrollArea className="h-[min(22rem,45vh)] pr-3">
+                <div className="space-y-3">
+                  {recentActivities.map((activity) => (
+                    <div
+                      key={activity._id}
+                      className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3"
+                    >
+                      <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {activity.message || activity.entity_name || "Activity"}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {activity.facility?.name || "No facility"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {activity.actor?.name || "User"} •{" "}
+                          {formatRelativeTime(activity.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No recent activity found.
-                </p>
-              )}
-            </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No recent activity found.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -248,54 +261,56 @@ export default function DashboardPage() {
           </CardHeader>
 
           <CardContent className="pt-6">
-            <div className="space-y-3">
-              {dashboardLoading || dashboardFetching ? (
-                <p className="text-sm text-muted-foreground">
-                  Loading presence...
-                </p>
-              ) : userAppearance.length > 0 ? (
-                userAppearance.slice(0, 8).map((member) => {
-                  const mergedStatus = getMergedPresenceStatus(member);
-                  const mergedTime = getMergedPresenceTime(member);
+            {dashboardLoading || dashboardFetching ? (
+              <p className="text-sm text-muted-foreground">
+                Loading presence...
+              </p>
+            ) : userAppearance.length > 0 ? (
+              <ScrollArea className="h-[min(22rem,45vh)] pr-3">
+                <div className="space-y-3">
+                  {userAppearance.map((member) => {
+                    const mergedStatus = getMergedPresenceStatus(member);
+                    const mergedTime = getMergedPresenceTime(member);
 
-                  return (
-                    <div
-                      key={member._id}
-                      className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span
-                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${getPresenceDotClass(
-                            mergedStatus,
-                          )}`}
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {member.name}
+                    return (
+                      <div
+                        key={member._id}
+                        className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={`h-2.5 w-2.5 shrink-0 rounded-full ${getPresenceDotClass(
+                              mergedStatus,
+                            )}`}
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {member.name}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {member.role}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-xs font-medium capitalize text-foreground">
+                            {mergedStatus}
                           </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {member.role}
+                          <p className="text-xs text-muted-foreground">
+                            {mergedTime}
                           </p>
                         </div>
                       </div>
-
-                      <div className="text-right">
-                        <p className="text-xs font-medium capitalize text-foreground">
-                          {mergedStatus}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {mergedTime}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No presence data found.
-                </p>
-              )}
-            </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No presence data found.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1,15 +1,16 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import ACAuditRecord from "../modals/acAuditRecord.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
 const isAdmin = (user) => user?.role === "admin";
 
-const uploadACDocuments = async (files = []) => {
+const uploadACDocuments = async (files = [], recordId) => {
   const docs = [];
 
   if (!Array.isArray(files) || files.length === 0) {
@@ -19,7 +20,11 @@ const uploadACDocuments = async (files = []) => {
   for (const file of files) {
     if (!file) continue;
 
-    const uploaded = await uploadBufferToCloudinary(file, "ac-audits");
+    const uploaded = await uploadBufferToFileManagement(
+      file,
+      "ac-audits",
+      recordId,
+    );
 
     docs.push({
       fileUrl: uploaded.secure_url,
@@ -157,9 +162,11 @@ const createACAuditRecord = asyncHandler(async (req, res) => {
   let payload = { ...req.body };
   payload = computeValues(payload);
 
-  const docs = await uploadACDocuments(req.files || []);
+  const recordId = new mongoose.Types.ObjectId();
+  const docs = await uploadACDocuments(req.files || [], recordId);
 
   const record = await ACAuditRecord.create({
+    _id: recordId,
     ...payload,
     auditor_id: req.user?._id || payload.auditor_id,
     documents: docs,
@@ -312,7 +319,7 @@ const updateACAuditRecord = asyncHandler(async (req, res) => {
 
   Object.assign(record, payload);
 
-  const docs = await uploadACDocuments(req.files || []);
+  const docs = await uploadACDocuments(req.files || [], record._id);
   if (docs.length > 0) {
     record.documents.push(...docs);
   }

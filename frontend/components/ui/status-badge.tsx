@@ -26,11 +26,13 @@ interface StatusBadgeProps {
 const statusConfig: Record<StatusType, { label: string; className: string }> = {
   pending: {
     label: "Pending",
-    className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    className:
+      "border-amber-500/40 bg-amber-500/15 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-200",
   },
   "in-progress": {
     label: "In Progress",
-    className: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    className:
+      "border-blue-500/40 bg-blue-500/15 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-200",
   },
   completed: {
     label: "Completed",
@@ -46,7 +48,8 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   },
   maintenance: {
     label: "Maintenance",
-    className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    className:
+      "border-amber-500/40 bg-amber-500/15 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-200",
   },
   "non-operational": {
     label: "Non-Operational",
@@ -54,7 +57,8 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   },
   active: {
     label: "Active",
-    className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    className:
+      "border-amber-500/40 bg-amber-500/15 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-200",
   },
   standby: {
     label: "StandBy",
@@ -66,11 +70,13 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   },
   warning: {
     label: "Warning",
-    className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    className:
+      "border-amber-500/40 bg-amber-500/15 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-200",
   },
   inactive: {
     label: "Inactive",
-    className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    className:
+      "border-amber-500/40 bg-amber-500/15 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-200",
   },
   critical: {
     label: "Critical",
@@ -82,7 +88,8 @@ const statusConfig: Record<StatusType, { label: string; className: string }> = {
   },
   idle: {
     label: "Idle",
-    className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+    className:
+      "border-amber-500/40 bg-amber-500/15 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-200",
   },
   fault: {
     label: "Fault",

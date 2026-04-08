@@ -460,7 +460,7 @@ export default function FacilityWorkspacePage() {
                           rel="noreferrer"
                           className="flex h-32 flex-col items-center justify-center gap-2"
                         >
-                          <FileText className="h-8 w-8 text-red-500" />
+                          <FileText className="h-8 w-8 text-destructive" />
                           <p className="text-xs text-muted-foreground">
                             PDF Document
                           </p>

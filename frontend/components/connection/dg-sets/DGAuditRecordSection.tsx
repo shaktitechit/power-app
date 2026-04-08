@@ -119,10 +119,10 @@ function toDateInput(value?: string | null) {
 }
 
 const editableInputClass =
-  "bg-white border border-gray-300 text-black focus:border-primary focus:ring-1 focus:ring-primary";
+  "border-input bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary";
 
 const autoInputClass =
-  "bg-white border border-dashed border-gray-400 text-black cursor-not-allowed opacity-90";
+  "cursor-not-allowed border border-dashed border-border bg-muted/50 text-muted-foreground opacity-90";
 
 const getInputClass = (disabled: boolean) =>
   disabled ? autoInputClass : editableInputClass;
@@ -1203,10 +1203,10 @@ export function DGAuditRecordSection({
                   disabled
                   className={getInputClass(!form.isEditing)}
                 />
-                <span className="text-xs text-gray-100 flex justify-center">
+                <span className="flex justify-center text-xs text-muted-foreground">
                   From {fromDate} - To {toDate}
                 </span>
-                <span className="text-xs text-gray-100 flex justify-center">
+                <span className="flex justify-center text-xs text-muted-foreground">
                   *this data is calculated on the basis of utility billing
                   records. Please fill 1 year data to get accurate data.
                 </span>

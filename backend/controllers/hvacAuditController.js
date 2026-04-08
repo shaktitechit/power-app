@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import HVACAudit from "../modals/hvacAudit.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -11,12 +12,16 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload HVAC audit documents
-const uploadHVACDocuments = async (files = []) => {
+const uploadHVACDocuments = async (files = [], auditId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "hvac-audits");
+      const uploaded = await uploadBufferToFileManagement(
+        file,
+        "hvac-audits",
+        auditId,
+      );
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -312,9 +317,14 @@ const createHVACAudit = asyncHandler(async (req, res) => {
     summary,
   } = normalizeHVACAuditPayload(req.body);
 
-  const uploadedDocuments = await uploadHVACDocuments(req.files || []);
+  const hvacAuditId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadHVACDocuments(
+    req.files || [],
+    hvacAuditId,
+  );
 
   const hvacAudit = await HVACAudit.create({
+    _id: hvacAuditId,
     facility_id,
     utility_account_id,
     pre_audit_information,
@@ -505,7 +515,10 @@ const updateHVACAudit = asyncHandler(async (req, res) => {
   }
 
   const updatedFields = Object.keys(req.body || {});
-  const uploadedDocuments = await uploadHVACDocuments(req.files || []);
+  const uploadedDocuments = await uploadHVACDocuments(
+    req.files || [],
+    hvacAudit._id,
+  );
   const normalized = normalizeHVACAuditPayload(req.body);
 
   if (req.body.facility_id) {

@@ -9,17 +9,17 @@ export function PresenceStatusCell({
 }) {
   const styles = {
     online: {
-      dot: "bg-green-500",
-      text: "text-green-600",
+      dot: "bg-emerald-500",
+      text: "text-emerald-700 dark:text-emerald-400",
       label: "Online",
     },
     away: {
-      dot: "bg-yellow-500",
-      text: "text-yellow-600",
+      dot: "bg-amber-500",
+      text: "text-amber-800 dark:text-amber-300",
       label: "Away",
     },
     offline: {
-      dot: "bg-gray-400",
+      dot: "bg-muted-foreground",
       text: "text-muted-foreground",
       label: "Offline",
     },

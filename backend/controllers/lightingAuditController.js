@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import LightingAuditRecord from "../modals/lightingAuditRecord.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -11,11 +12,15 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload documents
-const uploadLightingDocuments = async (files = []) => {
+const uploadLightingDocuments = async (files = [], recordId) => {
   const docs = [];
 
   for (const file of files || []) {
-    const uploaded = await uploadBufferToCloudinary(file, "lighting-audits");
+    const uploaded = await uploadBufferToFileManagement(
+      file,
+      "lighting-audits",
+      recordId,
+    );
 
     docs.push({
       fileUrl: uploaded.secure_url,
@@ -128,9 +133,11 @@ const createLightingAuditRecord = asyncHandler(async (req, res) => {
   let payload = { ...req.body };
   payload = computeValues(payload);
 
-  const docs = await uploadLightingDocuments(req.files || []);
+  const recordId = new mongoose.Types.ObjectId();
+  const docs = await uploadLightingDocuments(req.files || [], recordId);
 
   const record = await LightingAuditRecord.create({
+    _id: recordId,
     ...payload,
     documents: docs,
   });
@@ -299,7 +306,7 @@ const updateLightingAuditRecord = asyncHandler(async (req, res) => {
 
   Object.assign(record, payload);
 
-  const docs = await uploadLightingDocuments(req.files || []);
+  const docs = await uploadLightingDocuments(req.files || [], record._id);
 
   if (docs.length > 0) {
     record.documents.push(...docs);

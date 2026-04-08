@@ -1,106 +1,165 @@
 import PDFDocument from "pdfkit";
+import {
+  drawCoverPage,
+  drawFacilityInfoPage,
+  drawMinimalCoverFromMeta,
+} from "./drawCoverFacility.js";
+import { drawSectionTitle, drawPageFooter } from "./drawPrimitives.js";
+import { drawDataTable, drawSummaryObject } from "./drawTables.js";
+import { renderPdfSection } from "./renderPdfSection.js";
+import { shouldSkipRowKey, toLabel } from "./formatting.js";
+import { PDF_THEME } from "./styles.js";
 
-const toLabel = (key) =>
-  String(key || "")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+const dedupeSectionsByTitle = (sections = []) => {
+  const seen = new Set();
+  const result = [];
 
-const formatValue = (value) => {
-  if (value === null || value === undefined) return "";
-  if (value instanceof Date) return value.toISOString();
-  if (Array.isArray(value)) {
-    return value
-      .map((item) =>
-        typeof item === "object" ? JSON.stringify(item) : String(item),
-      )
-      .join(", ");
-  }
-  if (typeof value === "object") {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
-  }
-  return String(value);
-};
+  sections.forEach((section) => {
+    if (!section) return;
 
-const writeMeta = (doc, reportData) => {
-  doc.fontSize(18).text(reportData?.meta?.title || "Report");
-  doc.moveDown(0.5);
-  doc
-    .fontSize(11)
-    .text(`Scope: ${formatValue(reportData?.meta?.report_scope)}`);
-  doc.fontSize(11).text(`Type: ${formatValue(reportData?.meta?.report_type)}`);
-  doc
-    .fontSize(11)
-    .text(
-      `Generated: ${
-        reportData?.meta?.generated_at
-          ? new Date(reportData.meta.generated_at).toISOString()
-          : new Date().toISOString()
-      }`,
-    );
-};
-
-const writeSummary = (doc, summary = {}) => {
-  const entries = Object.entries(summary || {});
-  if (!entries.length) return;
-
-  doc.moveDown();
-  doc.fontSize(13).text("Summary");
-  doc.moveDown(0.3);
-
-  entries.forEach(([key, value]) => {
-    doc.fontSize(10).text(`${toLabel(key)}: ${formatValue(value)}`);
-  });
-};
-
-const writeSection = (doc, title, items = []) => {
-  if (!Array.isArray(items) || !items.length) return;
-
-  doc.addPage();
-  doc.fontSize(14).text(title);
-  doc.moveDown(0.5);
-
-  items.forEach((item, index) => {
-    doc.fontSize(11).text(`${title} #${index + 1}`);
-    doc.moveDown(0.2);
-
-    const entries = Object.entries(item || {});
-
-    entries.slice(0, 20).forEach(([key, value]) => {
-      doc.fontSize(9).text(`- ${toLabel(key)}: ${formatValue(value)}`);
+    const title = String(section.title || section.key || "Section").trim();
+    const signature = JSON.stringify({
+      title,
+      sections: Array.isArray(section.sections)
+        ? section.sections.map((s) => s?.heading || "")
+        : [],
+      itemsLength: Array.isArray(section.items) ? section.items.length : 0,
+      blocksLength: Array.isArray(section.blocks) ? section.blocks.length : 0,
     });
 
-    doc.moveDown(0.5);
+    if (seen.has(signature)) return;
+    seen.add(signature);
+    result.push(section);
   });
+
+  return result;
 };
 
-const toPdfBuffer = (doc) =>
-  new Promise((resolve, reject) => {
-    const chunks = [];
-    doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-    doc.end();
-  });
+const collectDynamicSections = (reportData) => {
+  const raw = [
+    ...(Array.isArray(reportData?.sections) ? reportData.sections : []),
+    ...(Array.isArray(reportData?.sheet_sections)
+      ? reportData.sheet_sections
+      : []),
+    reportData?.hvac_sheet,
+    reportData?.ac_sheet,
+    reportData?.dg_sheet,
+    reportData?.transformer_sheet,
+    reportData?.pump_sheet,
+  ].filter(Boolean);
+
+  return dedupeSectionsByTitle(raw);
+};
+
+const drawFallbackFlatSection = (doc, theme, title, items) => {
+  if (!Array.isArray(items) || !items.length) return;
+
+  let y = drawSectionTitle(doc, title, theme, doc.page.margins.top);
+  const first = items[0] || {};
+  const keys = Object.keys(first)
+    .filter((k) => !shouldSkipRowKey(k))
+    .slice(0, 18);
+
+  if (!keys.length) return;
+
+  const columns = keys.map((k) => ({ key: k, label: toLabel(k) }));
+  drawDataTable(doc, theme, y, null, columns, items);
+};
+
+const applyFooters = (doc, theme) => {
+  const range = doc.bufferedPageRange();
+  const start = range.start ?? 0;
+  const count = range.count ?? 0;
+  for (let i = 0; i < count; i++) {
+    doc.switchToPage(start + i);
+    drawPageFooter(doc, i, count, theme);
+  }
+};
 
 export const generatePdfReport = async ({ reportData }) => {
-  const doc = new PDFDocument({ margin: 40, size: "A4" });
+  const theme = PDF_THEME;
+  const doc = new PDFDocument({
+    size: theme.page.size,
+    margin: theme.page.margin,
+    bufferPages: true,
+    autoFirstPage: true,
+  });
 
-  writeMeta(doc, reportData);
-  writeSummary(doc, reportData?.summary || {});
+  const chunks = [];
+  doc.on("data", (chunk) => chunks.push(chunk));
 
-  writeSection(doc, "Utility Accounts", reportData?.utility_accounts || []);
-  writeSection(doc, "Tariffs", reportData?.tariffs || []);
-  writeSection(doc, "Billing Records", reportData?.billing_records || []);
-  writeSection(doc, "Solar Records", reportData?.solar_systems || []);
-  writeSection(doc, "DG Records", reportData?.dg_sets || []);
-  writeSection(doc, "Transformer Records", reportData?.transformers || []);
-  writeSection(doc, "Pump Records", reportData?.pumps || []);
+  const bufferPromise = new Promise((resolve, reject) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
 
-  return toPdfBuffer(doc);
+  const meta = reportData?.meta || {};
+
+  if (reportData?.cover) {
+    drawCoverPage(doc, reportData.cover, meta, theme);
+  } else {
+    drawMinimalCoverFromMeta(doc, meta, theme);
+  }
+
+  const dynamicSections = collectDynamicSections(reportData);
+
+  if (reportData?.facility_info) {
+    doc.addPage();
+    drawFacilityInfoPage(doc, reportData.facility_info, theme);
+  }
+
+  const hasTopSummary =
+    reportData?.summary &&
+    typeof reportData.summary === "object" &&
+    Object.keys(reportData.summary).length > 0;
+
+  if (hasTopSummary) {
+    doc.addPage();
+    let y = drawSectionTitle(
+      doc,
+      "Executive overview",
+      theme,
+      doc.page.margins.top,
+    );
+    drawSummaryObject(doc, theme, y, "Facility snapshot", reportData.summary);
+  }
+
+  if (dynamicSections.length) {
+    dynamicSections.forEach((section) => {
+      doc.addPage();
+      renderPdfSection(doc, section, theme);
+    });
+  } else {
+    const fallbacks = [
+      ["Utility accounts", reportData?.utility_accounts],
+      ["Tariffs", reportData?.tariffs],
+      ["Billing records", reportData?.billing_records],
+      ["Solar systems", reportData?.solar_systems],
+      ["DG sets", reportData?.dg_sets],
+      ["Transformers", reportData?.transformers],
+      ["Pumps", reportData?.pumps],
+      ["HVAC records", reportData?.hvac_records],
+      ["AC records", reportData?.ac_records],
+      ["Fan records", reportData?.fan_records],
+      ["Lighting records", reportData?.lighting_records],
+      ["Lux records", reportData?.lux_records],
+      ["Misc records", reportData?.misc_records],
+      ["Recommendations", reportData?.recommendations],
+    ];
+
+    for (const [title, items] of fallbacks) {
+      if (Array.isArray(items) && items.length) {
+        doc.addPage();
+        drawFallbackFlatSection(doc, theme, title, items);
+      }
+    }
+  }
+
+  applyFooters(doc, theme);
+  doc.flushPages();
+  doc.end();
+
+  return bufferPromise;
 };
 
 export default generatePdfReport;

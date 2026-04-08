@@ -1,15 +1,16 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import FanAuditRecord from "../modals/fanAuditRecord.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
 const isAdmin = (user) => user?.role === "admin";
 
-const uploadFanDocuments = async (files = []) => {
+const uploadFanDocuments = async (files = [], recordId) => {
   const docs = [];
 
   if (!Array.isArray(files) || files.length === 0) {
@@ -19,7 +20,11 @@ const uploadFanDocuments = async (files = []) => {
   for (const file of files) {
     if (!file) continue;
 
-    const uploaded = await uploadBufferToCloudinary(file, "fan-audits");
+    const uploaded = await uploadBufferToFileManagement(
+      file,
+      "fan-audits",
+      recordId,
+    );
 
     docs.push({
       fileUrl: uploaded.secure_url,
@@ -136,9 +141,11 @@ const createFanAuditRecord = asyncHandler(async (req, res) => {
   let payload = { ...req.body };
   payload = computeValues(payload);
 
-  const docs = await uploadFanDocuments(req.files || []);
+  const recordId = new mongoose.Types.ObjectId();
+  const docs = await uploadFanDocuments(req.files || [], recordId);
 
   const record = await FanAuditRecord.create({
+    _id: recordId,
     ...payload,
     auditor_id: req.user?._id || payload.auditor_id,
     documents: docs,
@@ -298,7 +305,7 @@ const updateFanAuditRecord = asyncHandler(async (req, res) => {
 
   Object.assign(record, payload);
 
-  const docs = await uploadFanDocuments(req.files || []);
+  const docs = await uploadFanDocuments(req.files || [], record._id);
   if (docs.length > 0) {
     record.documents.push(...docs);
     updatedFields.push("documents");

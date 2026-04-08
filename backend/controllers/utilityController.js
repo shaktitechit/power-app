@@ -1,8 +1,9 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
 import UtilityAccount from "../modals/utilityAccount.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
@@ -11,12 +12,16 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // helper: upload documents
-const uploadUtilityDocuments = async (files = []) => {
+const uploadUtilityDocuments = async (files = [], utilityAccountId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "utility-accounts");
+      const uploaded = await uploadBufferToFileManagement(
+        file,
+        "utility-accounts",
+        utilityAccountId,
+      );
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -101,9 +106,14 @@ const createUtilityAccount = asyncHandler(async (req, res) => {
     throw new Error("Utility account already exists for this facility");
   }
 
-  const uploadedDocuments = await uploadUtilityDocuments(req.files);
+  const utilityAccountId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadUtilityDocuments(
+    req.files,
+    utilityAccountId,
+  );
 
   const utilityAccount = await UtilityAccount.create({
+    _id: utilityAccountId,
     facility_id,
     account_number: account_number.trim(),
     connection_type,
@@ -282,7 +292,10 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
     }
   }
 
-  const uploadedDocuments = await uploadUtilityDocuments(req.files);
+  const uploadedDocuments = await uploadUtilityDocuments(
+    req.files,
+    utilityAccount._id,
+  );
 
   const updatedFields = Object.keys(req.body || {});
 

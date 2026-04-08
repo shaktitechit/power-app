@@ -352,7 +352,7 @@ export function CreateFacilityWizard({
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute right-2 top-2 rounded-md bg-black/70 px-2 py-1 text-xs text-white"
+                      className="absolute right-2 top-2 rounded-md bg-foreground/80 px-2 py-1 text-xs text-background"
                     >
                       Remove
                     </button>

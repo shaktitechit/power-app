@@ -242,8 +242,8 @@ export default function ConnectionDetailsPage() {
                     <span
                       className={`text-right font-medium ${
                         utilityAccount.is_active
-                          ? "text-green-600"
-                          : "text-red-600"
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : "text-destructive"
                       }`}
                     >
                       {utilityAccount.is_active ? "Active" : "Inactive"}
@@ -288,7 +288,7 @@ export default function ConnectionDetailsPage() {
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
                       utilityAccount.is_solar_connected
-                        ? "bg-yellow-100 text-yellow-800"
+                        ? "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -301,7 +301,7 @@ export default function ConnectionDetailsPage() {
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
                       utilityAccount.is_dg_connected
-                        ? "bg-blue-100 text-blue-800"
+                        ? "bg-blue-100 text-blue-900 dark:bg-blue-500/20 dark:text-blue-200"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -314,7 +314,7 @@ export default function ConnectionDetailsPage() {
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
                       utilityAccount.is_transformer_connected
-                        ? "bg-purple-100 text-purple-800"
+                        ? "bg-purple-100 text-purple-900 dark:bg-purple-500/20 dark:text-purple-200"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -327,7 +327,7 @@ export default function ConnectionDetailsPage() {
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
                       utilityAccount.is_pump_connected
-                        ? "bg-cyan-100 text-cyan-800"
+                        ? "bg-cyan-100 text-cyan-900 dark:bg-cyan-500/20 dark:text-cyan-200"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -449,7 +449,7 @@ export default function ConnectionDetailsPage() {
                             rel="noreferrer"
                             className="flex h-32 flex-col items-center justify-center gap-2"
                           >
-                            <FileText className="h-8 w-8 text-red-500" />
+                            <FileText className="h-8 w-8 text-destructive" />
                             <p className="text-xs text-muted-foreground">PDF</p>
                           </a>
                         )}

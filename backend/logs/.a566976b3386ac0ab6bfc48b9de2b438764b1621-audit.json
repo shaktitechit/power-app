@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\.a566976b3386ac0ab6bfc48b9de2b438764b1621-audit.json",
+    "files": [
+        {
+            "date": 1775150667989,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\rejections-2026-04-02.log",
+            "hash": "5a34d0a9599582532792eaf0afbe9d56d04cbc1015995679ebb91ecdec964495"
+        },
+        {
+            "date": 1775195090472,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\rejections-2026-04-03.log",
+            "hash": "e687e9d7eb2ffe213b352f1f87d9ed64750cc5e7940957eb5ddef902aaad134a"
+        }
+    ],
+    "hashType": "sha256"
+}

@@ -85,9 +85,6 @@ const registerUser = asyncHandler(async (req, res) => {
   user = new User({ name, email, password });
   await user.save();
 
-  generateToken(res, user._id);
-  generateRole(res, user.role);
-
   res.status(201).json({
     user: {
       _id: user._id,

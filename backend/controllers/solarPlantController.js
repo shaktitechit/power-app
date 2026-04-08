@@ -1,9 +1,10 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import SolarPlant from "../modals/solarPlant.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
@@ -12,12 +13,16 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload plant documents
-const uploadSolarPlantDocuments = async (files = []) => {
+const uploadSolarPlantDocuments = async (files = [], solarPlantId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "solar-plants");
+      const uploaded = await uploadBufferToFileManagement(
+        file,
+        "solar-plants",
+        solarPlantId,
+      );
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -94,9 +99,14 @@ const createSolarPlant = asyncHandler(async (req, res) => {
     throw new Error("utility_account_id does not belong to the given facility");
   }
 
-  const uploadedDocuments = await uploadSolarPlantDocuments(req.files);
+  const solarPlantId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadSolarPlantDocuments(
+    req.files,
+    solarPlantId,
+  );
 
   const solarPlant = await SolarPlant.create({
+    _id: solarPlantId,
     facility_id,
     utility_account_id,
     plant_name,
@@ -275,7 +285,10 @@ const updateSolarPlant = asyncHandler(async (req, res) => {
   }
 
   const updatedFields = Object.keys(req.body || {});
-  const uploadedDocuments = await uploadSolarPlantDocuments(req.files);
+  const uploadedDocuments = await uploadSolarPlantDocuments(
+    req.files,
+    solarPlant._id,
+  );
 
   Object.keys(req.body).forEach((key) => {
     solarPlant[key] = req.body[key] ?? solarPlant[key];

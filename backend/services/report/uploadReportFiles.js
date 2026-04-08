@@ -1,4 +1,4 @@
-import { uploadBufferToCloudinary } from "../../utils/cloudinaryUploadStream.js";
+import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.js";
 
 const throwError = (message, statusCode = 500) => {
   const error = new Error(message);
@@ -12,7 +12,7 @@ const createUploadFile = (generatedFile) => ({
   buffer: generatedFile.buffer,
 });
 
-const mapCloudinaryFile = (result, fallbackFileName, fileType) => ({
+const mapUploadedFile = (result, fallbackFileName, fileType) => ({
   fileUrl: result?.secure_url || "",
   fileName: fallbackFileName,
   fileType,
@@ -26,15 +26,20 @@ export const uploadReportFiles = async ({ report, generatedFiles }) => {
     throwError("generatedFiles is required in uploadReportFiles");
   }
 
+  const resourceId = report._id;
+  if (!resourceId) {
+    throwError("report must have _id before uploadReportFiles");
+  }
+
   const uploads = {};
 
   if (generatedFiles.excel?.buffer) {
-    const excelUpload = await uploadBufferToCloudinary(
+    const excelUpload = await uploadBufferToFileManagement(
       createUploadFile(generatedFiles.excel),
       "reports/excel",
-      "raw",
+      resourceId,
     );
-    uploads.excel_file = mapCloudinaryFile(
+    uploads.excel_file = mapUploadedFile(
       excelUpload,
       generatedFiles.excel.fileName,
       "xlsx",
@@ -42,12 +47,12 @@ export const uploadReportFiles = async ({ report, generatedFiles }) => {
   }
 
   if (generatedFiles.pdf?.buffer) {
-    const pdfUpload = await uploadBufferToCloudinary(
+    const pdfUpload = await uploadBufferToFileManagement(
       createUploadFile(generatedFiles.pdf),
       "reports/pdf",
-      "raw",
+      resourceId,
     );
-    uploads.pdf_file = mapCloudinaryFile(
+    uploads.pdf_file = mapUploadedFile(
       pdfUpload,
       generatedFiles.pdf.fileName,
       "pdf",

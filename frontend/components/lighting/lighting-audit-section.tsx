@@ -82,10 +82,10 @@ type LightingAuditFormState = {
   newDocuments: File[];
 };
 const editableInputClass =
-  "bg-white border border-gray-300 text-black focus:border-primary focus:ring-1 focus:ring-primary";
+  "border-input bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary";
 
 const autoInputClass =
-  "bg-gray-100 border border-dashed border-gray-400 text-gray-700 cursor-not-allowed";
+  "cursor-not-allowed border border-dashed border-border bg-muted text-muted-foreground";
 
 const getInputClass = (disabled: boolean) =>
   disabled ? autoInputClass : editableInputClass;
@@ -409,7 +409,7 @@ export function LightingAuditSection({
       </div>
 
       {backendError && (
-        <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {backendError}
         </div>
       )}
@@ -695,9 +695,9 @@ export function LightingAuditSection({
                           className="flex items-center gap-3 rounded-lg border p-3 text-sm hover:bg-muted/50"
                         >
                           {doc.fileType === "pdf" ? (
-                            <FileText className="h-4 w-4 text-red-500" />
+                            <FileText className="h-4 w-4 text-destructive" />
                           ) : (
-                            <ImageIcon className="h-4 w-4 text-blue-500" />
+                            <ImageIcon className="h-4 w-4 text-primary" />
                           )}
                           <span className="truncate">
                             {doc.fileName || `Document ${idx + 1}`}
@@ -740,9 +740,9 @@ export function LightingAuditSection({
                         >
                           <div className="min-w-0 flex items-center gap-3">
                             {file.type === "application/pdf" ? (
-                              <FileText className="h-4 w-4 shrink-0 text-red-500" />
+                              <FileText className="h-4 w-4 shrink-0 text-destructive" />
                             ) : (
-                              <ImageIcon className="h-4 w-4 shrink-0 text-blue-500" />
+                              <ImageIcon className="h-4 w-4 shrink-0 text-primary" />
                             )}
                             <span className="truncate">{file.name}</span>
                           </div>

@@ -1,10 +1,11 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import DGAuditRecord from "../modals/dgAuditRecord.js";
 import DGSet from "../modals/dgSet.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -12,12 +13,16 @@ import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 const isAdmin = (user) => user?.role === "admin";
 
 // 📂 Upload DG audit documents
-const uploadDGAuditDocuments = async (files = []) => {
+const uploadDGAuditDocuments = async (files = [], recordId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "dg-audit-records");
+      const uploaded = await uploadBufferToFileManagement(
+        file,
+        "dg-audit-records",
+        recordId,
+      );
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -157,9 +162,14 @@ const createDGAuditRecord = asyncHandler(async (req, res) => {
     throw new Error("dg_set_id does not belong to the given facility");
   }
 
-  const uploadedDocuments = await uploadDGAuditDocuments(req.files);
+  const dgAuditRecordId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadDGAuditDocuments(
+    req.files,
+    dgAuditRecordId,
+  );
 
   const dgAuditRecord = await DGAuditRecord.create({
+    _id: dgAuditRecordId,
     dg_set_id,
     utility_account_id,
     facility_id,
@@ -425,7 +435,10 @@ const updateDGAuditRecord = asyncHandler(async (req, res) => {
     }
   }
 
-  const uploadedDocuments = await uploadDGAuditDocuments(req.files);
+  const uploadedDocuments = await uploadDGAuditDocuments(
+    req.files,
+    dgAuditRecord._id,
+  );
 
   Object.keys(req.body).forEach((key) => {
     dgAuditRecord[key] = req.body[key] ?? dgAuditRecord[key];

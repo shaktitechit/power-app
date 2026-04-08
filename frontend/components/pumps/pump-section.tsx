@@ -450,7 +450,7 @@ export function PumpSection({
                           <Button
                             size="sm"
                             disabled={!form.id}
-                            className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                            className="bg-warning text-warning-foreground hover:bg-warning/90"
                             onClick={() =>
                               router.push(
                                 `/facility/${facilityId}/utility-account/${utilityAccountId}/pump-audit/${form.id}`,

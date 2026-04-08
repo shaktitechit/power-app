@@ -1,7 +1,8 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
+import mongoose from "mongoose";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 
@@ -25,12 +26,16 @@ const parseAuditorIds = (auditor_ids) => {
 };
 
 // helper: upload documents
-const uploadFacilityDocuments = async (files = []) => {
+const uploadFacilityDocuments = async (files = [], facilityId) => {
   const uploadedDocuments = [];
 
   if (files && files.length > 0) {
     for (const file of files) {
-      const uploaded = await uploadBufferToCloudinary(file, "facilities");
+      const uploaded = await uploadBufferToFileManagement(
+        file,
+        "facilities",
+        facilityId,
+      );
 
       uploadedDocuments.push({
         fileUrl: uploaded.secure_url,
@@ -69,9 +74,14 @@ const createFacility = asyncHandler(async (req, res) => {
   }
 
   const parsedAuditorIds = parseAuditorIds(auditor_ids);
-  const uploadedDocuments = await uploadFacilityDocuments(req.files);
+  const facilityId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadFacilityDocuments(
+    req.files,
+    facilityId,
+  );
 
   const facility = await Facility.create({
+    _id: facilityId,
     owner_user_id: req.user._id,
     created_by: req.user._id,
     name,
@@ -258,7 +268,10 @@ const updateFacility = asyncHandler(async (req, res) => {
   }
 
   const parsedAuditorIds = parseAuditorIds(auditor_ids);
-  const uploadedDocuments = await uploadFacilityDocuments(req.files);
+  const uploadedDocuments = await uploadFacilityDocuments(
+    req.files,
+    facility._id,
+  );
   const updatedFields = Object.keys(req.body || {});
 
   facility.name = name ?? facility.name;

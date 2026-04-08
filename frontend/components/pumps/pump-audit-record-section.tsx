@@ -80,16 +80,16 @@ type PumpAuditFormState = {
 };
 
 const editableInputClass =
-  "bg-white border border-gray-300 text-black focus:border-primary focus:ring-1 focus:ring-primary";
+  "border-input bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary";
 
 const autoInputClass =
-  "bg-white border border-dashed border-gray-400 text-black cursor-not-allowed opacity-90";
+  "cursor-not-allowed border border-dashed border-border bg-muted/50 text-muted-foreground opacity-90";
 
 const selectClass =
-  "flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-black focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-90";
+  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-90";
 
 const textareaClass =
-  "flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-black focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-90";
+  "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-90";
 
 const getInputClass = (disabled: boolean) =>
   disabled ? autoInputClass : editableInputClass;
