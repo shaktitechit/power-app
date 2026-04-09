@@ -50,6 +50,12 @@ type Auditor = {
   email: string;
 };
 
+type ClientRepresentative = {
+  name: string;
+  contact_number: string;
+  email: string;
+};
+
 const facilityTypes = [
   "hospital",
   "hotel",
@@ -204,9 +210,10 @@ export function CreateFacilityForm({
     name: "",
     city: "",
     address: "",
-    client_representative: "",
-    client_contact_number: "",
-    client_email: "",
+    start_date: "",
+    client_representatives: [
+      { name: "", contact_number: "", email: "" },
+    ] as ClientRepresentative[],
     facility_type: "other",
     status: "active",
     auditor_ids: [] as string[],
@@ -232,9 +239,8 @@ export function CreateFacilityForm({
       name: "",
       city: "",
       address: "",
-      client_representative: "",
-      client_contact_number: "",
-      client_email: "",
+      start_date: "",
+      client_representatives: [{ name: "", contact_number: "", email: "" }],
       facility_type: "other",
       status: "active",
       auditor_ids: [],
@@ -299,17 +305,27 @@ export function CreateFacilityForm({
       return;
     }
 
+    const sanitizedReps = formData.client_representatives
+      .map((rep) => ({
+        name: rep.name.trim(),
+        contact_number: rep.contact_number.trim(),
+        email: rep.email.trim(),
+      }))
+      .filter((rep) => rep.name || rep.contact_number || rep.email);
+    const primaryRep = sanitizedReps[0];
+
     await toastHandler({
       action: () =>
         createFacility({
           name: formData.name.trim(),
           city: formData.city.trim(),
           address: formData.address.trim() || undefined,
-          client_representative:
-            formData.client_representative.trim() || undefined,
-          client_contact_number:
-            formData.client_contact_number.trim() || undefined,
-          client_email: formData.client_email.trim() || undefined,
+          start_date: formData.start_date || undefined,
+          client_representatives: sanitizedReps,
+          // Backward compatible payload (existing backend consumers may still use old fields)
+          client_representative: primaryRep?.name || undefined,
+          client_contact_number: primaryRep?.contact_number || undefined,
+          client_email: primaryRep?.email || undefined,
           facility_type: formData.facility_type as
             | "hospital"
             | "hotel"
@@ -413,6 +429,16 @@ export function CreateFacilityForm({
               </Select>
             </div>
             <div className="space-y-2">
+              <Label>Start Date</Label>
+              <Input
+                type="date"
+                value={formData.start_date}
+                onChange={(e) => updateField("start_date", e.target.value)}
+                disabled={creatingFacility}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label>Planned Closure Date</Label>
               <Input
                 type="date"
@@ -451,48 +477,111 @@ export function CreateFacilityForm({
 
           <div className="space-y-3">
             <h3 className="text-sm font-medium">Client Information</h3>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="client_representative">
-                  Client Representative
-                </Label>
-                <Input
-                  id="client_representative"
-                  placeholder="Enter representative name"
-                  value={formData.client_representative}
-                  onChange={(e) =>
-                    updateField("client_representative", e.target.value)
-                  }
-                  disabled={creatingFacility}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="client_contact_number">Contact Number</Label>
-                <Input
-                  id="client_contact_number"
-                  type="tel"
-                  placeholder="Enter contact number"
-                  value={formData.client_contact_number}
-                  onChange={(e) =>
-                    updateField("client_contact_number", e.target.value)
-                  }
-                  disabled={creatingFacility}
-                />
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="client_email">Client Email</Label>
-                <Input
-                  id="client_email"
-                  type="email"
-                  placeholder="Enter email"
-                  value={formData.client_email}
-                  onChange={(e) => updateField("client_email", e.target.value)}
-                  disabled={creatingFacility}
-                />
-              </div>
+            <div className="space-y-4">
+              {formData.client_representatives.map((rep, index) => (
+                <div
+                  key={`client-rep-${index}`}
+                  className="rounded-lg border border-border p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-medium">
+                      Representative {index + 1}
+                    </p>
+                    {formData.client_representatives.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            client_representatives:
+                              prev.client_representatives.filter(
+                                (_, i) => i !== index,
+                              ),
+                          }))
+                        }
+                        disabled={creatingFacility}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Name</Label>
+                      <Input
+                        placeholder="Enter representative name"
+                        value={rep.name}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            client_representatives:
+                              prev.client_representatives.map((r, i) =>
+                                i === index ? { ...r, name: e.target.value } : r,
+                              ),
+                          }))
+                        }
+                        disabled={creatingFacility}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Contact Number</Label>
+                      <Input
+                        type="tel"
+                        placeholder="Enter contact number"
+                        value={rep.contact_number}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            client_representatives:
+                              prev.client_representatives.map((r, i) =>
+                                i === index
+                                  ? { ...r, contact_number: e.target.value }
+                                  : r,
+                              ),
+                          }))
+                        }
+                        disabled={creatingFacility}
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        placeholder="Enter email"
+                        value={rep.email}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            client_representatives:
+                              prev.client_representatives.map((r, i) =>
+                                i === index ? { ...r, email: e.target.value } : r,
+                              ),
+                          }))
+                        }
+                        disabled={creatingFacility}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    client_representatives: [
+                      ...prev.client_representatives,
+                      { name: "", contact_number: "", email: "" },
+                    ],
+                  }))
+                }
+                disabled={creatingFacility}
+              >
+                Add Client Representative
+              </Button>
             </div>
           </div>
 

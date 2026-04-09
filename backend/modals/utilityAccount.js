@@ -25,6 +25,11 @@ const utilityAccountSchema = new mongoose.Schema(
       trim: true,
     },
 
+    location: {
+      type: String,
+      trim: true,
+    },
+
     sanctioned_demand_kVA: {
       type: Number,
       min: 0,

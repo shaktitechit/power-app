@@ -42,6 +42,29 @@ const facilitySchema = new mongoose.Schema(
       match: [/.+\@.+\..+/, "Please enter a valid email"],
     },
 
+    start_date: {
+      type: Date,
+    },
+
+    client_representatives: [
+      {
+        name: {
+          type: String,
+          trim: true,
+        },
+        contact_number: {
+          type: String,
+          trim: true,
+          match: [/^[6-9]\d{9}$/, "Please enter a valid phone number"],
+        },
+        email: {
+          type: String,
+          trim: true,
+          match: [/.+\@.+\..+/, "Please enter a valid email"],
+        },
+      },
+    ],
+
     facility_type: {
       type: String,
       enum: ["hospital", "hotel", "factory", "office", "mall", "other"],

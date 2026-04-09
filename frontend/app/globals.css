@@ -4,6 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --app-font-scale: 1;
   --background: oklch(0.985 0.003 285);
   --foreground: oklch(0.2 0.02 285);
   --card: oklch(1 0 0);
@@ -128,6 +129,9 @@
 }
 
 @layer base {
+  html {
+    font-size: calc(16px * var(--app-font-scale));
+  }
   * {
     @apply border-border outline-ring/50;
   }

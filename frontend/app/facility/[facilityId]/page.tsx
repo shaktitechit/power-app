@@ -47,9 +47,8 @@ export default function FacilityWorkspacePage() {
   const facilityId = params.facilityId as string;
 
   const [editOpen, setEditOpen] = useState(false);
-  const [selectedUtilityAccount, setSelectedUtilityAccount] = useState<
-    UtilityAccount | string | null
-  >(null);
+  const [selectedUtilityAccount, setSelectedUtilityAccount] =
+    useState<UtilityAccount | null>(null);
   const [isConnectionWizardOpen, setIsConnectionWizardOpen] = useState(false);
 
   const [deleteUtilityAccount] = useDeleteUtilityAccountMutation();
@@ -67,6 +66,16 @@ export default function FacilityWorkspacePage() {
 
   const facility = data?.data?.facility;
   const assignedAuditors = data?.data?.assignedAuditors ?? [];
+  const clientRepresentatives =
+    facility?.client_representatives && facility.client_representatives.length > 0
+      ? facility.client_representatives
+      : [
+          {
+            name: facility?.client_representative || "",
+            contact_number: facility?.client_contact_number || "",
+            email: facility?.client_email || "",
+          },
+        ].filter((rep) => rep.name || rep.contact_number || rep.email);
 
   const tabs = useMemo(
     () => [
@@ -226,6 +235,8 @@ export default function FacilityWorkspacePage() {
     setSelectedUtilityAccount(null);
   };
 
+  const UtilityAccountsTable = DataTable as any;
+
   return (
     <DashboardLayout
       title={facility.name}
@@ -304,6 +315,15 @@ export default function FacilityWorkspacePage() {
                   </div>
 
                   <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Start Date</span>
+                    <span className="text-right text-foreground">
+                      {facility?.start_date
+                        ? new Date(facility.start_date).toLocaleDateString()
+                        : "-"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Closure Date</span>
                     <span className="text-right text-foreground">
                       {facility?.closure_date
@@ -319,7 +339,11 @@ export default function FacilityWorkspacePage() {
                         facility?.auditor_id?.email ||
                         (assignedAuditors?.length
                           ? assignedAuditors
-                              .map((a) => a?.user_id?.name || a?.user_id?.email)
+                              .map((a) => {
+                                const userInfo = a?.user_id;
+                                if (!userInfo || typeof userInfo === "string") return "";
+                                return userInfo.name || userInfo.email || "";
+                              })
                               .filter(Boolean)
                               .join(", ")
                           : "-")}
@@ -360,26 +384,44 @@ export default function FacilityWorkspacePage() {
               </CardHeader>
 
               <CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
-                <div className="flex items-center gap-3">
-                  <User className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-foreground">
-                    {facility?.client_representative || "-"}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-foreground">
-                    {facility?.client_email || "-"}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="text-foreground">
-                    {facility?.client_contact_number || "-"}
-                  </span>
-                </div>
+                {clientRepresentatives.length > 0 ? (
+                  <div className="space-y-3">
+                    {clientRepresentatives.map((rep, index) => (
+                      <div
+                        key={`client-rep-${index}`}
+                        className="rounded-lg border border-border bg-muted/20 p-3"
+                      >
+                        <div className="mb-2 text-xs font-medium text-muted-foreground">
+                          Representative {index + 1}
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <User className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="truncate text-foreground">
+                              {rep?.name || "-"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="truncate text-foreground">
+                              {rep?.email || "-"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Phone className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="text-foreground">
+                              {rep?.contact_number || "-"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No client representative details.
+                  </p>
+                )}
 
                 <div className="grid gap-3 border-t border-border pt-4 text-sm">
                   
@@ -438,7 +480,11 @@ export default function FacilityWorkspacePage() {
             </CardHeader>
 
             <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-              {facility?.documents?.length > 0 ? (
+              {!isAdmin ? (
+                <p className="text-sm text-muted-foreground">
+                  Documents are visible to admin users only.
+                </p>
+              ) : facility?.documents?.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {facility.documents.map((doc: any, index: number) => (
                     <div
@@ -516,10 +562,12 @@ export default function FacilityWorkspacePage() {
             </Button>
           </div>
 
-          <DataTable
+          <UtilityAccountsTable
             columns={UtilityAccountColumn}
             data={UtilityAccounts}
-            onRowClick={handleConnectionClick}
+            onRowClick={(row?: UtilityAccount) =>
+              row ? handleConnectionClick(row) : undefined
+            }
             emptyMessage="No connections found for this facility"
           />
         </div>

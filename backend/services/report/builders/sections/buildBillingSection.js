@@ -4,7 +4,10 @@ import UtilityAccount from "../../../../modals/utilityAccount.js";
 
 const normalizeText = (value) => {
   if (value === null || value === undefined) return "";
-  return String(value).trim();
+  return String(value)
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\u0000-\u001F\u007F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 };
 
 const normalizeNumber = (value) => {
@@ -517,6 +520,9 @@ const buildBillingGroups = ({ utilityAccounts = [], billingRecords = [] }) => {
 
 const buildGroupedSections = (billingGroups = [], overallSummary) => {
   const sections = [];
+  const groupsWithRecords = billingGroups.filter(
+    (group) => Array.isArray(group?.records) && group.records.length > 0,
+  );
 
   sections.push({
     heading: "Billing Accounts Summary",
@@ -534,7 +540,7 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
       "total_monthly_electricity_bill_rs",
       "grid_cost_per_kWh_rs",
     ],
-    rows: billingGroups.map((group) => ({
+    rows: groupsWithRecords.map((group) => ({
       sr_no: group.account.sr_no,
       account_number: group.account.account_number,
       connection_type: group.account.connection_type,
@@ -555,7 +561,7 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
     })),
   });
 
-  billingGroups.forEach((group) => {
+  groupsWithRecords.forEach((group) => {
     sections.push({
       heading: `${group.account.account_number || "Utility Account"} - Details`,
       columns: ["field", "value"],
@@ -718,52 +724,52 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         value: formatNumber(overallSummary.total_monthly_electricity_bill_rs),
       },
       {
-        metric: "Total Units (kWh)",
+        metric: "Total Units kWh",
         value: formatNumber(overallSummary.total_units_kWh),
       },
       {
-        metric: "Total Units (kVAh)",
+        metric: "Total Units kVAh",
         value: formatNumber(overallSummary.total_units_kVAh),
       },
       {
-        metric: "Total Fixed Charges (Rs)",
+        metric: "Total Fixed Charges Rs",
         value: formatNumber(overallSummary.total_fixed_charges_rs),
       },
       {
-        metric: "Total Energy Charges (Rs)",
+        metric: "Total Energy Charges Rs",
         value: formatNumber(overallSummary.total_energy_charges_rs),
       },
       {
-        metric: "Total Taxes and Rent (Rs)",
+        metric: "Total Taxes and Rent Rs",
         value: formatNumber(overallSummary.total_taxes_and_rent_rs),
       },
       {
-        metric: "Total Other Charges (Rs)",
+        metric: "Total Other Charges Rs",
         value: formatNumber(overallSummary.total_other_charges_rs),
       },
       {
-        metric: "Average Monthly Bill (Rs)",
+        metric: "Average Monthly Bill Rs",
         value:
           overallSummary.average_monthly_bill_rs !== null
             ? formatNumber(overallSummary.average_monthly_bill_rs)
             : "",
       },
       {
-        metric: "Average Units (kWh)",
+        metric: "Average Units kWh",
         value:
           overallSummary.average_units_kWh !== null
             ? formatNumber(overallSummary.average_units_kWh)
             : "",
       },
       {
-        metric: "Average Units (kVAh)",
+        metric: "Average Units kVAh",
         value:
           overallSummary.average_units_kVAh !== null
             ? formatNumber(overallSummary.average_units_kVAh)
             : "",
       },
       {
-        metric: "Average MDI (kVA)",
+        metric: "Average MDI kVA",
         value:
           overallSummary.average_mdi_kVA !== null
             ? formatNumber(overallSummary.average_mdi_kVA)
@@ -781,14 +787,14 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         value: overallSummary.latest_billing_period_end_label || "",
       },
       {
-        metric: "Grid Cost per kVAh (Rs)",
+        metric: "Grid Cost per kVAh Rs",
         value:
           overallSummary.grid_cost_per_kVAh_rs !== null
             ? formatNumber(overallSummary.grid_cost_per_kVAh_rs)
             : "",
       },
       {
-        metric: "Grid Cost per kWh (Rs)",
+        metric: "Grid Cost per kWh Rs",
         value:
           overallSummary.grid_cost_per_kWh_rs !== null
             ? formatNumber(overallSummary.grid_cost_per_kWh_rs)

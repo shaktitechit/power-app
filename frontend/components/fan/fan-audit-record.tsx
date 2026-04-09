@@ -30,6 +30,7 @@ import {
 } from "@/lib/fan-audit-record-excel";
 import { toastHandler } from "@/lib/toast";
 import { toast } from "sonner";
+import { useAppSelector } from "@/store/hooks";
 
 interface FanAuditRecordSectionProps {
   facilityId: string;
@@ -216,6 +217,8 @@ export function FanAuditRecordSection({
   facilityId,
   utilityAccountId,
 }: FanAuditRecordSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const { data, isLoading, refetch } = useGetFanAuditRecordsQuery({
     utility_account_id: utilityAccountId,
   });
@@ -795,7 +798,7 @@ export function FanAuditRecordSection({
               <div className="space-y-4">
                 <Label className="text-base">Documents</Label>
 
-                {form.existingDocuments.length > 0 && (
+                {canViewDocuments && form.existingDocuments.length > 0 && (
                   <div className="space-y-2">
                     <Label>Uploaded Documents</Label>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -819,6 +822,11 @@ export function FanAuditRecordSection({
                       ))}
                     </div>
                   </div>
+                )}
+                {!canViewDocuments && (
+                  <p className="text-sm text-muted-foreground">
+                    Existing documents are visible to admin users only.
+                  </p>
                 )}
 
                 <div className="space-y-2">

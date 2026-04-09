@@ -12,6 +12,8 @@ import {
   BarChart3,
   FileText,
   Users,
+  Mail,
+  Phone,
   ChevronLeft,
   ChevronRight,
   X,
@@ -175,6 +177,42 @@ export function Sidebar({
             );
           })}
         </nav>
+
+        {/* Support Widget */}
+        <div className="border-t border-sidebar-border p-3">
+          {(!isCollapsed || isMobileOpen) ? (
+            <div className="space-y-2 rounded-lg border border-sidebar-border/70 bg-sidebar-accent/40 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/80">
+                Support
+              </p>
+              <a
+                href="mailto:it@spspl.com"
+                className="flex items-center gap-2 text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground"
+              >
+                <Mail className="h-4 w-4 shrink-0" />
+                <span className="truncate">it@spspl.com</span>
+              </a>
+              <a
+                href="tel:6239284003"
+                className="flex items-center gap-2 text-sm text-sidebar-foreground/80 hover:text-sidebar-foreground"
+              >
+                <Phone className="h-4 w-4 shrink-0" />
+                <span>6239284003</span>
+              </a>
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <a
+                href="mailto:it@spspl.com"
+                className="rounded-md p-2 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                aria-label="Contact support"
+                title="Support"
+              >
+                <Mail className="h-4 w-4" />
+              </a>
+            </div>
+          )}
+        </div>
 
         {/* Collapse Button */}
 

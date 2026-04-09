@@ -13,6 +13,7 @@ export interface UtilityAccount {
   account_number: string;
   connection_type: "LT" | "HT";
   category?: string;
+  location?: string;
   sanctioned_demand_kVA?: number;
 
   is_solar_connected: boolean;
@@ -40,6 +41,7 @@ export interface CreateUtilityAccountRequest {
   account_number: string;
   connection_type: "LT" | "HT";
   category?: string;
+  location?: string;
   sanctioned_demand_kVA?: number | string;
 
   is_solar_connected?: boolean;
@@ -62,6 +64,7 @@ export interface UpdateUtilityAccountRequest {
   account_number?: string;
   connection_type?: "LT" | "HT";
   category?: string;
+  location?: string;
   sanctioned_demand_kVA?: number | string;
 
   is_solar_connected?: boolean;
@@ -127,6 +130,10 @@ const buildUtilityFormData = (
 
   if (data.category !== undefined) {
     formData.append("category", data.category);
+  }
+
+  if (data.location !== undefined) {
+    formData.append("location", data.location);
   }
 
   if (data.sanctioned_demand_kVA !== undefined) {

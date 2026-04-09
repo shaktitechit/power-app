@@ -31,6 +31,7 @@ import {
 } from "@/lib/lux-measurement-excel";
 import { toastHandler } from "@/lib/toast";
 import { toast } from "sonner";
+import { useAppSelector } from "@/store/hooks";
 
 interface LuxMeasurementSectionProps {
   facilityId: string;
@@ -190,6 +191,8 @@ export function LuxMeasurementSection({
   facilityId,
   utilityAccountId,
 }: LuxMeasurementSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const { data, isLoading, refetch } = useGetLuxMeasurementsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
@@ -637,7 +640,7 @@ export function LuxMeasurementSection({
               <div className="space-y-4">
                 <Label className="text-base">Documents</Label>
 
-                {form.existingDocuments.length > 0 && (
+                {canViewDocuments && form.existingDocuments.length > 0 && (
                   <div className="space-y-2">
                     <Label>Uploaded Documents</Label>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -661,6 +664,11 @@ export function LuxMeasurementSection({
                       ))}
                     </div>
                   </div>
+                )}
+                {!canViewDocuments && (
+                  <p className="text-sm text-muted-foreground">
+                    Existing documents are visible to admin users only.
+                  </p>
                 )}
 
                 <div className="space-y-2">

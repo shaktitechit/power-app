@@ -50,6 +50,7 @@ export function AddUtilityAccountForm({
     account_number: "",
     connection_type: "",
     category: "",
+    location: "",
     sanctioned_demand_kVA: "",
     provider: "",
     billing_cycle: "",
@@ -73,6 +74,7 @@ export function AddUtilityAccountForm({
       account_number: "",
       connection_type: "",
       category: "",
+      location: "",
       sanctioned_demand_kVA: "",
       provider: "",
       billing_cycle: "",
@@ -145,6 +147,7 @@ export function AddUtilityAccountForm({
           account_number: formData.account_number.trim(),
           connection_type: formData.connection_type as "LT" | "HT",
           category: formData.category.trim() || undefined,
+          location: formData.location.trim() || undefined,
           sanctioned_demand_kVA: formData.sanctioned_demand_kVA
             ? Number(formData.sanctioned_demand_kVA)
             : undefined,
@@ -231,6 +234,16 @@ export function AddUtilityAccountForm({
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                placeholder="Enter location"
+                value={formData.location}
+                onChange={(e) => updateField("location", e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">

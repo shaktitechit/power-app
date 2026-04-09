@@ -21,6 +21,7 @@ import {
 import { FileText, Image as ImageIcon, Upload, X } from "lucide-react";
 import { useUpdateUtilityAccountMutation } from "@/store/slices/utilityApiSlice";
 import { toastHandler } from "@/lib/toast";
+import { useAppSelector } from "@/store/hooks";
 
 interface UtilityAccountDocument {
   fileUrl?: string;
@@ -35,6 +36,7 @@ interface UtilityAccount {
   account_number: string;
   connection_type: "LT" | "HT";
   category?: string;
+  location?: string;
   sanctioned_demand_kVA?: number;
   provider?: string;
   billing_cycle?: string;
@@ -74,6 +76,8 @@ export function EditUtilityAccountForm({
   utilityAccount,
 }: EditUtilityAccountFormProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
 
   const [updateUtilityAccount, { isLoading: updatingUtilityAccount }] =
     useUpdateUtilityAccountMutation();
@@ -82,6 +86,7 @@ export function EditUtilityAccountForm({
     account_number: "",
     connection_type: "",
     category: "",
+    location: "",
     sanctioned_demand_kVA: "",
     provider: "",
     billing_cycle: "",
@@ -106,6 +111,7 @@ export function EditUtilityAccountForm({
       account_number: utilityAccount.account_number || "",
       connection_type: utilityAccount.connection_type || "",
       category: utilityAccount.category || "",
+      location: utilityAccount.location || "",
       sanctioned_demand_kVA:
         utilityAccount.sanctioned_demand_kVA !== undefined &&
         utilityAccount.sanctioned_demand_kVA !== null
@@ -152,6 +158,7 @@ export function EditUtilityAccountForm({
       account_number: "",
       connection_type: "",
       category: "",
+      location: "",
       sanctioned_demand_kVA: "",
       provider: "",
       billing_cycle: "",
@@ -234,6 +241,7 @@ export function EditUtilityAccountForm({
           account_number: formData.account_number.trim(),
           connection_type: formData.connection_type as "LT" | "HT",
           category: formData.category.trim() || undefined,
+          location: formData.location.trim() || undefined,
           sanctioned_demand_kVA: formData.sanctioned_demand_kVA
             ? Number(formData.sanctioned_demand_kVA)
             : undefined,
@@ -320,6 +328,16 @@ export function EditUtilityAccountForm({
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                placeholder="Enter location"
+                value={formData.location}
+                onChange={(e) => updateField("location", e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
@@ -472,7 +490,7 @@ export function EditUtilityAccountForm({
               </div>
             </div>
 
-            {existingDocuments.length > 0 && (
+            {canViewDocuments && existingDocuments.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">Existing Documents</p>
 
@@ -522,6 +540,11 @@ export function EditUtilityAccountForm({
                   </div>
                 ))}
               </div>
+            )}
+            {!canViewDocuments && (
+              <p className="text-sm text-muted-foreground">
+                Existing documents are visible to admin users only.
+              </p>
             )}
 
             {newDocuments.length > 0 && (

@@ -23,6 +23,7 @@ import {
 } from "@/store/slices/utilityTariffApiSlice";
 import { toast } from "sonner";
 import { toastHandler } from "@/lib/toast";
+import { useAppSelector } from "@/store/hooks";
 import {
   downloadUtilityTariffTemplate,
   parseUtilityTariffExcel,
@@ -65,6 +66,8 @@ function toDateInput(value?: string | null) {
 export function UtilityTariffSection({
   utilityAccountId,
 }: UtilityTariffSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const { data, isLoading, refetch } = useGetUtilityTariffsQuery({
     utility_account_id: utilityAccountId,
   });
@@ -512,7 +515,7 @@ export function UtilityTariffSection({
             />
           )}
 
-          {existingDocuments.length > 0 && (
+          {canViewDocuments && existingDocuments.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">
                 Existing Documents
@@ -555,6 +558,11 @@ export function UtilityTariffSection({
                 ))}
               </div>
             </div>
+          )}
+          {!canViewDocuments && (
+            <p className="text-sm text-muted-foreground">
+              Existing documents are visible to admin users only.
+            </p>
           )}
 
           {selectedFiles.length > 0 && (

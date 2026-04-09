@@ -25,6 +25,31 @@ const parseAuditorIds = (auditor_ids) => {
   return parsedAuditorIds;
 };
 
+const parseClientRepresentatives = (client_representatives) => {
+  if (!client_representatives) return [];
+
+  let parsed = [];
+  if (Array.isArray(client_representatives)) {
+    parsed = client_representatives;
+  } else {
+    try {
+      parsed = JSON.parse(client_representatives);
+    } catch {
+      parsed = [];
+    }
+  }
+
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .map((rep) => ({
+      name: String(rep?.name || "").trim(),
+      contact_number: String(rep?.contact_number || "").trim(),
+      email: String(rep?.email || "").trim(),
+    }))
+    .filter((rep) => rep.name || rep.contact_number || rep.email);
+};
+
 // helper: upload documents
 const uploadFacilityDocuments = async (files = [], facilityId) => {
   const uploadedDocuments = [];
@@ -64,8 +89,10 @@ const createFacility = asyncHandler(async (req, res) => {
     client_email,
     facility_type,
     status,
+    start_date,
     closure_date,
     auditor_ids,
+    client_representatives,
   } = req.body;
 
   if (!name || !city) {
@@ -74,6 +101,20 @@ const createFacility = asyncHandler(async (req, res) => {
   }
 
   const parsedAuditorIds = parseAuditorIds(auditor_ids);
+  const parsedClientRepresentatives = parseClientRepresentatives(
+    client_representatives,
+  );
+  const fallbackClientRepresentatives = parsedClientRepresentatives.length
+    ? parsedClientRepresentatives
+    : client_representative || client_contact_number || client_email
+      ? [
+          {
+            name: String(client_representative || "").trim(),
+            contact_number: String(client_contact_number || "").trim(),
+            email: String(client_email || "").trim(),
+          },
+        ]
+      : [];
   const facilityId = new mongoose.Types.ObjectId();
   const uploadedDocuments = await uploadFacilityDocuments(
     req.files,
@@ -90,8 +131,10 @@ const createFacility = asyncHandler(async (req, res) => {
     client_representative,
     client_contact_number,
     client_email,
+    client_representatives: fallbackClientRepresentatives,
     facility_type,
     status,
+    start_date,
     closure_date,
     documents: uploadedDocuments,
   });
@@ -234,8 +277,10 @@ const updateFacility = asyncHandler(async (req, res) => {
     client_email,
     facility_type,
     status,
+    start_date,
     closure_date,
     auditor_ids,
+    client_representatives,
   } = req.body;
 
   let facility;
@@ -268,6 +313,9 @@ const updateFacility = asyncHandler(async (req, res) => {
   }
 
   const parsedAuditorIds = parseAuditorIds(auditor_ids);
+  const parsedClientRepresentatives = parseClientRepresentatives(
+    client_representatives,
+  );
   const uploadedDocuments = await uploadFacilityDocuments(
     req.files,
     facility._id,
@@ -282,8 +330,29 @@ const updateFacility = asyncHandler(async (req, res) => {
   facility.client_contact_number =
     client_contact_number ?? facility.client_contact_number;
   facility.client_email = client_email ?? facility.client_email;
+  if (client_representatives !== undefined) {
+    facility.client_representatives = parsedClientRepresentatives;
+  } else if (
+    client_representative !== undefined ||
+    client_contact_number !== undefined ||
+    client_email !== undefined
+  ) {
+    const derivedName =
+      client_representative ?? facility.client_representative ?? "";
+    const derivedContact =
+      client_contact_number ?? facility.client_contact_number ?? "";
+    const derivedEmail = client_email ?? facility.client_email ?? "";
+    facility.client_representatives = [
+      {
+        name: String(derivedName).trim(),
+        contact_number: String(derivedContact).trim(),
+        email: String(derivedEmail).trim(),
+      },
+    ].filter((rep) => rep.name || rep.contact_number || rep.email);
+  }
   facility.facility_type = facility_type ?? facility.facility_type;
   facility.status = status ?? facility.status;
+  facility.start_date = start_date ?? facility.start_date;
   facility.closure_date = closure_date ?? facility.closure_date;
 
   if (uploadedDocuments.length > 0) {

@@ -21,6 +21,7 @@ import { usePresenceMap } from "@/hooks/presenceMap";
 import { socket } from "@/lib/socket";
 import { toastHandler } from "@/lib/toast";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { FontSizeControl } from "@/components/font-size-control";
 
 interface HeaderProps {
   title?: string;
@@ -111,6 +112,7 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
+        <FontSizeControl />
         <ThemeToggle />
 
         <div className="relative hidden lg:block">

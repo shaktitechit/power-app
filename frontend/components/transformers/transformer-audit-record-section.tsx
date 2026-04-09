@@ -30,6 +30,7 @@ import {
 import { useGetTransformerByIdQuery } from "@/store/slices/transformerApiSlice";
 import { toastHandler } from "@/lib/toast";
 import { toast } from "sonner";
+import { useAppSelector } from "@/store/hooks";
 
 interface TransformerAuditRecordSectionProps {
   facilityId: string;
@@ -218,6 +219,8 @@ export function TransformerAuditRecordSection({
   utilityAccountId,
   transformerId,
 }: TransformerAuditRecordSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const { data, isLoading, refetch } = useGetTransformerAuditRecordsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
@@ -1065,7 +1068,7 @@ export function TransformerAuditRecordSection({
               </div>
             </div>
 
-            {form.existingDocuments.length > 0 && (
+            {canViewDocuments && form.existingDocuments.length > 0 && (
               <div className="mt-4 space-y-2">
                 <Label>Existing Documents</Label>
                 <div className="space-y-2">
@@ -1093,6 +1096,11 @@ export function TransformerAuditRecordSection({
                   ))}
                 </div>
               </div>
+            )}
+            {!canViewDocuments && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Existing documents are visible to admin users only.
+              </p>
             )}
 
             {form.documents.length > 0 && (

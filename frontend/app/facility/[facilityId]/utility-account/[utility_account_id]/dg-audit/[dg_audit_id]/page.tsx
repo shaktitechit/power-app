@@ -17,6 +17,7 @@ import { useGetUtilityAccountByIdQuery } from "@/store/slices/utilityApiSlice";
 import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
 import { useGetDGSetByIdQuery } from "@/store/slices/dgSetApiSlice";
 import { DGAuditRecordSection } from "@/components/connection/dg-sets/DGAuditRecordSection";
+import { useAppSelector } from "@/store/hooks";
 
 type TabItem = {
   id: string;
@@ -44,6 +45,8 @@ export default function ConnectionDetailsPage() {
   const facilityId = params.facilityId as string;
   const utilityAccountId = params.utility_account_id as string;
   const dgAccountId = params.dg_audit_id as string;
+  const user = useAppSelector((state) => state.auth.user);
+  const isAdmin = user?.role === "admin";
 
   const { data: utility, isLoading: utilityAccountLoading } =
     useGetUtilityAccountByIdQuery(utilityAccountId);
@@ -246,7 +249,11 @@ export default function ConnectionDetailsPage() {
             </CardHeader>
 
             <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-              {dgAccount.documents?.length > 0 ? (
+              {!isAdmin ? (
+                <p className="text-sm text-muted-foreground">
+                  Documents are visible to admin users only.
+                </p>
+              ) : dgAccount.documents?.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {dgAccount.documents.map((doc: DGDocument, index: number) => (
                     <div

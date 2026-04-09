@@ -34,6 +34,7 @@ import {
 import { useGetFacilitiesQuery } from "@/store/slices/facilityApiSlice";
 import { useGetUtilityAccountsQuery } from "@/store/slices/utilityApiSlice";
 import { toastHandler } from "@/lib/toast";
+import { useAppSelector } from "@/store/hooks";
 
 type FacilityOption = {
   _id: string;
@@ -157,6 +158,8 @@ export default function ReportsSection({
   defaultFacilityId = "",
   defaultUtilityAccountId = "",
 }: ReportsSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const [facilityId, setFacilityId] = useState(defaultFacilityId);
   const [utilityAccountId, setUtilityAccountId] = useState(
     defaultUtilityAccountId,
@@ -567,7 +570,7 @@ export default function ReportsSection({
                             size="sm"
                             variant="outline"
                             className="border-green-200 text-green-800 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10"
-                            disabled={!report.excel_file?.fileUrl}
+                            disabled={!canViewDocuments || !report.excel_file?.fileUrl}
                             onClick={() => {
                               if (report.excel_file?.fileUrl) {
                                 window.open(
@@ -586,7 +589,7 @@ export default function ReportsSection({
                             size="sm"
                             variant="outline"
                             className="border-blue-200 text-blue-800 hover:bg-blue-50 dark:border-blue-500/40 dark:text-blue-300 dark:hover:bg-blue-500/10"
-                            disabled={!report.pdf_file?.fileUrl}
+                            disabled={!canViewDocuments || !report.pdf_file?.fileUrl}
                             onClick={() => {
                               if (report.pdf_file?.fileUrl) {
                                 window.open(report.pdf_file.fileUrl, "_blank");
@@ -601,6 +604,11 @@ export default function ReportsSection({
                         {report.status === "failed" && report.error_message ? (
                           <p className="mt-2 text-xs text-destructive">
                             {report.error_message}
+                          </p>
+                        ) : null}
+                        {!canViewDocuments ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Report files are visible to admin users only.
                           </p>
                         ) : null}
                       </td>

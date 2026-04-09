@@ -28,6 +28,7 @@ import {
   parseSolarGenerationExcelBulk,
   type SolarGenerationExcelEditablePayload,
 } from "@/lib/solar-generation-record-excel";
+import { useAppSelector } from "@/store/hooks";
 
 interface SolarGenerationRecordSectionProps {
   facilityId: string;
@@ -261,6 +262,8 @@ export function SolarGenerationRecordSection({
   utilityAccountId,
   solarPlantId,
 }: SolarGenerationRecordSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const {
     data: billingData,
     isLoading: isBillingLoading,
@@ -940,7 +943,7 @@ export function SolarGenerationRecordSection({
                 </div>
               </div>
 
-              {form.existingDocuments.length > 0 && (
+              {canViewDocuments && form.existingDocuments.length > 0 && (
                 <div className="mt-4 space-y-2">
                   <Label>Existing Documents</Label>
                   <div className="space-y-2">
@@ -968,6 +971,11 @@ export function SolarGenerationRecordSection({
                     ))}
                   </div>
                 </div>
+              )}
+              {!canViewDocuments && (
+                <p className="text-sm text-muted-foreground">
+                  Existing documents are visible to admin users only.
+                </p>
               )}
 
               {form.documents.length > 0 && (

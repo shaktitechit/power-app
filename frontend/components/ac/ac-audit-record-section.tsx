@@ -30,6 +30,7 @@ import {
 } from "@/lib/ac-audit-record-excel";
 import { toastHandler } from "@/lib/toast";
 import { toast } from "sonner";
+import { useAppSelector } from "@/store/hooks";
 
 interface ACAuditRecordSectionProps {
   facilityId: string;
@@ -394,6 +395,8 @@ export function ACAuditRecordSection({
   facilityId,
   utilityAccountId,
 }: ACAuditRecordSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const { data, isLoading, refetch } = useGetACAuditRecordsQuery({
     utility_account_id: utilityAccountId,
   });
@@ -1342,7 +1345,7 @@ export function ACAuditRecordSection({
               <div className="space-y-4">
                 <Label className="text-base">Documents</Label>
 
-                {form.existingDocuments.length > 0 && (
+                {canViewDocuments && form.existingDocuments.length > 0 && (
                   <div className="space-y-2">
                     <Label>Uploaded Documents</Label>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -1366,6 +1369,11 @@ export function ACAuditRecordSection({
                       ))}
                     </div>
                   </div>
+                )}
+                {!canViewDocuments && (
+                  <p className="text-sm text-muted-foreground">
+                    Existing documents are visible to admin users only.
+                  </p>
                 )}
 
                 <div className="space-y-2">

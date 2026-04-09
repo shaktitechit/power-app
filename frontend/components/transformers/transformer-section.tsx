@@ -28,6 +28,7 @@ import {
 } from "@/store/slices/transformerApiSlice";
 import { useRouter } from "next/navigation";
 import { toastHandler } from "@/lib/toast";
+import { useAppSelector } from "@/store/hooks";
 
 interface TransformerSectionProps {
   utilityAccountId: string;
@@ -125,6 +126,8 @@ export function TransformerSection({
   utilityAccountId,
   facilityId,
 }: TransformerSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const router = useRouter();
   const { data, isLoading, refetch } = useGetTransformersQuery({
     utility_account_id: utilityAccountId,
@@ -732,7 +735,7 @@ export function TransformerSection({
                 </p>
               </div>
 
-              {activeForm.existingDocuments.length > 0 && (
+              {canViewDocuments && activeForm.existingDocuments.length > 0 && (
                 <div className="space-y-2 md:col-span-2">
                   <Label>Existing Documents</Label>
                   <div className="grid gap-2">
@@ -754,6 +757,11 @@ export function TransformerSection({
                     ))}
                   </div>
                 </div>
+              )}
+              {!canViewDocuments && (
+                <p className="text-sm text-muted-foreground md:col-span-2">
+                  Existing documents are visible to admin users only.
+                </p>
               )}
 
               {activeForm.newDocuments.length > 0 && (

@@ -34,6 +34,7 @@ import {
   useUpdateFacilityMutation,
 } from "@/store/slices/facilityApiSlice";
 import { toastHandler } from "@/lib/toast";
+import { useAppSelector } from "@/store/hooks";
 
 interface EditFacilityFormProps {
   open: boolean;
@@ -58,6 +59,12 @@ type ExistingFacilityDocument = {
 type Auditor = {
   _id: string;
   name: string;
+  email: string;
+};
+
+type ClientRepresentative = {
+  name: string;
+  contact_number: string;
   email: string;
 };
 
@@ -205,6 +212,8 @@ export function EditFacilityForm({
   facilityId,
 }: EditFacilityFormProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
 
   const { data: auditorsResponse, isLoading: auditorsLoading } =
     useAuditorsQuery();
@@ -228,9 +237,10 @@ export function EditFacilityForm({
     name: "",
     city: "",
     address: "",
-    client_representative: "",
-    client_contact_number: "",
-    client_email: "",
+    start_date: "",
+    client_representatives: [
+      { name: "", contact_number: "", email: "" },
+    ] as ClientRepresentative[],
     facility_type: "other",
     status: "active",
     closure_date: "",
@@ -253,9 +263,24 @@ export function EditFacilityForm({
       name: facility.name || "",
       city: facility.city || "",
       address: facility.address || "",
-      client_representative: facility.client_representative || "",
-      client_contact_number: facility.client_contact_number || "",
-      client_email: facility.client_email || "",
+      start_date: facility.start_date
+        ? new Date(facility.start_date).toISOString().split("T")[0]
+        : "",
+      client_representatives:
+        facility.client_representatives &&
+        facility.client_representatives.length > 0
+          ? facility.client_representatives.map((rep: any) => ({
+              name: rep?.name || "",
+              contact_number: rep?.contact_number || "",
+              email: rep?.email || "",
+            }))
+          : [
+              {
+                name: facility.client_representative || "",
+                contact_number: facility.client_contact_number || "",
+                email: facility.client_email || "",
+              },
+            ],
       facility_type: facility.facility_type || "other",
       status: facility.status || "active",
       closure_date: facility.closure_date
@@ -380,6 +405,15 @@ export function EditFacilityForm({
       return;
     }
 
+    const sanitizedReps = formData.client_representatives
+      .map((rep) => ({
+        name: rep.name.trim(),
+        contact_number: rep.contact_number.trim(),
+        email: rep.email.trim(),
+      }))
+      .filter((rep) => rep.name || rep.contact_number || rep.email);
+    const primaryRep = sanitizedReps[0];
+
     await toastHandler({
       action: () =>
         updateFacility({
@@ -387,11 +421,12 @@ export function EditFacilityForm({
           name: formData.name.trim(),
           city: formData.city.trim(),
           address: formData.address.trim() || undefined,
-          client_representative:
-            formData.client_representative.trim() || undefined,
-          client_contact_number:
-            formData.client_contact_number.trim() || undefined,
-          client_email: formData.client_email.trim() || undefined,
+          start_date: formData.start_date || undefined,
+          client_representatives: sanitizedReps,
+          // Backward compatible payload (existing backend consumers may still use old fields)
+          client_representative: primaryRep?.name || undefined,
+          client_contact_number: primaryRep?.contact_number || undefined,
+          client_email: primaryRep?.email || undefined,
           facility_type: formData.facility_type as
             | "hospital"
             | "hotel"
@@ -515,6 +550,17 @@ export function EditFacilityForm({
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="start_date">Start Date</Label>
+              <Input
+                id="start_date"
+                type="date"
+                value={formData.start_date}
+                onChange={(e) => updateField("start_date", e.target.value)}
+                disabled
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="closure_date">Planned Closure Date</Label>
               <Input
                 id="closure_date"
@@ -554,48 +600,111 @@ export function EditFacilityForm({
 
           <div className="space-y-3">
             <h3 className="text-sm font-medium">Client Information</h3>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="client_representative">
-                  Client Representative
-                </Label>
-                <Input
-                  id="client_representative"
-                  placeholder="Enter representative name"
-                  value={formData.client_representative}
-                  onChange={(e) =>
-                    updateField("client_representative", e.target.value)
-                  }
-                  disabled={isBusy}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="client_contact_number">Contact Number</Label>
-                <Input
-                  id="client_contact_number"
-                  type="tel"
-                  placeholder="Enter contact number"
-                  value={formData.client_contact_number}
-                  onChange={(e) =>
-                    updateField("client_contact_number", e.target.value)
-                  }
-                  disabled={isBusy}
-                />
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="client_email">Client Email</Label>
-                <Input
-                  id="client_email"
-                  type="email"
-                  placeholder="Enter email"
-                  value={formData.client_email}
-                  onChange={(e) => updateField("client_email", e.target.value)}
-                  disabled={isBusy}
-                />
-              </div>
+            <div className="space-y-4">
+              {formData.client_representatives.map((rep, index) => (
+                <div
+                  key={`client-rep-${index}`}
+                  className="rounded-lg border border-border p-3"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-medium">
+                      Representative {index + 1}
+                    </p>
+                    {formData.client_representatives.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            client_representatives:
+                              prev.client_representatives.filter(
+                                (_, i) => i !== index,
+                              ),
+                          }))
+                        }
+                        disabled={isBusy}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Name</Label>
+                      <Input
+                        placeholder="Enter representative name"
+                        value={rep.name}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            client_representatives:
+                              prev.client_representatives.map((r, i) =>
+                                i === index ? { ...r, name: e.target.value } : r,
+                              ),
+                          }))
+                        }
+                        disabled={isBusy}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Contact Number</Label>
+                      <Input
+                        type="tel"
+                        placeholder="Enter contact number"
+                        value={rep.contact_number}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            client_representatives:
+                              prev.client_representatives.map((r, i) =>
+                                i === index
+                                  ? { ...r, contact_number: e.target.value }
+                                  : r,
+                              ),
+                          }))
+                        }
+                        disabled={isBusy}
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        placeholder="Enter email"
+                        value={rep.email}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            client_representatives:
+                              prev.client_representatives.map((r, i) =>
+                                i === index ? { ...r, email: e.target.value } : r,
+                              ),
+                          }))
+                        }
+                        disabled={isBusy}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    client_representatives: [
+                      ...prev.client_representatives,
+                      { name: "", contact_number: "", email: "" },
+                    ],
+                  }))
+                }
+                disabled={isBusy}
+              >
+                Add Client Representative
+              </Button>
             </div>
           </div>
 
@@ -631,7 +740,7 @@ export function EditFacilityForm({
               />
             </div>
 
-            {existingDocuments.length > 0 && (
+            {canViewDocuments && existingDocuments.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">Existing Documents</p>
 
@@ -669,6 +778,11 @@ export function EditFacilityForm({
                   </div>
                 ))}
               </div>
+            )}
+            {!canViewDocuments && (
+              <p className="text-sm text-muted-foreground">
+                Existing documents are visible to admin users only.
+              </p>
             )}
 
             {newDocuments.length > 0 && (

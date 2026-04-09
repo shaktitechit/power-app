@@ -21,6 +21,7 @@ export const drawCoverPage = (doc, cover, meta, theme = PDF_THEME) => {
     .fontSize(10)
     .fillColor(theme.colors.muted)
     .text(brand, x, y, { width: w, align: "center" });
+  doc.restore();
   y = doc.y + 28;
 
   const title =

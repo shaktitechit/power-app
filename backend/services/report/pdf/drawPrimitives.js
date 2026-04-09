@@ -1,4 +1,5 @@
 import { PDF_THEME } from "./styles.js";
+import { sanitizePdfText } from "./formatting.js";
 
 export const contentWidth = (doc) =>
   doc.page.width - doc.page.margins.left - doc.page.margins.right;
@@ -22,13 +23,15 @@ export const ensureSpace = (doc, y, minHeightNeeded) => {
 export const drawSectionTitle = (doc, title, theme = PDF_THEME, y) => {
   const x = contentLeft(doc);
   const w = contentWidth(doc);
-  doc.save();
   y = ensureSpace(doc, y, 36);
+  doc.save();
   doc
     .fillColor(theme.colors.accent)
     .font(theme.font.familyBold)
     .fontSize(theme.font.sectionTitle)
-    .text(String(title || "Section"), x, y, { width: w });
+    .text(sanitizePdfText(title || "Section", "section-title"), x, y, {
+      width: w,
+    });
   y = doc.y + 4;
   doc
     .strokeColor(theme.colors.accent)
@@ -45,13 +48,13 @@ export const drawSubsectionHeading = (doc, heading, theme = PDF_THEME, y) => {
   if (!heading) return y;
   const x = contentLeft(doc);
   const w = contentWidth(doc);
-  doc.save();
   y = ensureSpace(doc, y, 22);
+  doc.save();
   doc
     .fillColor(theme.colors.text)
     .font(theme.font.familyBold)
     .fontSize(theme.font.subsection)
-    .text(String(heading), x, y, { width: w });
+    .text(sanitizePdfText(heading, "subsection-heading"), x, y, { width: w });
   doc.restore();
   return doc.y + 6;
 };

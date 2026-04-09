@@ -30,6 +30,7 @@ import {
 } from "@/lib/dg-audit-record-excel";
 import { toastHandler } from "@/lib/toast";
 import { toast } from "sonner";
+import { useAppSelector } from "@/store/hooks";
 
 interface DGAuditRecordSectionProps {
   facilityId: string;
@@ -484,6 +485,8 @@ export function DGAuditRecordSection({
   utilityAccountId,
   dgSetId,
 }: DGAuditRecordSectionProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const canViewDocuments = user?.role === "admin";
   const { data, isLoading, refetch } = useGetDGAuditRecordsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
@@ -1420,7 +1423,7 @@ export function DGAuditRecordSection({
               </div>
             </div>
 
-            {form.existingDocuments.length > 0 && (
+            {canViewDocuments && form.existingDocuments.length > 0 && (
               <div className="mt-4 space-y-2">
                 <Label>Existing Documents</Label>
                 <div className="space-y-2">
@@ -1448,6 +1451,11 @@ export function DGAuditRecordSection({
                   ))}
                 </div>
               </div>
+            )}
+            {!canViewDocuments && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Existing documents are visible to admin users only.
+              </p>
             )}
 
             {form.documents.length > 0 && (

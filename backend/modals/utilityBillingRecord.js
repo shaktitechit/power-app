@@ -61,7 +61,6 @@ const utilityBillingRecordSchema = new mongoose.Schema(
 
     taxes_and_rent_rs: {
       type: Number,
-      min: 0,
     },
 
     other_charges_rs: {

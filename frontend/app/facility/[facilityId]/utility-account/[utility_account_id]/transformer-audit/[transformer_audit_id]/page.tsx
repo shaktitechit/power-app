@@ -17,6 +17,7 @@ import { useGetUtilityAccountByIdQuery } from "@/store/slices/utilityApiSlice";
 import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
 import { useGetTransformerByIdQuery } from "@/store/slices/transformerApiSlice";
 import { TransformerAuditRecordSection } from "@/components/transformers/transformer-audit-record-section";
+import { useAppSelector } from "@/store/hooks";
 
 type TabItem = {
   id: string;
@@ -37,6 +38,8 @@ export default function ConnectionDetailsPage() {
   const facilityId = params.facilityId as string;
   const utilityAccountId = params.utility_account_id as string;
   const transformerAccountId = params.transformer_audit_id as string;
+  const user = useAppSelector((state) => state.auth.user);
+  const isAdmin = user?.role === "admin";
 
   const { data: utility, isLoading: utilityLoading } =
     useGetUtilityAccountByIdQuery(utilityAccountId);
@@ -272,7 +275,11 @@ export default function ConnectionDetailsPage() {
             </CardHeader>
 
             <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-              {transformerAccount?.documents?.length > 0 ? (
+              {!isAdmin ? (
+                <p className="text-sm text-muted-foreground">
+                  Documents are visible to admin users only.
+                </p>
+              ) : transformerAccount?.documents?.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {transformerAccount.documents.map(
                     (doc: any, index: number) => (

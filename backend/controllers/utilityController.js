@@ -69,6 +69,7 @@ const createUtilityAccount = asyncHandler(async (req, res) => {
     account_number,
     connection_type,
     category,
+    location,
     sanctioned_demand_kVA,
     provider,
     billing_cycle,
@@ -118,6 +119,7 @@ const createUtilityAccount = asyncHandler(async (req, res) => {
     account_number: account_number.trim(),
     connection_type,
     category,
+    location,
     sanctioned_demand_kVA:
       sanctioned_demand_kVA !== undefined && sanctioned_demand_kVA !== ""
         ? Number(sanctioned_demand_kVA)
@@ -246,6 +248,7 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
     account_number,
     connection_type,
     category,
+    location,
     sanctioned_demand_kVA,
     provider,
     billing_cycle,
@@ -308,6 +311,7 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
     connection_type ?? utilityAccount.connection_type;
 
   utilityAccount.category = category ?? utilityAccount.category;
+  utilityAccount.location = location ?? utilityAccount.location;
 
   utilityAccount.sanctioned_demand_kVA =
     sanctioned_demand_kVA !== undefined && sanctioned_demand_kVA !== ""

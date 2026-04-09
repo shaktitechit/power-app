@@ -35,6 +35,7 @@ import { LuxMeasurementSection } from "@/components/lux/lux-measurement-section"
 import { MiscLoadAuditSection } from "@/components/misc/misc-load-audit-section";
 import { ACAuditRecordSection } from "@/components/ac/ac-audit-record-section";
 import { FanAuditRecordSection } from "@/components/fan/fan-audit-record";
+import { useAppSelector } from "@/store/hooks";
 
 type TabItem = {
   id: string;
@@ -56,6 +57,8 @@ export default function ConnectionDetailsPage() {
 
   const facilityId = params.facilityId as string;
   const utilityAccountId = params.utility_account_id as string;
+  const user = useAppSelector((state) => state.auth.user);
+  const isAdmin = user?.role === "admin";
 
   const { data: utility, isLoading: utilityAccountLoading } =
     useGetUtilityAccountByIdQuery(utilityAccountId);
@@ -209,6 +212,13 @@ export default function ConnectionDetailsPage() {
                     <span className="text-muted-foreground">Category</span>
                     <span className="text-right text-foreground">
                       {utilityAccount.category || "-"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Location</span>
+                    <span className="text-right text-foreground">
+                      {utilityAccount.location || "-"}
                     </span>
                   </div>
 
@@ -422,7 +432,11 @@ export default function ConnectionDetailsPage() {
             </CardHeader>
 
             <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-              {utilityAccount.documents?.length > 0 ? (
+              {!isAdmin ? (
+                <p className="text-sm text-muted-foreground">
+                  Documents are visible to admin users only.
+                </p>
+              ) : utilityAccount.documents?.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                   {utilityAccount.documents.map(
                     (doc: UtilityDocument, index: number) => (
@@ -499,7 +513,13 @@ export default function ConnectionDetailsPage() {
         <div className="space-y-4">
           <UtilityBillingRecordSection
             utilityAccountId={utilityAccountId}
-            billingCycle={utilityAccount?.billing_cycle || "monthly"}
+            billingCycle={
+              utilityAccount?.billing_cycle === "monthly" ||
+              utilityAccount?.billing_cycle === "bi-monthly" ||
+              utilityAccount?.billing_cycle === "quarterly"
+                ? utilityAccount.billing_cycle
+                : "monthly"
+            }
           />
         </div>
       )}

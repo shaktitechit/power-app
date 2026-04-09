@@ -51,6 +51,37 @@ const collectDynamicSections = (reportData) => {
   return dedupeSectionsByTitle(raw);
 };
 
+const isNonEmptyObject = (value) =>
+  !!value && typeof value === "object" && Object.keys(value).length > 0;
+
+const hasRenderableRows = (rows) => Array.isArray(rows) && rows.length > 0;
+
+const hasRenderableBlock = (block) => {
+  if (!block || typeof block !== "object") return false;
+  if (block.type === "kv" || block.type === "table")
+    return hasRenderableRows(block.rows || block.items);
+  if (block.type === "summary") return isNonEmptyObject(block.data);
+  if (block.type === "text") return Boolean(String(block.value || "").trim());
+  return false;
+};
+
+const hasRenderableSubsection = (sub) => {
+  if (!sub || typeof sub !== "object") return false;
+  return hasRenderableRows(sub.rows);
+};
+
+const isRenderableSection = (section) => {
+  if (!section || typeof section !== "object") return false;
+  if (Array.isArray(section.blocks) && section.blocks.some(hasRenderableBlock))
+    return true;
+  if (Array.isArray(section.sections) && section.sections.some(hasRenderableSubsection))
+    return true;
+  if (hasRenderableRows(section.items) || hasRenderableRows(section.table_rows))
+    return true;
+  if (isNonEmptyObject(section.summary)) return true;
+  return false;
+};
+
 const drawFallbackFlatSection = (doc, theme, title, items) => {
   if (!Array.isArray(items) || !items.length) return;
 
@@ -66,24 +97,23 @@ const drawFallbackFlatSection = (doc, theme, title, items) => {
   drawDataTable(doc, theme, y, null, columns, items);
 };
 
-const applyFooters = (doc, theme) => {
-  const range = doc.bufferedPageRange();
-  const start = range.start ?? 0;
-  const count = range.count ?? 0;
-  for (let i = 0; i < count; i++) {
-    doc.switchToPage(start + i);
-    drawPageFooter(doc, i, count, theme);
-  }
-};
-
 export const generatePdfReport = async ({ reportData }) => {
   const theme = PDF_THEME;
   const doc = new PDFDocument({
     size: theme.page.size,
     margin: theme.page.margin,
-    bufferPages: true,
     autoFirstPage: true,
   });
+  let pageNumber = 1;
+  const stampFooter = () => {
+    // Single-pass footer avoids page re-entry artifacts in some PDF viewers.
+    drawPageFooter(doc, pageNumber - 1, pageNumber, theme);
+  };
+  const nextPage = () => {
+    stampFooter();
+    doc.addPage();
+    pageNumber += 1;
+  };
 
   const chunks = [];
   doc.on("data", (chunk) => chunks.push(chunk));
@@ -101,10 +131,12 @@ export const generatePdfReport = async ({ reportData }) => {
     drawMinimalCoverFromMeta(doc, meta, theme);
   }
 
-  const dynamicSections = collectDynamicSections(reportData);
+  const dynamicSections = collectDynamicSections(reportData).filter(
+    isRenderableSection,
+  );
 
   if (reportData?.facility_info) {
-    doc.addPage();
+    nextPage();
     drawFacilityInfoPage(doc, reportData.facility_info, theme);
   }
 
@@ -114,7 +146,7 @@ export const generatePdfReport = async ({ reportData }) => {
     Object.keys(reportData.summary).length > 0;
 
   if (hasTopSummary) {
-    doc.addPage();
+    nextPage();
     let y = drawSectionTitle(
       doc,
       "Executive overview",
@@ -126,7 +158,7 @@ export const generatePdfReport = async ({ reportData }) => {
 
   if (dynamicSections.length) {
     dynamicSections.forEach((section) => {
-      doc.addPage();
+      nextPage();
       renderPdfSection(doc, section, theme);
     });
   } else {
@@ -149,14 +181,13 @@ export const generatePdfReport = async ({ reportData }) => {
 
     for (const [title, items] of fallbacks) {
       if (Array.isArray(items) && items.length) {
-        doc.addPage();
+        nextPage();
         drawFallbackFlatSection(doc, theme, title, items);
       }
     }
   }
 
-  applyFooters(doc, theme);
-  doc.flushPages();
+  stampFooter();
   doc.end();
 
   return bufferPromise;

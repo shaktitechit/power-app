@@ -9,7 +9,13 @@ export interface FacilityDocument {
 
 export interface AssignedAuditor {
   _id?: string;
-  user_id: string;
+  user_id:
+    | string
+    | {
+        _id?: string;
+        name?: string;
+        email?: string;
+      };
   assigned_by?: string;
   createdAt?: string;
 }
@@ -23,6 +29,12 @@ export interface Facility {
   client_representative?: string;
   client_contact_number?: string;
   client_email?: string;
+  start_date?: string;
+  client_representatives?: {
+    name?: string;
+    contact_number?: string;
+    email?: string;
+  }[];
   facility_type:
     | "hospital"
     | "hotel"
@@ -31,6 +43,12 @@ export interface Facility {
     | "mall"
     | "other";
   status: "active" | "inactive";
+  audit_date?: string;
+  auditor_id?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+  };
   closure_date?: string;
   created_by: string;
   documents: FacilityDocument[];
@@ -47,6 +65,12 @@ export interface CreateFacilityRequest {
   client_representative?: string;
   client_contact_number?: string;
   client_email?: string;
+  start_date?: string;
+  client_representatives?: {
+    name?: string;
+    contact_number?: string;
+    email?: string;
+  }[];
   facility_type?: "hospital" | "hotel" | "factory" | "office" | "mall" | "other";
   status?: "active" | "inactive";
  closure_date?: string;
@@ -62,11 +86,18 @@ export interface UpdateFacilityRequest {
   client_representative?: string;
   client_contact_number?: string;
   client_email?: string;
+  start_date?: string;
+  client_representatives?: {
+    name?: string;
+    contact_number?: string;
+    email?: string;
+  }[];
   facility_type?: "hospital" | "hotel" | "factory" | "office" | "mall" | "other";
   status?: "active" | "inactive";
   closure_date?: string;
   auditor_ids?: string[];
   documents?: File[];
+  removed_document_ids?: string[];
 }
 
 export interface CreateFacilityResponse {
@@ -121,6 +152,15 @@ const buildFacilityFormData = (
   if (data.client_email !== undefined) {
     formData.append("client_email", data.client_email);
   }
+  if (data.start_date !== undefined) {
+    formData.append("start_date", data.start_date);
+  }
+  if (data.client_representatives !== undefined) {
+    formData.append(
+      "client_representatives",
+      JSON.stringify(data.client_representatives),
+    );
+  }
   if (data.facility_type !== undefined) {
     formData.append("facility_type", data.facility_type);
   }
@@ -139,6 +179,13 @@ const buildFacilityFormData = (
     data.documents.forEach((file) => {
       formData.append("documents", file);
     });
+  }
+
+  if ("removed_document_ids" in data && Array.isArray(data.removed_document_ids)) {
+    formData.append(
+      "removed_document_ids",
+      JSON.stringify(data.removed_document_ids),
+    );
   }
 
   return formData;

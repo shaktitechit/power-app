@@ -3,7 +3,9 @@ import {
   getRowCell,
   isKeyValueSubsection,
   normalizeColumns,
+  sanitizePdfText,
   toLabel,
+  truncatePdfText,
 } from "./formatting.js";
 import { PDF_THEME } from "./styles.js";
 import {
@@ -37,13 +39,15 @@ export const drawKeyValueBlock = (
   }
 
   if (!Array.isArray(rows) || !rows.length) {
-    doc.save();
     cursor = ensureSpace(doc, cursor, 20);
+    doc.save();
     doc
       .font(theme.font.family)
       .fontSize(theme.font.caption)
       .fillColor(theme.colors.muted)
-      .text("No data available", x, cursor, { width: w });
+      .text(sanitizePdfText("No data available", "kv-empty"), x, cursor, {
+        width: w,
+      });
     doc.restore();
     return doc.y + theme.spacing.blockGap;
   }
@@ -53,8 +57,8 @@ export const drawKeyValueBlock = (
   doc.font(theme.font.family).fontSize(theme.font.body);
 
   rows.forEach((row, i) => {
-    const label = formatCellValue(row?.[labelKey]);
-    const value = formatCellValue(row?.[valueKey]);
+    const label = truncatePdfText(formatCellValue(row?.[labelKey]), 120);
+    const value = truncatePdfText(formatCellValue(row?.[valueKey]), 240);
     if (!label && !value) return;
 
     const lh = doc.heightOfString(String(label), { width: labelColW - 14 });
@@ -109,13 +113,15 @@ export const drawDataTable = (
   }
 
   if (!Array.isArray(rows) || !rows.length) {
-    doc.save();
     cursor = ensureSpace(doc, cursor, 20);
+    doc.save();
     doc
       .font(theme.font.family)
       .fontSize(theme.font.caption)
       .fillColor(theme.colors.muted)
-      .text("No data available", x, cursor, { width: totalWidth });
+      .text(sanitizePdfText("No data available", "table-empty"), x, cursor, {
+        width: totalWidth,
+      });
     doc.restore();
     return doc.y + theme.spacing.blockGap;
   }
@@ -146,7 +152,7 @@ export const drawDataTable = (
       .fillColor(theme.colors.headerText)
       .font(theme.font.familyBold)
       .fontSize(headerSize)
-      .text(c.label, cx + cellPad, cursor + 5, {
+      .text(sanitizePdfText(c.label, "table-header"), cx + cellPad, cursor + 5, {
         width: colW - 2 * cellPad,
         lineGap: 0.5,
       });
@@ -157,7 +163,7 @@ export const drawDataTable = (
   doc.font(theme.font.family).fontSize(bodySize).fillColor(theme.colors.text);
 
   rows.forEach((row, ri) => {
-    const vals = cols.map((c) => getRowCell(row, c.key));
+    const vals = cols.map((c) => truncatePdfText(getRowCell(row, c.key), 120));
     let rowH = 0;
     vals.forEach((v, i) => {
       const h = doc.heightOfString(v || "—", {
@@ -264,7 +270,7 @@ export const drawBlocks = (doc, theme, y, section) => {
       }
       const x = contentLeft(doc);
       const w = contentWidth(doc);
-      const text = formatCellValue(block.value || "");
+      const text = truncatePdfText(formatCellValue(block.value || ""), 2000);
       const h = doc.heightOfString(text, { width: w });
       cursor = ensureSpace(doc, cursor, h + 16);
       doc.save();
