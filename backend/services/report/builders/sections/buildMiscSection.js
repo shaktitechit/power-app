@@ -14,12 +14,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -228,9 +222,9 @@ export const buildMiscSection = async ({
       {
         heading: "Misc Load Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "equipment_name",
-          "quantity",
+          { key: "quantity", label: "Quantity", type: "integer" },
           "rated_power_kW",
           "connected_load_kW",
           "estimated_annual_energy_kWh",
@@ -238,12 +232,10 @@ export const buildMiscSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           equipment_name: item.equipment_name,
-          quantity: formatNumber(item.quantity, 0),
-          rated_power_kW: formatNumber(item.rated_power_kW),
-          connected_load_kW: formatNumber(item.connected_load_kW),
-          estimated_annual_energy_kWh: formatNumber(
-            item.estimated_annual_energy_kWh,
-          ),
+          quantity: item.quantity ?? null,
+          rated_power_kW: item.rated_power_kW ?? null,
+          connected_load_kW: item.connected_load_kW ?? null,
+          estimated_annual_energy_kWh: item.estimated_annual_energy_kWh ?? null,
         })),
       },
 
@@ -251,31 +243,28 @@ export const buildMiscSection = async ({
         heading: "Summary",
         columns: ["metric", "value"],
         rows: [
-          { metric: "Total Records", value: summary.total_records },
-          { metric: "Total Quantity", value: summary.total_quantity },
+          { metric: "Total Records", value: summary.total_records ?? "" },
+          { metric: "Total Quantity", value: summary.total_quantity ?? "" },
           {
             metric: "Total Connected Load (kW)",
-            value: formatNumber(summary.total_connected_load_kW),
+            value: summary.total_connected_load_kW ?? "",
           },
           {
             metric: "Total Annual Energy (kWh)",
-            value: formatNumber(summary.total_estimated_annual_energy_kWh),
+            value: summary.total_estimated_annual_energy_kWh ?? "",
           },
           {
             metric: "Energy per kW",
-            value:
-              summary.energy_per_kW !== null
-                ? formatNumber(summary.energy_per_kW)
-                : "",
+            value: summary.energy_per_kW ?? "",
           },
         ],
       },
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "equipment_name", label: "Equipment" },
-      { key: "quantity", label: "Qty" },
+      { key: "quantity", label: "Qty", type: "integer" },
       { key: "connected_load_kW", label: "Load (kW)" },
       { key: "estimated_annual_energy_kWh", label: "Energy (kWh)" },
     ],
@@ -283,11 +272,9 @@ export const buildMiscSection = async ({
     table_rows: items.map((item) => ({
       sr_no: item.sr_no,
       equipment_name: item.equipment_name,
-      quantity: formatNumber(item.quantity, 0),
-      connected_load_kW: formatNumber(item.connected_load_kW),
-      estimated_annual_energy_kWh: formatNumber(
-        item.estimated_annual_energy_kWh,
-      ),
+      quantity: item.quantity ?? null,
+      connected_load_kW: item.connected_load_kW ?? null,
+      estimated_annual_energy_kWh: item.estimated_annual_energy_kWh ?? null,
     })),
   };
 };

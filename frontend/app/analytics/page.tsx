@@ -46,12 +46,39 @@ const ENERGY_COLORS: Record<string, string> = {
 
 export default function AnalyticsPage() {
   const { data, isLoading, isError } = useGetAnalyticsQuery();
+  const statusDataRaw = data?.data?.statusData ?? [];
+  const statusMap = Object.fromEntries(
+    statusDataRaw.map((item) => [item.name, Number(item.value) || 0]),
+  ) as Record<string, number>;
 
-  const analytics = data?.data?.analytics ?? null;
-  const stats = data?.data?.stats ?? null; // 🔥 future ready
+  const analytics = data?.data?.analytics
+    ? (() => {
+        const raw = data.data.analytics;
+        const totalFacilities = raw.totalFacilities ?? 0;
+        const closedFacilities = raw.closedFacilities ?? 0;
+        const totalConnections = raw.totalConnections ?? 0;
+        const utilityAuditsCompleted = raw.utilityAuditsCompleted ?? 0;
 
+        return {
+          totalFacilities,
+          completedAudits: raw.completedAudits ?? statusMap.Completed ?? 0,
+          inProgressAudits: raw.inProgressAudits ?? statusMap["In Progress"] ?? 0,
+          pendingAudits: raw.pendingAudits ?? statusMap.Pending ?? 0,
+          utilityAuditsCompleted,
+          utilityAuditsPending:
+            raw.utilityAuditsPending ?? Math.max(totalConnections - utilityAuditsCompleted, 0),
+          closedFacilities,
+          openFacilities:
+            raw.openFacilities ?? Math.max(totalFacilities - closedFacilities, 0),
+          totalCapacity: raw.totalCapacity ?? 0,
+          totalConnections,
+          dgCapacity: raw.dgCapacity ?? 0,
+          solarCapacity: raw.solarCapacity ?? 0,
+        };
+      })()
+    : null;
   const statusData =
-    data?.data?.statusData?.map((item) => ({
+    statusDataRaw.map((item) => ({
       ...item,
       color: STATUS_COLORS[item.name] || "oklch(0.65 0 0)",
     })) ?? [];
@@ -101,16 +128,17 @@ export default function AnalyticsPage() {
         />
 
         <StatsCard
-          title="Completed Audits"
-          value={analytics.completedAudits}
+          title="Closed Facilities"
+          value={analytics.closedFacilities}
           icon={CheckCircle}
+          description="Audit closure done"
         />
 
         <StatsCard
-          title="Pending Audits"
-          value={analytics.pendingAudits}
+          title="Open Facilities"
+          value={analytics.openFacilities}
           icon={Clock}
-          description="Requires attention"
+          description={`${analytics.inProgressAudits ?? 0} in progress`}
         />
 
         <StatsCard
@@ -238,7 +266,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 🔹 Summary Cards */}
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatsCard
           title="Total Connections"
           value={analytics.totalConnections}
@@ -246,14 +274,26 @@ export default function AnalyticsPage() {
         />
 
         <StatsCard
+          title="Utility Audits Completed"
+          value={analytics.utilityAuditsCompleted}
+          icon={CheckCircle}
+        />
+
+        <StatsCard
+          title="Utility Audits Pending"
+          value={analytics.utilityAuditsPending}
+          icon={Clock}
+        />
+
+        <StatsCard
           title="DG Capacity"
-          value={analytics.dgCapacity}
+          value={`${analytics.dgCapacity} kVA`}
           icon={Fuel}
         />
 
         <StatsCard
           title="Solar Capacity"
-          value={analytics.solarCapacity}
+          value={`${analytics.solarCapacity} kWp`}
           icon={Sun}
         />
       </div>

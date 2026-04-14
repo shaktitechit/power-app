@@ -14,20 +14,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Plug, FileText, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { useGetUtilityAccountByIdQuery } from "@/store/slices/utilityApiSlice";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
 import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
 import { useGetTransformerByIdQuery } from "@/store/slices/transformerApiSlice";
+import { useGetTransformerAuditRecordsQuery } from "@/store/slices/transformerAuditRecordApiSlice";
 import { TransformerAuditRecordSection } from "@/components/transformers/transformer-audit-record-section";
 import { useAppSelector } from "@/store/hooks";
-
-type TabItem = {
-  id: string;
-  label: string;
-};
-
-const baseTabs: TabItem[] = [
-  { id: "details", label: "Transformer Details" },
-  { id: "transformer-audits", label: "Transformer Audit" },
-];
 
 export default function ConnectionDetailsPage() {
   const params = useParams();
@@ -56,7 +48,41 @@ export default function ConnectionDetailsPage() {
 
   const transformerAccount = transformerAccountById?.data;
 
-  const tabs = useMemo(() => baseTabs, []);
+  const { data: transformerAuditListRes } = useGetTransformerAuditRecordsQuery(
+    {
+      facility_id: facilityId,
+      utility_account_id: utilityAccountId,
+      transformer_id: transformerAccountId,
+    },
+    { skip: !facilityId || !utilityAccountId || !transformerAccountId },
+  );
+
+  const transformerAuditSubmitted = Boolean(
+    UtilityAccount?.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
+      ?.submitted_at,
+  );
+  const transformerAuditRecordCount = transformerAuditListRes?.data?.length ?? 0;
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: "details",
+        label: "Transformer",
+        completed: transformerAuditSubmitted,
+      },
+      {
+        id: "transformer-audits",
+        label: "Transformer Audit",
+        count: transformerAuditRecordCount,
+        completed: transformerAuditSubmitted,
+      },
+    ],
+    [
+      transformerAuditRecordCount,
+      transformerAuditSubmitted,
+    ],
+  );
+
   const validTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
 
   const getValidTab = (tab: string | null) => {
@@ -136,6 +162,7 @@ export default function ConnectionDetailsPage() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         className="mb-4 sm:mb-6"
+        tabGridClassName="grid-cols-1 min-[480px]:grid-cols-2"
       />
 
       {activeTab === "details" && (
@@ -340,6 +367,8 @@ export default function ConnectionDetailsPage() {
           facilityId={facilityId}
           utilityAccountId={utilityAccountId}
           transformerId={transformerAccountId}
+          auditStepLocked={transformerAuditSubmitted}
+          hideAuditSubmitChrome
         />
       )}
     </DashboardLayout>

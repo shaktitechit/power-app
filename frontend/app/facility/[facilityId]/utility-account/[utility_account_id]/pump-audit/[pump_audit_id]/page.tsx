@@ -14,15 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Plug, FileText, ImageIcon } from "lucide-react";
 import { useGetUtilityAccountByIdQuery } from "@/store/slices/utilityApiSlice";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
 import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
 import { useGetPumpByIdQuery } from "@/store/slices/pumpApiSlice";
+import { useGetPumpAuditRecordsQuery } from "@/store/slices/pumpAuditRecordApiSlice";
 import { PumpAuditRecordSection } from "@/components/pumps/pump-audit-record-section";
 import { useAppSelector } from "@/store/hooks";
-
-type TabItem = {
-  id: string;
-  label: string;
-};
 
 type PumpDocument = {
   fileUrl: string;
@@ -30,11 +27,6 @@ type PumpDocument = {
   fileName?: string;
   uploadedAt?: string;
 };
-
-const baseTabs: TabItem[] = [
-  { id: "details", label: "Pump Details" },
-  { id: "pump-audits", label: "Pump Audit" },
-];
 
 export default function ConnectionDetailsPage() {
   const params = useParams();
@@ -63,7 +55,38 @@ export default function ConnectionDetailsPage() {
 
   const pumpAccount = pumpAccountById?.data;
 
-  const tabs = useMemo(() => baseTabs, []);
+  const { data: pumpAuditListRes } = useGetPumpAuditRecordsQuery(
+    {
+      facility_id: facilityId,
+      utility_account_id: utilityAccountId,
+      pump_id: pumpAccountId,
+    },
+    { skip: !facilityId || !utilityAccountId || !pumpAccountId },
+  );
+
+  const pumpAuditSubmitted = Boolean(
+    utilityAccount?.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
+      ?.submitted_at,
+  );
+  const pumpAuditRecordCount = pumpAuditListRes?.data?.length ?? 0;
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: "details",
+        label: "Pump",
+        completed: pumpAuditSubmitted,
+      },
+      {
+        id: "pump-audits",
+        label: "Pump Audit",
+        count: pumpAuditRecordCount,
+        completed: pumpAuditSubmitted,
+      },
+    ],
+    [pumpAuditRecordCount, pumpAuditSubmitted],
+  );
+
   const validTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
 
   const getValidTab = (tab: string | null) => {
@@ -142,6 +165,7 @@ export default function ConnectionDetailsPage() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         className="mb-4 sm:mb-6"
+        tabGridClassName="grid-cols-1 min-[480px]:grid-cols-2"
       />
 
       {activeTab === "details" && (
@@ -312,6 +336,8 @@ export default function ConnectionDetailsPage() {
           facilityId={facilityId}
           utilityAccountId={utilityAccountId}
           pumpId={pumpAccountId}
+          auditStepLocked={pumpAuditSubmitted}
+          hideAuditSubmitChrome
         />
       )}
     </DashboardLayout>

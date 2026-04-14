@@ -103,6 +103,12 @@ const utilityAccountSchema = new mongoose.Schema(
         },
       },
     ],
+
+    /** Per-tab audit workflow: step key -> { submitted_at, submitted_by } */
+    audit_step_submissions: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   {
     timestamps: {

@@ -7,6 +7,11 @@ export interface UtilityDocument {
   uploadedAt?: string;
 }
 
+export interface UtilityAuditStepSubmission {
+  submitted_at?: string;
+  submitted_by?: string;
+}
+
 export interface UtilityAccount {
   _id: string;
   facility_id: string;
@@ -29,6 +34,9 @@ export interface UtilityAccount {
   auditor_id?: string;
 
   documents: UtilityDocument[];
+
+  /** Step id -> submission metadata (from audit-step-submit) */
+  audit_step_submissions?: Record<string, UtilityAuditStepSubmission>;
 
   created_at?: string;
   updated_at?: string;
@@ -108,6 +116,12 @@ export interface UpdateUtilityAccountResponse {
 export interface DeleteUtilityAccountResponse {
   success: boolean;
   message: string;
+}
+
+export interface SubmitUtilityAuditStepResponse {
+  success: boolean;
+  message: string;
+  data: UtilityAccount;
 }
 
 // Build FormData
@@ -265,6 +279,38 @@ export const utilityApiSlice = apiSlice.injectEndpoints({
         "Facility",
       ],
     }),
+
+    submitUtilityAuditStep: builder.mutation<
+      SubmitUtilityAuditStepResponse,
+      { utilityAccountId: string; step: string }
+    >({
+      query: ({ utilityAccountId, step }) => ({
+        url: `/v1/utilities/${utilityAccountId}/audit-step-submit`,
+        method: "POST",
+        body: { step },
+      }),
+      invalidatesTags: (_result, _error, { utilityAccountId }) => [
+        "UtilityAccount",
+        { type: "UtilityAccount", id: utilityAccountId },
+        "Facility",
+      ],
+    }),
+
+    allowUtilityAuditStep: builder.mutation<
+      SubmitUtilityAuditStepResponse,
+      { utilityAccountId: string; step: string }
+    >({
+      query: ({ utilityAccountId, step }) => ({
+        url: `/v1/utilities/${utilityAccountId}/audit-step-allow`,
+        method: "POST",
+        body: { step },
+      }),
+      invalidatesTags: (_result, _error, { utilityAccountId }) => [
+        "UtilityAccount",
+        { type: "UtilityAccount", id: utilityAccountId },
+        "Facility",
+      ],
+    }),
   }),
 });
 
@@ -274,4 +320,6 @@ export const {
   useGetUtilityAccountByIdQuery,
   useUpdateUtilityAccountMutation,
   useDeleteUtilityAccountMutation,
+  useSubmitUtilityAuditStepMutation,
+  useAllowUtilityAuditStepMutation,
 } = utilityApiSlice;

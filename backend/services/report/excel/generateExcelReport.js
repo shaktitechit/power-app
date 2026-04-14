@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { buildExcelNumFmt } from "../columnMeta.js";
 
 const toLabel = (key) =>
   String(key || "")
@@ -49,6 +50,8 @@ const normalizeColumns = (items = [], explicitColumns = null) => {
           : {
               key: col?.key,
               label: col?.label || toLabel(col?.key),
+              decimals: col?.decimals,
+              type: col?.type,
             },
       )
       .filter((col) => col?.key);
@@ -66,9 +69,49 @@ const normalizeColumns = (items = [], explicitColumns = null) => {
         : {
             key: col?.key,
             label: col?.label || toLabel(col?.key),
+            decimals: col?.decimals,
+            type: col?.type,
           },
     )
     .filter((col) => col?.key);
+};
+
+/** Excel cell: real numbers + numFmt (not plain-text numbers) */
+const setDataCell = (cell, raw, col = {}) => {
+  if (raw === null || raw === undefined || raw === "") {
+    cell.value = null;
+    return;
+  }
+
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    cell.value = raw;
+
+    if (col.type === "integer") {
+      cell.numFmt = buildExcelNumFmt(0, true);
+      return;
+    }
+
+    if (col.decimals !== undefined && col.decimals !== null) {
+      const d = col.decimals;
+      cell.numFmt = buildExcelNumFmt(d, d === 0);
+      return;
+    }
+
+    if (Number.isInteger(raw)) {
+      cell.numFmt = buildExcelNumFmt(0, true);
+      return;
+    }
+
+    if (Math.abs(raw) < 1 && Math.abs(raw) > 0) {
+      cell.numFmt = buildExcelNumFmt(4, false);
+      return;
+    }
+
+    cell.numFmt = buildExcelNumFmt(2, false);
+    return;
+  }
+
+  cell.value = sanitizeValue(raw);
 };
 
 const autoFitColumns = (sheet, minWidth = 14, maxWidth = 40) => {
@@ -201,6 +244,7 @@ const addKeyValueBlock = (sheet, heading, rows = []) => {
         sanitizeValue(entry[0]),
         sanitizeValue(entry[1]),
       ]);
+      setDataCell(row.getCell(2), entry[1], {});
       applyBodyBorders(row);
       return;
     }
@@ -210,6 +254,7 @@ const addKeyValueBlock = (sheet, heading, rows = []) => {
         sanitizeValue(entry.label || entry.key || ""),
         sanitizeValue(entry.value),
       ]);
+      setDataCell(row.getCell(2), entry.value, {});
       applyBodyBorders(row);
     }
   });
@@ -241,10 +286,10 @@ const addTableBlock = (sheet, heading, columns = [], items = []) => {
   }
 
   items.forEach((item) => {
-    const values = normalizedColumns.map((col) =>
-      sanitizeValue(item?.[col.key]),
-    );
-    const row = sheet.addRow(values);
+    const row = sheet.addRow([]);
+    normalizedColumns.forEach((col, idx) => {
+      setDataCell(row.getCell(idx + 1), item?.[col.key], col);
+    });
     applyBodyBorders(row);
   });
 

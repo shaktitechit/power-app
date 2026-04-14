@@ -45,6 +45,12 @@ export interface Facility {
   client_email: string;
   facility_type: string;
   status: string;
+  audit_closure?: {
+    closed_at?: ISODateString;
+    closed_by?: ID;
+    reopened_at?: ISODateString;
+    reopened_by?: ID;
+  };
   created_by: ID;
   created_at: ISODateString;
   updated_at: ISODateString;
@@ -75,6 +81,10 @@ export interface UtilityAccount {
   is_pump_connected: boolean;
    is_transformer_maintained_by_facility: boolean;
   is_active: boolean;
+  audit_step_submissions?: Record<
+    string,
+    { submitted_at?: ISODateString; submitted_by?: ID }
+  >;
   created_at: ISODateString;
   updated_at: ISODateString;
 }

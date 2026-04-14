@@ -163,7 +163,9 @@ export const drawDataTable = (
   doc.font(theme.font.family).fontSize(bodySize).fillColor(theme.colors.text);
 
   rows.forEach((row, ri) => {
-    const vals = cols.map((c) => truncatePdfText(getRowCell(row, c.key), 120));
+    const vals = cols.map((c) =>
+      truncatePdfText(getRowCell(row, c.key, c), 120),
+    );
     let rowH = 0;
     vals.forEach((v, i) => {
       const h = doc.heightOfString(v || "—", {

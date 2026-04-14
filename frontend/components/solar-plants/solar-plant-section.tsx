@@ -29,10 +29,14 @@ import {
 } from "@/store/slices/solarPlantApiSlice";
 import { toastHandler } from "@/lib/toast";
 import { useAppSelector } from "@/store/hooks";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
+import { AuditStepSubmitBar } from "@/components/utility-audit/audit-step-submit-bar";
+import { AuditStepLockedOverlay } from "@/components/utility-audit/audit-step-locked-overlay";
 
 interface SolarPlantSectionProps {
   utilityAccountId: string;
   facilityId: string;
+  auditStepLocked?: boolean;
 }
 
 type SolarPlantFormState = {
@@ -110,6 +114,7 @@ const getErrorMessage = (error: any) => {
 export function SolarPlantSection({
   utilityAccountId,
   facilityId,
+  auditStepLocked = false,
 }: SolarPlantSectionProps) {
   const user = useAppSelector((state) => state.auth.user);
   const canViewDocuments = user?.role === "admin";
@@ -335,11 +340,28 @@ export function SolarPlantSection({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-lg font-medium text-foreground">Solar Plants</h3>
+    <div className="relative space-y-4">
+      {auditStepLocked ? (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-950 dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-blue-100">
+          This audit step has been submitted and is locked for editing.
+        </div>
+      ) : null}
 
-        <Button onClick={handleOpenCreate}>
+      <div className="relative">
+        <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <h3 className="text-lg font-medium text-foreground">Solar Plants</h3>
+          <AuditStepSubmitBar
+            variant="compact"
+            utilityAccountId={utilityAccountId}
+            stepId={UTILITY_AUDIT_STEP_IDS.SOLAR}
+            stepLabel="Solar audit"
+            auditStepLocked={auditStepLocked}
+          />
+        </div>
+
+        <Button onClick={handleOpenCreate} disabled={auditStepLocked}>
           <Plus className="mr-2 h-4 w-4" />
           Create Solar Plant
         </Button>
@@ -414,6 +436,7 @@ export function SolarPlantSection({
                             size="sm"
                             variant="outline"
                             onClick={() => handleOpenEdit(form.localId)}
+                            disabled={auditStepLocked}
                           >
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
@@ -422,7 +445,7 @@ export function SolarPlantSection({
                           {/* Audit Button */}
                           <Button
                             size="sm"
-                            disabled={!form.id}
+                            disabled={!form.id || auditStepLocked}
                             className="bg-warning text-warning-foreground hover:bg-warning/90"
                             onClick={() =>
                               router.push(
@@ -654,6 +677,9 @@ export function SolarPlantSection({
           ) : null}
         </DialogContent>
       </Dialog>
+        </div>
+        {auditStepLocked ? <AuditStepLockedOverlay /> : null}
+      </div>
     </div>
   );
 }

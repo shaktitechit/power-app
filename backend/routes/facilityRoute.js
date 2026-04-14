@@ -6,6 +6,8 @@ import {
   getFacilityById,
   updateFacility,
   deleteFacility,
+  closeFacilityAudit,
+  openFacilityAudit,
 } from "../controllers/facilityController.js";
 import { uploadDocuments } from "../middlewares/uploadMiddleware.js";
 
@@ -21,5 +23,8 @@ router
   .get(protect, getFacilityById)
   .put(protect, uploadDocuments, updateFacility)
   .delete(protect, deleteFacility);
+
+router.post("/:id/audit-close", protect, closeFacilityAudit);
+router.post("/:id/audit-open", protect, openFacilityAudit);
 
 export default router;

@@ -4,6 +4,7 @@ import {
   loginUser,
   registerUser,
   getUserProfile,
+  refreshAccessToken,
   userLogout,
   getAuditors,
   updateUser,
@@ -16,6 +17,7 @@ const router = express.Router();
 // 🔐 Auth
 router.post("/register", authRateLimiter, registerUser);
 router.post("/login", authRateLimiter, loginUser);
+router.post("/refresh", authRateLimiter, refreshAccessToken);
 router.post("/logout", protect, userLogout);
 
 // 👤 Profile

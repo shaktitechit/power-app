@@ -64,6 +64,13 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    /** SHA-256 hash of active refresh JWT (rotation + logout revocation) */
+    refreshTokenHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
   },
   {
     timestamps: {

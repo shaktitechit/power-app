@@ -4,6 +4,8 @@ import {
   createUtilityAccount,
   getUtilityAccounts,
   getUtilityAccountById,
+  submitUtilityAuditStep,
+  allowUtilityAuditStep,
   updateUtilityAccount,
   deleteUtilityAccount,
 } from "../controllers/utilityController.js";
@@ -15,6 +17,9 @@ router
   .route("/")
   .post(protect, uploadDocuments, createUtilityAccount)
   .get(protect, getUtilityAccounts);
+
+router.post("/:id/audit-step-submit", protect, submitUtilityAuditStep);
+router.post("/:id/audit-step-allow", protect, allowUtilityAuditStep);
 
 router
   .route("/:id")

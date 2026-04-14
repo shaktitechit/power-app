@@ -34,6 +34,22 @@ const uploadUtilityDocuments = async (files = [], utilityAccountId) => {
   return uploadedDocuments;
 };
 
+const ALLOWED_AUDIT_STEPS = [
+  "tarrif",
+  "utility-billing-records",
+  "solar-plants",
+  "dg-sets",
+  "transformer",
+  "pump",
+  "hvac",
+  "ac",
+  "lighting",
+  "fan",
+  "lux",
+  "misc",
+  "preview-and-submit",
+];
+
 // helper: parse booleans safely
 const parseBoolean = (value, defaultValue = false) => {
   if (value === undefined || value === null || value === "")
@@ -242,6 +258,145 @@ const getUtilityAccountById = asyncHandler(async (req, res) => {
   });
 });
 
+// POST submit audit step (locks tab workflow on client)
+const submitUtilityAuditStep = asyncHandler(async (req, res) => {
+  const step = req.body?.step;
+  if (!step || typeof step !== "string" || !ALLOWED_AUDIT_STEPS.includes(step)) {
+    res.status(400);
+    throw new Error("Invalid audit step");
+  }
+
+  const utilityAccount = await UtilityAccount.findById(req.params.id);
+
+  if (!utilityAccount) {
+    res.status(404);
+    throw new Error("Utility account not found");
+  }
+
+  const facility = await getAccessibleFacility(
+    req.user,
+    utilityAccount.facility_id,
+  );
+
+  if (!facility) {
+    res.status(403);
+    throw new Error("Access denied");
+  }
+
+  const prev =
+    utilityAccount.audit_step_submissions &&
+    typeof utilityAccount.audit_step_submissions === "object" &&
+    !Array.isArray(utilityAccount.audit_step_submissions)
+      ? { ...utilityAccount.audit_step_submissions }
+      : {};
+
+  prev[step] = {
+    submitted_at: new Date(),
+    submitted_by: req.user._id,
+  };
+
+  utilityAccount.audit_step_submissions = prev;
+  utilityAccount.markModified("audit_step_submissions");
+
+  const updated = await utilityAccount.save();
+
+  await createRecentActivity({
+    actor: req.user,
+    action: "updated",
+    entity_type: "utility_account",
+    entity_id: updated._id,
+    entity_name: updated.account_number,
+    facility_id: updated.facility_id,
+    utility_account_id: updated._id,
+    message: buildActivityMessage({
+      actorName: req.user?.name || "User",
+      action: "updated",
+      entityLabel: "utility account (audit step submitted)",
+      entityName: step,
+    }),
+    meta: {
+      audit_step: step,
+    },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Audit step submitted",
+    data: updated,
+  });
+});
+
+// POST allow editing again for a submitted audit step (admin only — clears lock)
+const allowUtilityAuditStep = asyncHandler(async (req, res) => {
+  if (!isAdmin(req.user)) {
+    res.status(403);
+    throw new Error("Only administrators can allow editing for a submitted audit step");
+  }
+
+  const step = req.body?.step;
+  if (!step || typeof step !== "string" || !ALLOWED_AUDIT_STEPS.includes(step)) {
+    res.status(400);
+    throw new Error("Invalid audit step");
+  }
+
+  const utilityAccount = await UtilityAccount.findById(req.params.id);
+
+  if (!utilityAccount) {
+    res.status(404);
+    throw new Error("Utility account not found");
+  }
+
+  const facility = await getAccessibleFacility(
+    req.user,
+    utilityAccount.facility_id,
+  );
+
+  if (!facility) {
+    res.status(403);
+    throw new Error("Access denied");
+  }
+
+  const prev =
+    utilityAccount.audit_step_submissions &&
+    typeof utilityAccount.audit_step_submissions === "object" &&
+    !Array.isArray(utilityAccount.audit_step_submissions)
+      ? { ...utilityAccount.audit_step_submissions }
+      : {};
+
+  delete prev[step];
+
+  utilityAccount.audit_step_submissions = prev;
+  utilityAccount.markModified("audit_step_submissions");
+
+  const updated = await utilityAccount.save();
+
+  await createRecentActivity({
+    actor: req.user,
+    action: "updated",
+    entity_type: "utility_account",
+    entity_id: updated._id,
+    entity_name: updated.account_number,
+    facility_id: updated.facility_id,
+    utility_account_id: updated._id,
+    message: buildActivityMessage({
+      actorName: req.user?.name || "User",
+      action: "updated",
+      entityLabel: "utility account (audit step editing allowed)",
+      entityName: step,
+    }),
+    meta: {
+      audit_step: step,
+      audit_allow_editing: true,
+    },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Audit step unlocked for editing",
+    data: updated,
+  });
+});
+
 // UPDATE
 const updateUtilityAccount = asyncHandler(async (req, res) => {
   const {
@@ -440,6 +595,8 @@ export {
   createUtilityAccount,
   getUtilityAccounts,
   getUtilityAccountById,
+  submitUtilityAuditStep,
+  allowUtilityAuditStep,
   updateUtilityAccount,
   deleteUtilityAccount,
 };

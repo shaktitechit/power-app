@@ -29,11 +29,15 @@ import {
   type SolarGenerationExcelEditablePayload,
 } from "@/lib/solar-generation-record-excel";
 import { useAppSelector } from "@/store/hooks";
+import { AuditStepLockedOverlay } from "@/components/utility-audit/audit-step-locked-overlay";
 
 interface SolarGenerationRecordSectionProps {
   facilityId: string;
   utilityAccountId: string;
   solarPlantId: string;
+  auditStepLocked?: boolean;
+  /** When true, omit top submit/banner (submit lives on parent page tab strip) */
+  hideAuditSubmitChrome?: boolean;
 }
 
 type ExistingDocument = {
@@ -261,6 +265,8 @@ export function SolarGenerationRecordSection({
   facilityId,
   utilityAccountId,
   solarPlantId,
+  auditStepLocked = false,
+  hideAuditSubmitChrome = false,
 }: SolarGenerationRecordSectionProps) {
   const user = useAppSelector((state) => state.auth.user);
   const canViewDocuments = user?.role === "admin";
@@ -269,7 +275,6 @@ export function SolarGenerationRecordSection({
     isLoading: isBillingLoading,
     refetch: refetchBillingRecords,
   } = useGetUtilityBillingRecordsQuery({
-    facility_id: facilityId,
     utility_account_id: utilityAccountId,
   });
 
@@ -586,21 +591,41 @@ export function SolarGenerationRecordSection({
 
   if (forms.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Solar Generation Records</CardTitle>
-        </CardHeader>
-        <CardContent className="py-8 text-sm text-muted-foreground">
-          No utility billing records found for this utility account. Solar
-          generation forms will open automatically based on utility billing
-          records.
-        </CardContent>
-      </Card>
+      <div className="relative space-y-4">
+        {auditStepLocked && !hideAuditSubmitChrome ? (
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-950 dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-blue-100">
+            Solar audit for this utility account has been submitted and is
+            locked for editing.
+          </div>
+        ) : null}
+        <div className="relative">
+          <Card>
+            <CardHeader>
+              <CardTitle>Solar Generation Records</CardTitle>
+            </CardHeader>
+            <CardContent className="py-8 text-sm text-muted-foreground">
+              No utility billing records found for this utility account. Solar
+              generation forms will open automatically based on utility billing
+              records.
+            </CardContent>
+          </Card>
+          {auditStepLocked ? <AuditStepLockedOverlay /> : null}
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      {auditStepLocked && !hideAuditSubmitChrome ? (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-950 dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-blue-100">
+          Solar audit for this utility account has been submitted and is locked
+          for editing.
+        </div>
+      ) : null}
+
+      <div className="relative">
+        <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-medium text-foreground">
@@ -620,13 +645,14 @@ export function SolarGenerationRecordSection({
             accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             className="hidden"
             onChange={handleExcelFileChange}
-            disabled={excelImporting}
+            disabled={excelImporting || auditStepLocked}
           />
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleDownloadSolarTemplate}
+            disabled={auditStepLocked}
           >
             <Download className="mr-2 h-4 w-4" />
             Excel template ({forms.length} rows)
@@ -635,7 +661,7 @@ export function SolarGenerationRecordSection({
             type="button"
             variant="outline"
             size="sm"
-            disabled={excelImporting}
+            disabled={excelImporting || auditStepLocked}
             onClick={() =>
               document.getElementById("solar-generation-excel-import")?.click()
             }
@@ -1017,6 +1043,9 @@ export function SolarGenerationRecordSection({
           </CardContent>
         </Card>
       ))}
+        </div>
+        {auditStepLocked ? <AuditStepLockedOverlay /> : null}
+      </div>
     </div>
   );
 }

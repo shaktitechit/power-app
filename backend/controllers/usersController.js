@@ -6,28 +6,26 @@ import jwt from "jsonwebtoken";
 // import { emailQueue } from "../queues/emailQueue.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
+import {
+  clearAuthCookies,
+  getRefreshSecret,
+  hashToken,
+  setAuthCookies,
+  signAccessToken,
+  signRefreshToken,
+} from "../utils/authTokens.js";
 
-const generateToken = (res, userId) => {
-  const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: "7d",
-  });
+const issueTokensForUser = async (res, user) => {
+  const accessToken = signAccessToken(user._id);
+  const refreshToken = signRefreshToken(user._id);
 
-  res.cookie("jwt", token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-    maxAge: 1 * 24 * 60 * 60 * 1000,
-  });
-};
+  user.refreshTokenHash = hashToken(refreshToken);
+  await user.save();
 
-const generateRole = (res, role) => {
-  res.cookie("role", role, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-    maxAge: 1 * 24 * 60 * 60 * 1000,
+  setAuthCookies(res, {
+    accessToken,
+    refreshToken,
+    role: user.role,
   });
 };
 
@@ -59,8 +57,7 @@ const loginUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Invalid Credentials" });
   }
 
-  generateToken(res, user._id);
-  generateRole(res, user.role);
+  await issueTokensForUser(res, user);
 
   res.json({
     _id: user._id,
@@ -102,19 +99,63 @@ const getUserProfile = asyncHandler(async (req, res) => {
   res.json(req.user);
 });
 
+//@route POST /api/v1/users/refresh
+//@desc Issue new access + refresh cookies from refresh token
+//@access Public (requires refreshToken cookie)
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: "No refresh token" });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(refreshToken, getRefreshSecret());
+  } catch {
+    return res.status(401).json({ message: "Invalid or expired refresh token" });
+  }
+
+  if (decoded.typ !== "refresh") {
+    return res.status(401).json({ message: "Invalid token type" });
+  }
+
+  const user = await User.findById(decoded.id).select("+refreshTokenHash");
+
+  if (!user || user.status !== "active") {
+    return res.status(401).json({ message: "User not found or inactive" });
+  }
+
+  if (user.refreshTokenHash !== hashToken(refreshToken)) {
+    return res.status(401).json({ message: "Refresh token revoked" });
+  }
+
+  const accessToken = signAccessToken(user._id);
+  const newRefreshToken = signRefreshToken(user._id);
+  user.refreshTokenHash = hashToken(newRefreshToken);
+  await user.save();
+
+  setAuthCookies(res, {
+    accessToken,
+    refreshToken: newRefreshToken,
+    role: user.role,
+  });
+
+  res.json({ ok: true });
+});
+
 //@route POST /api/v1/users/logout
 //@desc POST logged-out user
 //@access Private
 const userLogout = asyncHandler(async (req, res) => {
-  res.cookie("jwt", "", {
-    httpOnly: true,
-    expires: new Date(0),
-  });
+  const user = await User.findById(req.user._id).select("+refreshTokenHash");
 
-  res.cookie("role", "", {
-    httpOnly: true,
-    expires: new Date(0),
-  });
+  if (user) {
+    user.refreshTokenHash = null;
+    await user.save();
+  }
+
+  clearAuthCookies(res);
 
   res.json({ message: "Logged out" });
 });
@@ -318,6 +359,7 @@ export {
   loginUser,
   registerUser,
   getUserProfile,
+  refreshAccessToken,
   userLogout,
   getAuditors,
   updateUser,

@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddUtilityAccountForm } from "@/components/connection/create-utility-form";
 import { EditUtilityAccountForm } from "@/components/connection/edit-utility-form";
 import { UtilityAccount } from "@/lib/dummy-types";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
 
 import {
   ArrowLeft,
@@ -32,12 +33,17 @@ import {
   ImageIcon,
   Pencil,
 } from "lucide-react";
-import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
+import {
+  useCloseFacilityAuditMutation,
+  useGetFacilityByIdQuery,
+  useOpenFacilityAuditMutation,
+} from "@/store/slices/facilityApiSlice";
 import {
   useDeleteUtilityAccountMutation,
   useGetUtilityAccountsQuery,
 } from "@/store/slices/utilityApiSlice";
 import { useAppSelector } from "@/store/hooks";
+import { toastHandler } from "@/lib/toast";
 
 export default function FacilityWorkspacePage() {
   const params = useParams();
@@ -52,6 +58,10 @@ export default function FacilityWorkspacePage() {
   const [isConnectionWizardOpen, setIsConnectionWizardOpen] = useState(false);
 
   const [deleteUtilityAccount] = useDeleteUtilityAccountMutation();
+  const [closeFacilityAudit, { isLoading: closingFacilityAudit }] =
+    useCloseFacilityAuditMutation();
+  const [openFacilityAudit, { isLoading: openingFacilityAudit }] =
+    useOpenFacilityAuditMutation();
 
   const user = useAppSelector((state) => state.auth.user);
   const isAdmin = user?.role === "admin";
@@ -61,10 +71,24 @@ export default function FacilityWorkspacePage() {
   });
 
   const UtilityAccounts = utilities?.data || [];
+  const utilityAuditCompletedCount = UtilityAccounts.filter((utility) =>
+    Boolean(
+      utility.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
+        ?.submitted_at,
+    ),
+  ).length;
+  const utilityAuditPendingCount = Math.max(
+    UtilityAccounts.length - utilityAuditCompletedCount,
+    0,
+  );
+  const allUtilityAuditsCompleted =
+    UtilityAccounts.length > 0 &&
+    utilityAuditCompletedCount === UtilityAccounts.length;
 
   const { data } = useGetFacilityByIdQuery(facilityId);
 
   const facility = data?.data?.facility;
+  const facilityAuditClosed = Boolean(facility?.audit_closure?.closed_at);
   const assignedAuditors = data?.data?.assignedAuditors ?? [];
   const clientRepresentatives =
     facility?.client_representatives && facility.client_representatives.length > 0
@@ -80,9 +104,16 @@ export default function FacilityWorkspacePage() {
   const tabs = useMemo(
     () => [
       { id: "overview", label: "Overview" },
-      { id: "utility_accounts", label: "Utility Accounts" },
+      {
+        id: "utility_accounts",
+        label: "Utility Accounts",
+        count: UtilityAccounts?.length || 0,
+      },
+      ...(allUtilityAuditsCompleted
+        ? [{ id: "preview_closure", label: "Preview and Closure" }]
+        : []),
     ],
-    [],
+    [UtilityAccounts?.length, allUtilityAuditsCompleted],
   );
 
   const validTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
@@ -204,6 +235,27 @@ export default function FacilityWorkspacePage() {
       ),
     },
     {
+      key: "audit_status",
+      header: "Audit Status",
+      render: (row) => {
+        const isAuditCompleted = Boolean(
+          row.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
+            ?.submitted_at,
+        );
+        return (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+              isAuditCompleted
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+            }`}
+          >
+            {isAuditCompleted ? "Completed" : "Pending"}
+          </span>
+        );
+      },
+    },
+    {
       key: "actions",
       header: "Actions",
       render: (row: UtilityAccount) => (
@@ -233,6 +285,24 @@ export default function FacilityWorkspacePage() {
   const handleEditComplete = async () => {
     setEditOpen(false);
     setSelectedUtilityAccount(null);
+  };
+
+  const handleCloseFacilityAudit = async () => {
+    if (!facilityId) return;
+    await toastHandler({
+      action: () => closeFacilityAudit(facilityId).unwrap(),
+      loading: "Closing facility audit...",
+      success: "Facility audit closed successfully",
+    });
+  };
+
+  const handleOpenFacilityAudit = async () => {
+    if (!facilityId) return;
+    await toastHandler({
+      action: () => openFacilityAudit(facilityId).unwrap(),
+      loading: "Opening facility audit...",
+      success: "Facility audit opened successfully",
+    });
   };
 
   const UtilityAccountsTable = DataTable as any;
@@ -369,6 +439,19 @@ export default function FacilityWorkspacePage() {
                         : facility?.updatedAt
                           ? new Date(facility.updatedAt).toLocaleString()
                           : "-"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Closure Status</span>
+                    <span
+                      className={`text-right font-medium ${
+                        facilityAuditClosed
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : "text-amber-700 dark:text-amber-400"
+                      }`}
+                    >
+                      {facilityAuditClosed ? "Closed" : "Open"}
                     </span>
                   </div>
                 </div>
@@ -548,13 +631,14 @@ export default function FacilityWorkspacePage() {
       )}
 
       {activeTab === "utility_accounts" && (
-        <div className="space-y-4">
+        <div className="relative space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-base font-medium text-foreground sm:text-lg">
               Utility Accounts
             </h3>
             <Button
               onClick={() => setIsConnectionWizardOpen(true)}
+              disabled={facilityAuditClosed}
               className="w-full sm:w-auto"
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -566,10 +650,89 @@ export default function FacilityWorkspacePage() {
             columns={UtilityAccountColumn}
             data={UtilityAccounts}
             onRowClick={(row?: UtilityAccount) =>
-              row ? handleConnectionClick(row) : undefined
+              row && !facilityAuditClosed ? handleConnectionClick(row) : undefined
             }
             emptyMessage="No connections found for this facility"
           />
+
+          {facilityAuditClosed ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/75 backdrop-blur-[1px]">
+              <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950 dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-blue-100">
+                Facility audit is closed. Utility account edits are locked.
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {activeTab === "preview_closure" && allUtilityAuditsCompleted && (
+        <div className="space-y-4">
+          <Card className="border-border bg-card">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-card-foreground">
+                Audit Preview and Closure
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 p-4 pt-0 sm:grid-cols-3 sm:p-6 sm:pt-0">
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Total Utility Accounts</p>
+                <p className="mt-1 text-lg font-semibold text-foreground">
+                  {UtilityAccounts.length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">
+                  Utility Audits Completed
+                </p>
+                <p className="mt-1 text-lg font-semibold text-emerald-700 dark:text-emerald-400">
+                  {utilityAuditCompletedCount}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">
+                  Utility Audits Pending
+                </p>
+                <p className="mt-1 text-lg font-semibold text-amber-700 dark:text-amber-400">
+                  {utilityAuditPendingCount}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border bg-card">
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="text-sm text-muted-foreground">
+                {facilityAuditClosed
+                  ? "Facility audit is currently closed."
+                  : "All utility audits are completed. You can close the facility audit now."}
+              </div>
+              <div className="flex items-center gap-2">
+                {!facilityAuditClosed ? (
+                  <Button
+                    onClick={handleCloseFacilityAudit}
+                    disabled={closingFacilityAudit || openingFacilityAudit}
+                  >
+                    {closingFacilityAudit ? "Closing..." : "Audit Close"}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={handleOpenFacilityAudit}
+                      disabled={!isAdmin || openingFacilityAudit || closingFacilityAudit}
+                    >
+                      {openingFacilityAudit ? "Opening..." : "Open Audit"}
+                    </Button>
+                    {!isAdmin ? (
+                      <span className="text-xs text-muted-foreground">
+                        Only admin can open facility audit.
+                      </span>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 

@@ -6,6 +6,10 @@ import SolarPlant from "../modals/solarPlant.js";
 import DGSet from "../modals/dgSet.js";
 import Transformer from "../modals/transformer.js";
 import Pump from "../modals/pump.js";
+import {
+  isFacilityAuditClosed,
+  isUtilityAuditCompleted,
+} from "../helpers/auditState.js";
 
 const isAdmin = (user) => user?.role === "admin";
 
@@ -242,13 +246,8 @@ const buildEnergySourceDistribution = ({
 const deriveAuditStatus = ({
   facilities = [],
   utilityAccounts = [],
-  solarPlants = [],
-  dgSets = [],
-  transformers = [],
-  pumps = [],
 }) => {
   const utilityByFacility = new Map();
-  const assetByFacility = new Map();
 
   for (const u of utilityAccounts) {
     const facilityId = String(u.facility_id);
@@ -258,26 +257,24 @@ const deriveAuditStatus = ({
     );
   }
 
-  const allAssets = [...solarPlants, ...dgSets, ...transformers, ...pumps];
-
-  for (const item of allAssets) {
-    const facilityId = String(item.facility_id);
-    assetByFacility.set(facilityId, (assetByFacility.get(facilityId) || 0) + 1);
-  }
-
   let completed = 0;
   let inProgress = 0;
   let pending = 0;
 
   for (const facility of facilities) {
     const facilityId = String(facility._id);
-
     const utilityCount = utilityByFacility.get(facilityId) || 0;
-    const assetCount = assetByFacility.get(facilityId) || 0;
+    const isClosed = isFacilityAuditClosed(facility);
+    const facilityUtilities = utilityAccounts.filter(
+      (u) => String(u.facility_id) === facilityId,
+    );
+    const allUtilitiesAuditSubmitted =
+      facilityUtilities.length > 0 &&
+      facilityUtilities.every((u) => isUtilityAuditCompleted(u));
 
-    if (utilityCount > 0 && assetCount > 0) {
+    if (isClosed) {
       completed += 1;
-    } else if (utilityCount > 0) {
+    } else if (utilityCount > 0 && allUtilitiesAuditSubmitted) {
       inProgress += 1;
     } else {
       pending += 1;
@@ -310,6 +307,10 @@ const getAnalytics = asyncHandler(async (req, res) => {
           totalFacilities: 0,
           completedAudits: 0,
           pendingAudits: 0,
+          utilityAuditsCompleted: 0,
+          utilityAuditsPending: 0,
+          closedFacilities: 0,
+          openFacilities: 0,
           totalCapacity: 0,
           totalConnections: 0,
           dgCapacity: 0,
@@ -383,12 +384,12 @@ const getAnalytics = asyncHandler(async (req, res) => {
   ] = await Promise.all([
     Facility.find(
       facilityQuery,
-      "name city status facility_type createdAt updatedAt created_at updated_at",
+      "name city status facility_type audit_closure createdAt updatedAt created_at updated_at",
     ).lean(),
 
     UtilityAccount.find(
       { facility_id: { $in: accessibleFacilityIds } },
-      "facility_id account_number sanctioned_demand_kVA createdAt updatedAt created_at updated_at",
+      "facility_id account_number sanctioned_demand_kVA audit_step_submissions createdAt updatedAt created_at updated_at",
     ).lean(),
 
     SolarPlant.find(
@@ -415,11 +416,16 @@ const getAnalytics = asyncHandler(async (req, res) => {
   const auditStatus = deriveAuditStatus({
     facilities,
     utilityAccounts,
-    solarPlants,
-    dgSets,
-    transformers,
-    pumps,
   });
+  const utilityAuditsCompleted = utilityAccounts.filter((u) =>
+    isUtilityAuditCompleted(u),
+  ).length;
+  const utilityAuditsPending = Math.max(
+    utilityAccounts.length - utilityAuditsCompleted,
+    0,
+  );
+  const closedFacilities = facilities.filter((f) => isFacilityAuditClosed(f)).length;
+  const openFacilities = Math.max(facilities.length - closedFacilities, 0);
 
   const energySourceDistribution = buildEnergySourceDistribution({
     utilityAccounts,
@@ -466,6 +472,10 @@ const getAnalytics = asyncHandler(async (req, res) => {
     totalFacilities: facilities.length,
     completedAudits: auditStatus.completed,
     pendingAudits: auditStatus.pending,
+    utilityAuditsCompleted,
+    utilityAuditsPending,
+    closedFacilities,
+    openFacilities,
     totalCapacity,
     totalConnections: utilityAccounts.length,
     dgCapacity: totalDGCapacity,

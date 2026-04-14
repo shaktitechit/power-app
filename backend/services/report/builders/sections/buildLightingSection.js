@@ -14,12 +14,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -186,7 +180,7 @@ export const buildLightingSection = async ({
       {
         heading: "Lighting Basic Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "audit_date_label",
           "area_location",
           "fixture_type",
@@ -208,33 +202,23 @@ export const buildLightingSection = async ({
       {
         heading: "Electrical & Operating Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "fixture_type",
           "lamp_type",
           "wattage_W",
-          "quantity_nos",
+          { key: "quantity_nos", label: "Quantity Nos", type: "integer" },
           "working_hours_per_day",
-          "working_days_per_year",
+          { key: "working_days_per_year", label: "Working Days Per Year", type: "integer" },
           "control_type",
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           fixture_type: item.fixture_type,
           lamp_type: item.lamp_type,
-          wattage_W:
-            item.wattage_W !== null ? formatNumber(item.wattage_W) : "",
-          quantity_nos:
-            item.quantity_nos !== null
-              ? formatNumber(item.quantity_nos, 0)
-              : "",
-          working_hours_per_day:
-            item.working_hours_per_day !== null
-              ? formatNumber(item.working_hours_per_day)
-              : "",
-          working_days_per_year:
-            item.working_days_per_year !== null
-              ? formatNumber(item.working_days_per_year)
-              : "",
+          wattage_W: item.wattage_W ?? null,
+          quantity_nos: item.quantity_nos ?? null,
+          working_hours_per_day: item.working_hours_per_day ?? null,
+          working_days_per_year: item.working_days_per_year ?? null,
           control_type: item.control_type,
         })),
       },
@@ -242,7 +226,7 @@ export const buildLightingSection = async ({
       {
         heading: "Lighting Performance & Calculations",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "fixture_type",
           "lamp_type",
           "connected_load_kW",
@@ -252,14 +236,8 @@ export const buildLightingSection = async ({
           sr_no: item.sr_no,
           fixture_type: item.fixture_type,
           lamp_type: item.lamp_type,
-          connected_load_kW:
-            item.connected_load_kW !== null
-              ? formatNumber(item.connected_load_kW)
-              : "",
-          annual_energy_kWh:
-            item.annual_energy_kWh !== null
-              ? formatNumber(item.annual_energy_kWh)
-              : "",
+          connected_load_kW: item.connected_load_kW ?? null,
+          annual_energy_kWh: item.annual_energy_kWh ?? null,
         })),
       },
 
@@ -277,37 +255,28 @@ export const buildLightingSection = async ({
           },
           {
             metric: "Total Connected Load (kW)",
-            value:
-              summary.total_connected_load_kW !== null
-                ? formatNumber(summary.total_connected_load_kW)
-                : "",
+            value: summary.total_connected_load_kW ?? "",
           },
           {
             metric: "Total Annual Energy (kWh)",
-            value:
-              summary.total_annual_energy_kWh !== null
-                ? formatNumber(summary.total_annual_energy_kWh)
-                : "",
+            value: summary.total_annual_energy_kWh ?? "",
           },
           {
             metric: "Average Wattage (W)",
-            value:
-              summary.average_wattage_W !== null
-                ? formatNumber(summary.average_wattage_W)
-                : "",
+            value: summary.average_wattage_W ?? "",
           },
         ],
       },
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "audit_date_label", label: "Audit Date" },
       { key: "area_location", label: "Area / Location" },
       { key: "fixture_type", label: "Fixture Type" },
       { key: "lamp_type", label: "Lamp Type" },
       { key: "wattage_W", label: "Wattage (W)" },
-      { key: "quantity_nos", label: "Quantity (Nos)" },
+      { key: "quantity_nos", label: "Quantity (Nos)", type: "integer" },
       { key: "connected_load_kW", label: "Connected Load (kW)" },
       { key: "annual_energy_kWh", label: "Annual Energy (kWh)" },
     ],
@@ -318,17 +287,10 @@ export const buildLightingSection = async ({
       area_location: item.area_location,
       fixture_type: item.fixture_type,
       lamp_type: item.lamp_type,
-      wattage_W: item.wattage_W !== null ? formatNumber(item.wattage_W) : "",
-      quantity_nos:
-        item.quantity_nos !== null ? formatNumber(item.quantity_nos, 0) : "",
-      connected_load_kW:
-        item.connected_load_kW !== null
-          ? formatNumber(item.connected_load_kW)
-          : "",
-      annual_energy_kWh:
-        item.annual_energy_kWh !== null
-          ? formatNumber(item.annual_energy_kWh)
-          : "",
+      wattage_W: item.wattage_W ?? null,
+      quantity_nos: item.quantity_nos ?? null,
+      connected_load_kW: item.connected_load_kW ?? null,
+      annual_energy_kWh: item.annual_energy_kWh ?? null,
     })),
   };
 };

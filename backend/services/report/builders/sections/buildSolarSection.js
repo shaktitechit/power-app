@@ -19,12 +19,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -432,45 +426,30 @@ export const buildSolarSection = async ({
   sections.push({
     heading: "Solar Plants Summary",
     columns: [
-      "sr_no",
+      { key: "sr_no", label: "Sr No", type: "integer" },
       "plant_name",
       "rating_kWp",
-      "panel_rating_watt",
-      "no_of_panels",
+      { key: "panel_rating_watt", label: "Panel Rating Watt", type: "integer" },
+      { key: "no_of_panels", label: "No Of Panels", type: "integer" },
       "inverter_make",
       "inverter_rating_kW",
-      "total_records",
+      { key: "total_records", label: "Total Records", type: "integer" },
       "total_solar_generation_kWh",
       "average_specific_generation_kWh_per_kWp",
     ],
     rows: plantGroups.map((group) => ({
       sr_no: group.plant.sr_no,
       plant_name: group.plant.plant_name,
-      rating_kWp:
-        group.plant.rating_kWp !== null
-          ? formatNumber(group.plant.rating_kWp)
-          : "",
-      panel_rating_watt:
-        group.plant.panel_rating_watt !== null
-          ? formatNumber(group.plant.panel_rating_watt)
-          : "",
-      no_of_panels:
-        group.plant.no_of_panels !== null
-          ? formatNumber(group.plant.no_of_panels, 0)
-          : "",
+      rating_kWp: group.plant.rating_kWp ?? null,
+      panel_rating_watt: group.plant.panel_rating_watt ?? null,
+      no_of_panels: group.plant.no_of_panels ?? null,
       inverter_make: group.plant.inverter_make,
-      inverter_rating_kW:
-        group.plant.inverter_rating_kW !== null
-          ? formatNumber(group.plant.inverter_rating_kW)
-          : "",
+      inverter_rating_kW: group.plant.inverter_rating_kW ?? null,
       total_records: group.summary.total_records,
-      total_solar_generation_kWh: formatNumber(
-        group.summary.total_solar_generation_kWh,
-      ),
+      total_solar_generation_kWh:
+        group.summary.total_solar_generation_kWh ?? null,
       average_specific_generation_kWh_per_kWp:
-        group.summary.average_specific_generation_kWh_per_kWp !== null
-          ? formatNumber(group.summary.average_specific_generation_kWh_per_kWp)
-          : "",
+        group.summary.average_specific_generation_kWh_per_kWp ?? null,
     })),
   });
 
@@ -482,32 +461,20 @@ export const buildSolarSection = async ({
         { field: "Plant Name", value: group.plant.plant_name || "" },
         {
           field: "Rating (kWp)",
-          value:
-            group.plant.rating_kWp !== null
-              ? formatNumber(group.plant.rating_kWp)
-              : "",
+          value: group.plant.rating_kWp ?? "",
         },
         {
           field: "Panel Rating (Watt)",
-          value:
-            group.plant.panel_rating_watt !== null
-              ? formatNumber(group.plant.panel_rating_watt)
-              : "",
+          value: group.plant.panel_rating_watt ?? "",
         },
         {
           field: "No. of Panels",
-          value:
-            group.plant.no_of_panels !== null
-              ? formatNumber(group.plant.no_of_panels, 0)
-              : "",
+          value: group.plant.no_of_panels ?? "",
         },
         { field: "Inverter Make", value: group.plant.inverter_make || "" },
         {
           field: "Inverter Rating (kW)",
-          value:
-            group.plant.inverter_rating_kW !== null
-              ? formatNumber(group.plant.inverter_rating_kW)
-              : "",
+          value: group.plant.inverter_rating_kW ?? "",
         },
       ],
     });
@@ -515,10 +482,10 @@ export const buildSolarSection = async ({
     sections.push({
       heading: `${group.plant.plant_name || "Solar Plant"} - Generation Records`,
       columns: [
-        "sr_no",
+        { key: "sr_no", label: "Sr No", type: "integer" },
         "bill_no",
         "billing_period_label",
-        "billing_days",
+        { key: "billing_days", label: "Billing Days", type: "integer" },
         "import_kWh",
         "export_kWh",
         "net_kWh",
@@ -530,27 +497,15 @@ export const buildSolarSection = async ({
         sr_no: record.sr_no,
         bill_no: record.bill_no,
         billing_period_label: record.billing_period_label,
-        billing_days:
-          record.billing_days !== null
-            ? formatNumber(record.billing_days, 0)
-            : "",
-        import_kWh:
-          record.import_kWh !== null ? formatNumber(record.import_kWh) : "",
-        export_kWh:
-          record.export_kWh !== null ? formatNumber(record.export_kWh) : "",
-        net_kWh: record.net_kWh !== null ? formatNumber(record.net_kWh) : "",
-        solar_generation_kWh:
-          record.solar_generation_kWh !== null
-            ? formatNumber(record.solar_generation_kWh)
-            : "",
+        billing_days: record.billing_days ?? null,
+        import_kWh: record.import_kWh ?? null,
+        export_kWh: record.export_kWh ?? null,
+        net_kWh: record.net_kWh ?? null,
+        solar_generation_kWh: record.solar_generation_kWh ?? null,
         average_generation_per_day_kWh:
-          record.average_generation_per_day_kWh !== null
-            ? formatNumber(record.average_generation_per_day_kWh)
-            : "",
+          record.average_generation_per_day_kWh ?? null,
         specific_generation_kWh_per_kWp:
-          record.specific_generation_kWh_per_kWp !== null
-            ? formatNumber(record.specific_generation_kWh_per_kWp)
-            : "",
+          record.specific_generation_kWh_per_kWp ?? null,
       })),
     });
 
@@ -561,35 +516,27 @@ export const buildSolarSection = async ({
         { metric: "Total Records", value: group.summary.total_records },
         {
           metric: "Total Import (kWh)",
-          value: formatNumber(group.summary.total_import_kWh),
+          value: group.summary.total_import_kWh ?? "",
         },
         {
           metric: "Total Export (kWh)",
-          value: formatNumber(group.summary.total_export_kWh),
+          value: group.summary.total_export_kWh ?? "",
         },
         {
           metric: "Total Net (kWh)",
-          value: formatNumber(group.summary.total_net_kWh),
+          value: group.summary.total_net_kWh ?? "",
         },
         {
           metric: "Total Solar Generation (kWh)",
-          value: formatNumber(group.summary.total_solar_generation_kWh),
+          value: group.summary.total_solar_generation_kWh ?? "",
         },
         {
           metric: "Average Generation / Day (kWh)",
-          value:
-            group.summary.average_generation_per_day_kWh !== null
-              ? formatNumber(group.summary.average_generation_per_day_kWh)
-              : "",
+          value: group.summary.average_generation_per_day_kWh ?? "",
         },
         {
           metric: "Average Specific Generation (kWh/kWp)",
-          value:
-            group.summary.average_specific_generation_kWh_per_kWp !== null
-              ? formatNumber(
-                  group.summary.average_specific_generation_kWh_per_kWp,
-                )
-              : "",
+          value: group.summary.average_specific_generation_kWh_per_kWp ?? "",
         },
       ],
     });
@@ -603,35 +550,27 @@ export const buildSolarSection = async ({
       { metric: "Total Records", value: overallSummary.total_records },
       {
         metric: "Total Import (kWh)",
-        value: formatNumber(overallSummary.total_import_kWh),
+        value: overallSummary.total_import_kWh ?? "",
       },
       {
         metric: "Total Export (kWh)",
-        value: formatNumber(overallSummary.total_export_kWh),
+        value: overallSummary.total_export_kWh ?? "",
       },
       {
         metric: "Total Net (kWh)",
-        value: formatNumber(overallSummary.total_net_kWh),
+        value: overallSummary.total_net_kWh ?? "",
       },
       {
         metric: "Total Solar Generation (kWh)",
-        value: formatNumber(overallSummary.total_solar_generation_kWh),
+        value: overallSummary.total_solar_generation_kWh ?? "",
       },
       {
         metric: "Average Generation / Day (kWh)",
-        value:
-          overallSummary.average_generation_per_day_kWh !== null
-            ? formatNumber(overallSummary.average_generation_per_day_kWh)
-            : "",
+        value: overallSummary.average_generation_per_day_kWh ?? "",
       },
       {
         metric: "Average Specific Generation (kWh/kWp)",
-        value:
-          overallSummary.average_specific_generation_kWh_per_kWp !== null
-            ? formatNumber(
-                overallSummary.average_specific_generation_kWh_per_kWp,
-              )
-            : "",
+        value: overallSummary.average_specific_generation_kWh_per_kWp ?? "",
       },
     ],
   });
@@ -650,7 +589,7 @@ export const buildSolarSection = async ({
     sections,
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "plant_name", label: "Plant Name" },
       { key: "billing_period_label", label: "Billing Period" },
       { key: "import_kWh", label: "Import (kWh)" },
@@ -667,17 +606,12 @@ export const buildSolarSection = async ({
       sr_no: item.sr_no,
       plant_name: item.plant_name,
       billing_period_label: item.billing_period_label,
-      import_kWh: item.import_kWh !== null ? formatNumber(item.import_kWh) : "",
-      export_kWh: item.export_kWh !== null ? formatNumber(item.export_kWh) : "",
-      net_kWh: item.net_kWh !== null ? formatNumber(item.net_kWh) : "",
-      solar_generation_kWh:
-        item.solar_generation_kWh !== null
-          ? formatNumber(item.solar_generation_kWh)
-          : "",
+      import_kWh: item.import_kWh ?? null,
+      export_kWh: item.export_kWh ?? null,
+      net_kWh: item.net_kWh ?? null,
+      solar_generation_kWh: item.solar_generation_kWh ?? null,
       specific_generation_kWh_per_kWp:
-        item.specific_generation_kWh_per_kWp !== null
-          ? formatNumber(item.specific_generation_kWh_per_kWp)
-          : "",
+        item.specific_generation_kWh_per_kWp ?? null,
     })),
   };
 };

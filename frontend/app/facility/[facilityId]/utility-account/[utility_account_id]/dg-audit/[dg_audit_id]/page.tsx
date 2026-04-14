@@ -14,15 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Plug, FileText, ImageIcon } from "lucide-react";
 import { useGetUtilityAccountByIdQuery } from "@/store/slices/utilityApiSlice";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
 import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
 import { useGetDGSetByIdQuery } from "@/store/slices/dgSetApiSlice";
+import { useGetDGAuditRecordsQuery } from "@/store/slices/dgAuditRecordApiSlice";
 import { DGAuditRecordSection } from "@/components/connection/dg-sets/DGAuditRecordSection";
 import { useAppSelector } from "@/store/hooks";
-
-type TabItem = {
-  id: string;
-  label: string;
-};
 
 type DGDocument = {
   fileUrl: string;
@@ -30,11 +27,6 @@ type DGDocument = {
   fileName?: string;
   uploadedAt?: string;
 };
-
-const baseTabs: TabItem[] = [
-  { id: "details", label: "DG Set Details" },
-  { id: "dg-audits", label: "DG Audit" },
-];
 
 export default function ConnectionDetailsPage() {
   const params = useParams();
@@ -63,7 +55,38 @@ export default function ConnectionDetailsPage() {
 
   const dgAccount = dgAccountById?.data;
 
-  const tabs = useMemo(() => baseTabs, []);
+  const { data: dgAuditListRes } = useGetDGAuditRecordsQuery(
+    {
+      facility_id: facilityId,
+      utility_account_id: utilityAccountId,
+      dg_set_id: dgAccountId,
+    },
+    { skip: !facilityId || !utilityAccountId || !dgAccountId },
+  );
+
+  const dgAuditSubmitted = Boolean(
+    utilityAccount?.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
+      ?.submitted_at,
+  );
+  const dgAuditRecordCount = dgAuditListRes?.data?.length ?? 0;
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: "details",
+        label: "DG Set",
+        completed: dgAuditSubmitted,
+      },
+      {
+        id: "dg-audits",
+        label: "DG Audit",
+        count: dgAuditRecordCount,
+        completed: dgAuditSubmitted,
+      },
+    ],
+    [dgAuditRecordCount, dgAuditSubmitted],
+  );
+
   const validTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
 
   const getValidTab = (tab: string | null) => {
@@ -142,6 +165,7 @@ export default function ConnectionDetailsPage() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         className="mb-4 sm:mb-6"
+        tabGridClassName="grid-cols-1 min-[480px]:grid-cols-2"
       />
 
       {activeTab === "details" && (
@@ -308,6 +332,8 @@ export default function ConnectionDetailsPage() {
           facilityId={facilityId}
           utilityAccountId={utilityAccountId}
           dgSetId={dgAccountId}
+          auditStepLocked={dgAuditSubmitted}
+          hideAuditSubmitChrome
         />
       )}
     </DashboardLayout>

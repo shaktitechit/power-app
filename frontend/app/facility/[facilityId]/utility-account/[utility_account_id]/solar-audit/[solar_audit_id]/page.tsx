@@ -14,15 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Plug, FileText, ImageIcon } from "lucide-react";
 import { useGetUtilityAccountByIdQuery } from "@/store/slices/utilityApiSlice";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
 import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
 import { useGetSolarPlantByIdQuery } from "@/store/slices/solarPlantApiSlice";
+import { useGetSolarGenerationRecordsQuery } from "@/store/slices/solarGenerationRecordApiSlice";
 import { SolarGenerationRecordSection } from "@/components/solar-plants/solar-generation-record-section";
 import { useAppSelector } from "@/store/hooks";
-
-type TabItem = {
-  id: string;
-  label: string;
-};
 
 type SolarDocument = {
   fileUrl: string;
@@ -30,11 +27,6 @@ type SolarDocument = {
   fileName?: string;
   uploadedAt?: string;
 };
-
-const baseTabs: TabItem[] = [
-  { id: "details", label: "Solar Plants Details" },
-  { id: "solar-audits", label: "Solar Audit" },
-];
 
 export default function ConnectionDetailsPage() {
   const params = useParams();
@@ -63,7 +55,41 @@ export default function ConnectionDetailsPage() {
 
   const solarAccount = solarAccountById?.data;
 
-  const tabs = useMemo(() => baseTabs, []);
+  const { data: solarGenRes } = useGetSolarGenerationRecordsQuery(
+    {
+      facility_id: facilityId,
+      utility_account_id: utilityAccountId,
+      solar_plant_id: solarAccountId,
+    },
+    {
+      skip: !facilityId || !utilityAccountId || !solarAccountId,
+    },
+  );
+
+  const solarAuditSubmitted = Boolean(
+    utilityAccount?.audit_step_submissions?.[
+      UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT
+    ]?.submitted_at,
+  );
+  const generationRecordCount = solarGenRes?.data?.length ?? 0;
+
+  const tabs = useMemo(
+    () => [
+      {
+        id: "details",
+        label: "Solar Plant",
+        completed: solarAuditSubmitted,
+      },
+      {
+        id: "solar-audits",
+        label: "Solar Audit",
+        count: generationRecordCount,
+        completed: solarAuditSubmitted,
+      },
+    ],
+    [generationRecordCount, solarAuditSubmitted],
+  );
+
   const validTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
 
   const getValidTab = (tab: string | null) => {
@@ -142,6 +168,7 @@ export default function ConnectionDetailsPage() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         className="mb-4 sm:mb-6"
+        tabGridClassName="grid-cols-1 min-[480px]:grid-cols-2"
       />
 
       {activeTab === "details" && (
@@ -294,6 +321,8 @@ export default function ConnectionDetailsPage() {
           facilityId={facilityId}
           utilityAccountId={utilityAccountId}
           solarPlantId={solarAccountId}
+          auditStepLocked={solarAuditSubmitted}
+          hideAuditSubmitChrome
         />
       )}
     </DashboardLayout>

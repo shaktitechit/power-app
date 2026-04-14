@@ -2,9 +2,11 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
+import UtilityAccount from "../modals/utilityAccount.js";
 import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
+import { isUtilityAuditCompleted } from "../helpers/auditState.js";
 
 // helper: parse auditor ids safely
 const parseAuditorIds = (auditor_ids) => {
@@ -75,6 +77,26 @@ const uploadFacilityDocuments = async (files = [], facilityId) => {
 
 // helper: admin check
 const isAdmin = (user) => user?.role === "admin";
+
+const getAccessibleFacility = async (user, facilityId) => {
+  if (isAdmin(user)) {
+    return await Facility.findById(facilityId);
+  }
+
+  const ownedFacility = await Facility.findOne({
+    _id: facilityId,
+    owner_user_id: user._id,
+  });
+  if (ownedFacility) return ownedFacility;
+
+  const assignment = await FacilityAuditor.findOne({
+    facility_id: facilityId,
+    user_id: user._id,
+  });
+  if (assignment) return await Facility.findById(facilityId);
+
+  return null;
+};
 
 // @route POST /api/v1/facilities
 // @desc Create a Facility
@@ -467,10 +489,122 @@ const deleteFacility = asyncHandler(async (req, res) => {
   });
 });
 
+// @route POST /api/v1/facilities/:id/audit-close
+// @desc Close facility audit (when all utility audits are completed)
+// @access Protected
+const closeFacilityAudit = asyncHandler(async (req, res) => {
+  const facility = await getAccessibleFacility(req.user, req.params.id);
+
+  if (!facility) {
+    res.status(404);
+    throw new Error("Facility not found");
+  }
+
+  const utilities = await UtilityAccount.find({ facility_id: facility._id });
+  if (!utilities.length) {
+    res.status(400);
+    throw new Error("Cannot close audit: no utility accounts found");
+  }
+
+  const allUtilitiesCompleted = utilities.every((utility) =>
+    isUtilityAuditCompleted(utility),
+  );
+
+  if (!allUtilitiesCompleted) {
+    res.status(400);
+    throw new Error(
+      "Cannot close facility audit until all utility audits are completed",
+    );
+  }
+
+  facility.audit_closure = {
+    ...(facility.audit_closure || {}),
+    closed_at: new Date(),
+    closed_by: req.user._id,
+  };
+  await facility.save();
+
+  await createRecentActivity({
+    actor: req.user,
+    action: "updated",
+    entity_type: "facility",
+    entity_id: facility._id,
+    entity_name: facility.name,
+    facility_id: facility._id,
+    message: buildActivityMessage({
+      actorName: req.user?.name || "User",
+      action: "updated",
+      entityLabel: "facility audit",
+      entityName: `${facility.name} (closed)`,
+    }),
+    meta: {
+      audit_closed: true,
+    },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Facility audit closed successfully",
+    data: facility,
+  });
+});
+
+// @route POST /api/v1/facilities/:id/audit-open
+// @desc Re-open facility audit (admin only)
+// @access Protected
+const openFacilityAudit = asyncHandler(async (req, res) => {
+  if (!isAdmin(req.user)) {
+    res.status(403);
+    throw new Error("Only administrators can re-open facility audit");
+  }
+
+  const facility = await Facility.findById(req.params.id);
+
+  if (!facility) {
+    res.status(404);
+    throw new Error("Facility not found");
+  }
+
+  facility.audit_closure = {
+    ...(facility.audit_closure || {}),
+    closed_at: undefined,
+    closed_by: undefined,
+    reopened_at: new Date(),
+    reopened_by: req.user._id,
+  };
+  await facility.save();
+
+  await createRecentActivity({
+    actor: req.user,
+    action: "updated",
+    entity_type: "facility",
+    entity_id: facility._id,
+    entity_name: facility.name,
+    facility_id: facility._id,
+    message: buildActivityMessage({
+      actorName: req.user?.name || "User",
+      action: "updated",
+      entityLabel: "facility audit",
+      entityName: `${facility.name} (re-opened)`,
+    }),
+    meta: {
+      audit_reopened: true,
+    },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Facility audit opened successfully",
+    data: facility,
+  });
+});
+
 export {
   createFacility,
   getFacilities,
   getFacilityById,
   updateFacility,
   deleteFacility,
+  closeFacilityAudit,
+  openFacilityAudit,
 };

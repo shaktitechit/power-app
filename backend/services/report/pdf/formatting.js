@@ -1,3 +1,5 @@
+import { formatNumericForDisplay } from "../columnMeta.js";
+
 export const toLabel = (key) =>
   String(key || "")
     .replaceAll("_", " ")
@@ -36,8 +38,11 @@ export const truncatePdfText = (input, maxLength = 300) => {
   return `${text.slice(0, Math.max(0, maxLength - 1))}\u2026`;
 };
 
-export const formatCellValue = (value) => {
+export const formatCellValue = (value, col = null) => {
   if (value === null || value === undefined) return "";
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return sanitizePdfText(formatNumericForDisplay(value, col || {}));
+  }
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) {
     const joined = value
@@ -73,7 +78,12 @@ export const normalizeColumn = (col) => {
   if (col && typeof col === "object") {
     const key = col.key;
     if (!key) return null;
-    return { key, label: col.label || toLabel(key) };
+    return {
+      key,
+      label: col.label || toLabel(key),
+      decimals: col.decimals,
+      type: col.type,
+    };
   }
   return null;
 };
@@ -98,8 +108,8 @@ export const isKeyValueSubsection = (subSection) => {
   return pairs.some(([a, b]) => first === a && second === b);
 };
 
-export const getRowCell = (row, key) => {
+export const getRowCell = (row, key, col = null) => {
   if (!row || typeof row !== "object") return "";
   const v = row[key];
-  return formatCellValue(v);
+  return formatCellValue(v, col);
 };

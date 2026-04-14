@@ -13,7 +13,12 @@ export interface DashboardStatComparison {
 export interface AnalyticsSummary {
   totalFacilities: number;
   completedAudits: number;
+  inProgressAudits?: number;
   pendingAudits: number;
+  utilityAuditsCompleted: number;
+  utilityAuditsPending: number;
+  closedFacilities: number;
+  openFacilities: number;
   totalCapacity: number;
   totalConnections: number;
   dgCapacity: number;

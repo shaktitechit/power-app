@@ -20,10 +20,14 @@ import {
   parseUtilityBillingRecordExcelBulk,
   type UtilityBillingRecordExcelPayload,
 } from "@/lib/utility-billing-record-excel";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
+import { AuditStepSubmitBar } from "@/components/utility-audit/audit-step-submit-bar";
+import { AuditStepLockedOverlay } from "@/components/utility-audit/audit-step-locked-overlay";
 
 interface UtilityBillingRecordSectionProps {
   utilityAccountId: string;
   billingCycle?: "monthly" | "bi-monthly" | "quarterly";
+  auditStepLocked?: boolean;
 }
 
 type BillingFormState = {
@@ -452,6 +456,7 @@ const autoInputClass =
 export function UtilityBillingRecordSection({
   utilityAccountId,
   billingCycle = "monthly",
+  auditStepLocked = false,
 }: UtilityBillingRecordSectionProps) {
   const { data, isLoading, refetch } = useGetUtilityBillingRecordsQuery({
     utility_account_id: utilityAccountId,
@@ -720,7 +725,15 @@ export function UtilityBillingRecordSection({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <AuditStepSubmitBar
+        utilityAccountId={utilityAccountId}
+        stepId={UTILITY_AUDIT_STEP_IDS.BILLING}
+        auditStepLocked={auditStepLocked}
+      />
+
+      <div className="relative">
+        <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-medium text-foreground">
@@ -743,13 +756,14 @@ export function UtilityBillingRecordSection({
             accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             className="hidden"
             onChange={handleExcelFileChange}
-            disabled={excelImporting}
+            disabled={excelImporting || auditStepLocked}
           />
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleDownloadBillingExcelTemplate}
+            disabled={auditStepLocked}
           >
             <Download className="mr-2 h-4 w-4" />
             Excel template ({requiredFormCount} rows)
@@ -758,7 +772,7 @@ export function UtilityBillingRecordSection({
             type="button"
             variant="outline"
             size="sm"
-            disabled={excelImporting}
+            disabled={excelImporting || auditStepLocked}
             onClick={() =>
               document.getElementById("utility-billing-excel-import")?.click()
             }
@@ -1020,6 +1034,9 @@ export function UtilityBillingRecordSection({
           </Card>
         ))
       )}
+        </div>
+        {auditStepLocked ? <AuditStepLockedOverlay /> : null}
+      </div>
     </div>
   );
 }

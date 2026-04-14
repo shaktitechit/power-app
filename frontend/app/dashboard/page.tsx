@@ -9,7 +9,10 @@ import Link from "next/link";
 import { useAppSelector } from "@/store/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { useGetDashboardOverviewQuery } from "@/store/slices/dashboardApiSlice";
-import { useGetFacilitiesQuery } from "@/store/slices/facilityApiSlice";
+import {
+  type Facility,
+  useGetFacilitiesQuery,
+} from "@/store/slices/facilityApiSlice";
 import { usePresenceMap } from "@/hooks/presenceMap";
 
 const formatRelativeTime = (dateString?: string | null) => {
@@ -91,13 +94,13 @@ export default function DashboardPage() {
   const userAppearance: TeamMember[] =
     dashboardData?.data?.userAppearance || [];
 
-  const recentFacilities = useMemo(() => {
+  const recentFacilities = useMemo((): Facility[] => {
     const facilities = facilitiesResponse?.data || facilitiesResponse || [];
 
     if (!Array.isArray(facilities)) return [];
 
     return [...facilities]
-      .sort((a: any, b: any) => {
+      .sort((a, b) => {
         const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
         const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();
         return bDate - aDate;
@@ -157,39 +160,53 @@ export default function DashboardPage() {
                 Loading facilities...
               </p>
             ) : recentFacilities.length > 0 ? (
-              recentFacilities.map((facility: any) => (
-                <Link
-                  key={facility._id}
-                  href={`/facility/${facility._id}`}
-                  className="group rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:border-primary/40 hover:bg-muted/40"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="truncate font-semibold text-foreground group-hover:text-primary">
-                        {facility.name}
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {facility.city || "Unknown city"}
-                      </p>
+              recentFacilities.map((facility) => {
+                const auditClosed = Boolean(facility.audit_closure?.closed_at);
+                return (
+                  <Link
+                    key={facility._id}
+                    href={`/facility/${facility._id}`}
+                    className="group rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:border-primary/40 hover:bg-muted/40"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold text-foreground group-hover:text-primary">
+                          {facility.name}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {facility.city || "Unknown city"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <StatusBadge status={facility.status || "active"} />
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium leading-none sm:text-xs ${
+                            auditClosed
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                          }`}
+                        >
+                          {auditClosed ? "Audit closed" : "Audit open"}
+                        </span>
+                      </div>
                     </div>
-                    <StatusBadge status={facility.status || "active"} />
-                  </div>
 
-                  <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground sm:text-sm">
-                    <span>{facility.facility_type || "Facility"}</span>
-                  </div>
+                    <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground sm:text-sm">
+                      <span>{facility.facility_type || "Facility"}</span>
+                    </div>
 
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                    <TrendingUp className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      Updated{" "}
-                      {formatRelativeTime(
-                        facility.updatedAt || facility.createdAt,
-                      )}
-                    </span>
-                  </div>
-                </Link>
-              ))
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <TrendingUp className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        Updated{" "}
+                        {formatRelativeTime(
+                          facility.updatedAt || facility.createdAt,
+                        )}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })
             ) : (
               <p className="col-span-full text-sm text-muted-foreground">
                 No facilities found.

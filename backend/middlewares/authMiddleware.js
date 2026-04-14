@@ -2,8 +2,9 @@ import jwt from "jsonwebtoken";
 import User from "../modals/user.js";
 import logger from "../config/logger.js";
 import buildLogMeta from "../utils/buildLogMeta.js";
+import { getAccessSecret } from "../utils/authTokens.js";
 
-// 🔐 Protect routes
+// 🔐 Protect routes (access JWT in `jwt` cookie only)
 const protect = async (req, res, next) => {
   const token = req.cookies.jwt;
 
@@ -15,7 +16,21 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, getAccessSecret());
+
+    if (decoded.typ === "refresh") {
+      logger.warn(
+        "Authentication failed: refresh token used as access",
+        buildLogMeta(req),
+      );
+      res.status(401);
+      throw new Error("Not authorized");
+    }
+
+    if (decoded.typ && decoded.typ !== "access") {
+      res.status(401);
+      throw new Error("Not authorized");
+    }
 
     const user = await User.findById(decoded.id).select("-password");
 

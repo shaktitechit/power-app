@@ -14,12 +14,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -291,42 +285,34 @@ export const buildHVACSection = async ({
       {
         heading: "HVAC Audit Overview",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "audit_date_label",
           "average_cooling_produced_TR",
           "average_chiller_power_used_kW",
           "total_auxiliary_power_used_kW",
           "total_plant_power_kW",
-          "plant_efficiency_kW_per_TR",
-          "coefficient_of_performance",
+          {
+            key: "plant_efficiency_kW_per_TR",
+            label: "Plant Efficiency KW Per TR",
+            decimals: 3,
+          },
+          {
+            key: "coefficient_of_performance",
+            label: "Coefficient Of Performance",
+            decimals: 3,
+          },
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           audit_date_label: item.audit_date_label,
-          average_cooling_produced_TR:
-            item.average_cooling_produced_TR !== null
-              ? formatNumber(item.average_cooling_produced_TR)
-              : "",
+          average_cooling_produced_TR: item.average_cooling_produced_TR ?? null,
           average_chiller_power_used_kW:
-            item.average_chiller_power_used_kW !== null
-              ? formatNumber(item.average_chiller_power_used_kW)
-              : "",
+            item.average_chiller_power_used_kW ?? null,
           total_auxiliary_power_used_kW:
-            item.total_auxiliary_power_used_kW !== null
-              ? formatNumber(item.total_auxiliary_power_used_kW)
-              : "",
-          total_plant_power_kW:
-            item.total_plant_power_kW !== null
-              ? formatNumber(item.total_plant_power_kW)
-              : "",
-          plant_efficiency_kW_per_TR:
-            item.plant_efficiency_kW_per_TR !== null
-              ? formatNumber(item.plant_efficiency_kW_per_TR, 3)
-              : "",
-          coefficient_of_performance:
-            item.coefficient_of_performance !== null
-              ? formatNumber(item.coefficient_of_performance, 3)
-              : "",
+            item.total_auxiliary_power_used_kW ?? null,
+          total_plant_power_kW: item.total_plant_power_kW ?? null,
+          plant_efficiency_kW_per_TR: item.plant_efficiency_kW_per_TR ?? null,
+          coefficient_of_performance: item.coefficient_of_performance ?? null,
         })),
       },
 
@@ -372,23 +358,13 @@ export const buildHVACSection = async ({
                   label: "Total Operating Hours / Day",
                   value:
                     latestRecord.pre_audit_information
-                      .total_operating_hours_per_day !== null
-                      ? formatNumber(
-                          latestRecord.pre_audit_information
-                            .total_operating_hours_per_day,
-                        )
-                      : "",
+                      .total_operating_hours_per_day ?? "",
                 },
                 {
                   label: "HVAC Operating Hours / Day",
                   value:
                     latestRecord.pre_audit_information
-                      .hvac_operating_hours_per_day !== null
-                      ? formatNumber(
-                          latestRecord.pre_audit_information
-                            .hvac_operating_hours_per_day,
-                        )
-                      : "",
+                      .hvac_operating_hours_per_day ?? "",
                 },
                 {
                   label: "Season / Ambient Conditions",
@@ -412,26 +388,21 @@ export const buildHVACSection = async ({
             {
               heading: "HVAC Equipment Register",
               columns: [
-                "sr_no",
+                { key: "sr_no", label: "Sr No", type: "integer" },
                 "equipment_name",
                 "type",
                 "capacity",
                 "power_rating_kW",
-                "quantity",
+                { key: "quantity", label: "Quantity", type: "integer" },
                 "remarks",
               ],
               rows: latestRecord.hvac_equipment_register.map((item) => ({
                 sr_no: item.sr_no,
                 equipment_name: item.equipment_name,
                 type: item.type,
-                capacity:
-                  item.capacity !== null ? formatNumber(item.capacity) : "",
-                power_rating_kW:
-                  item.power_rating_kW !== null
-                    ? formatNumber(item.power_rating_kW)
-                    : "",
-                quantity:
-                  item.quantity !== null ? formatNumber(item.quantity, 0) : "",
+                capacity: item.capacity ?? null,
+                power_rating_kW: item.power_rating_kW ?? null,
+                quantity: item.quantity ?? null,
                 remarks: item.remarks,
               })),
             },
@@ -439,7 +410,7 @@ export const buildHVACSection = async ({
             {
               heading: "Chiller Field Test Readings",
               columns: [
-                "sr_no",
+                { key: "sr_no", label: "Sr No", type: "integer" },
                 "chiller_load_TR",
                 "power_input_kW",
                 "chilled_water_in_temp",
@@ -449,30 +420,12 @@ export const buildHVACSection = async ({
               ],
               rows: latestRecord.chiller_field_test.readings.map((item) => ({
                 sr_no: item.sr_no,
-                chiller_load_TR:
-                  item.chiller_load_TR !== null
-                    ? formatNumber(item.chiller_load_TR)
-                    : "",
-                power_input_kW:
-                  item.power_input_kW !== null
-                    ? formatNumber(item.power_input_kW)
-                    : "",
-                chilled_water_in_temp:
-                  item.chilled_water_in_temp !== null
-                    ? formatNumber(item.chilled_water_in_temp)
-                    : "",
-                chilled_water_out_temp:
-                  item.chilled_water_out_temp !== null
-                    ? formatNumber(item.chilled_water_out_temp)
-                    : "",
-                condenser_water_in_temp:
-                  item.condenser_water_in_temp !== null
-                    ? formatNumber(item.condenser_water_in_temp)
-                    : "",
-                condenser_water_out_temp:
-                  item.condenser_water_out_temp !== null
-                    ? formatNumber(item.condenser_water_out_temp)
-                    : "",
+                chiller_load_TR: item.chiller_load_TR ?? null,
+                power_input_kW: item.power_input_kW ?? null,
+                chilled_water_in_temp: item.chilled_water_in_temp ?? null,
+                chilled_water_out_temp: item.chilled_water_out_temp ?? null,
+                condenser_water_in_temp: item.condenser_water_in_temp ?? null,
+                condenser_water_out_temp: item.condenser_water_out_temp ?? null,
               })),
             },
 
@@ -483,33 +436,27 @@ export const buildHVACSection = async ({
                 {
                   label: "Average Load (TR)",
                   value:
-                    latestRecord.chiller_field_test.average.avg_load_TR !== null
-                      ? formatNumber(
-                          latestRecord.chiller_field_test.average.avg_load_TR,
-                        )
-                      : "",
+                    latestRecord.chiller_field_test.average.avg_load_TR ?? "",
                 },
                 {
                   label: "Average Power (kW)",
                   value:
-                    latestRecord.chiller_field_test.average.avg_power_kW !==
-                    null
-                      ? formatNumber(
-                          latestRecord.chiller_field_test.average.avg_power_kW,
-                        )
-                      : "",
+                    latestRecord.chiller_field_test.average.avg_power_kW ?? "",
                 },
               ].filter((row) => row.value !== ""),
             },
 
             {
               heading: "Auxiliary Power Components",
-              columns: ["sr_no", "name", "power_kW"],
+              columns: [
+                { key: "sr_no", label: "Sr No", type: "integer" },
+                "name",
+                "power_kW",
+              ],
               rows: latestRecord.auxiliary_power.components.map((item) => ({
                 sr_no: item.sr_no,
                 name: item.name,
-                power_kW:
-                  item.power_kW !== null ? formatNumber(item.power_kW) : "",
+                power_kW: item.power_kW ?? null,
               })),
             },
 
@@ -521,34 +468,25 @@ export const buildHVACSection = async ({
                   label: "Total Auxiliary Power Used (kW)",
                   value:
                     latestRecord.auxiliary_power
-                      .total_auxiliary_power_used_kW !== null
-                      ? formatNumber(
-                          latestRecord.auxiliary_power
-                            .total_auxiliary_power_used_kW,
-                        )
-                      : "",
+                      .total_auxiliary_power_used_kW ?? "",
                 },
               ].filter((row) => row.value !== ""),
             },
 
             {
               heading: "Cooling Tower Quick Test Readings",
-              columns: ["sr_no", "inlet_temp", "outlet_temp", "ambient_temp"],
+              columns: [
+                { key: "sr_no", label: "Sr No", type: "integer" },
+                "inlet_temp",
+                "outlet_temp",
+                "ambient_temp",
+              ],
               rows: latestRecord.cooling_tower_quick_test.readings.map(
                 (item) => ({
                   sr_no: item.sr_no,
-                  inlet_temp:
-                    item.inlet_temp !== null
-                      ? formatNumber(item.inlet_temp)
-                      : "",
-                  outlet_temp:
-                    item.outlet_temp !== null
-                      ? formatNumber(item.outlet_temp)
-                      : "",
-                  ambient_temp:
-                    item.ambient_temp !== null
-                      ? formatNumber(item.ambient_temp)
-                      : "",
+                  inlet_temp: item.inlet_temp ?? null,
+                  outlet_temp: item.outlet_temp ?? null,
+                  ambient_temp: item.ambient_temp ?? null,
                 }),
               ),
             },
@@ -561,23 +499,13 @@ export const buildHVACSection = async ({
                   label: "Average Inlet Temp",
                   value:
                     latestRecord.cooling_tower_quick_test.average
-                      .avg_inlet_temp !== null
-                      ? formatNumber(
-                          latestRecord.cooling_tower_quick_test.average
-                            .avg_inlet_temp,
-                        )
-                      : "",
+                      .avg_inlet_temp ?? "",
                 },
                 {
                   label: "Average Outlet Temp",
                   value:
                     latestRecord.cooling_tower_quick_test.average
-                      .avg_outlet_temp !== null
-                      ? formatNumber(
-                          latestRecord.cooling_tower_quick_test.average
-                            .avg_outlet_temp,
-                        )
-                      : "",
+                      .avg_outlet_temp ?? "",
                 },
               ].filter((row) => row.value !== ""),
             },
@@ -589,56 +517,30 @@ export const buildHVACSection = async ({
                 {
                   label: "Average Cooling Produced (TR)",
                   value:
-                    latestRecord.summary.average_cooling_produced_TR !== null
-                      ? formatNumber(
-                          latestRecord.summary.average_cooling_produced_TR,
-                        )
-                      : "",
+                    latestRecord.summary.average_cooling_produced_TR ?? "",
                 },
                 {
                   label: "Average Chiller Power Used (kW)",
                   value:
-                    latestRecord.summary.average_chiller_power_used_kW !== null
-                      ? formatNumber(
-                          latestRecord.summary.average_chiller_power_used_kW,
-                        )
-                      : "",
+                    latestRecord.summary.average_chiller_power_used_kW ?? "",
                 },
                 {
                   label: "Total Auxiliary Power Used (kW)",
                   value:
-                    latestRecord.summary.total_auxiliary_power_used_kW !== null
-                      ? formatNumber(
-                          latestRecord.summary.total_auxiliary_power_used_kW,
-                        )
-                      : "",
+                    latestRecord.summary.total_auxiliary_power_used_kW ?? "",
                 },
                 {
                   label: "Total Plant Power (kW)",
-                  value:
-                    latestRecord.summary.total_plant_power_kW !== null
-                      ? formatNumber(latestRecord.summary.total_plant_power_kW)
-                      : "",
+                  value: latestRecord.summary.total_plant_power_kW ?? "",
                 },
                 {
                   label: "Plant Efficiency (kW/TR)",
                   value:
-                    latestRecord.summary.plant_efficiency_kW_per_TR !== null
-                      ? formatNumber(
-                          latestRecord.summary.plant_efficiency_kW_per_TR,
-                          3,
-                        )
-                      : "",
+                    latestRecord.summary.plant_efficiency_kW_per_TR ?? "",
                 },
                 {
                   label: "Coefficient of Performance",
-                  value:
-                    latestRecord.summary.coefficient_of_performance !== null
-                      ? formatNumber(
-                          latestRecord.summary.coefficient_of_performance,
-                          3,
-                        )
-                      : "",
+                  value: latestRecord.summary.coefficient_of_performance ?? "",
                 },
               ].filter((row) => row.value !== ""),
             },
@@ -655,45 +557,27 @@ export const buildHVACSection = async ({
           },
           {
             metric: "Average Cooling Produced (TR)",
-            value:
-              summary.average_cooling_produced_TR !== null
-                ? formatNumber(summary.average_cooling_produced_TR)
-                : "",
+            value: summary.average_cooling_produced_TR ?? "",
           },
           {
             metric: "Average Chiller Power Used (kW)",
-            value:
-              summary.average_chiller_power_used_kW !== null
-                ? formatNumber(summary.average_chiller_power_used_kW)
-                : "",
+            value: summary.average_chiller_power_used_kW ?? "",
           },
           {
             metric: "Average Total Auxiliary Power Used (kW)",
-            value:
-              summary.average_total_auxiliary_power_used_kW !== null
-                ? formatNumber(summary.average_total_auxiliary_power_used_kW)
-                : "",
+            value: summary.average_total_auxiliary_power_used_kW ?? "",
           },
           {
             metric: "Average Total Plant Power (kW)",
-            value:
-              summary.average_total_plant_power_kW !== null
-                ? formatNumber(summary.average_total_plant_power_kW)
-                : "",
+            value: summary.average_total_plant_power_kW ?? "",
           },
           {
             metric: "Average Plant Efficiency (kW/TR)",
-            value:
-              summary.average_plant_efficiency_kW_per_TR !== null
-                ? formatNumber(summary.average_plant_efficiency_kW_per_TR, 3)
-                : "",
+            value: summary.average_plant_efficiency_kW_per_TR ?? "",
           },
           {
             metric: "Average Coefficient of Performance",
-            value:
-              summary.average_coefficient_of_performance !== null
-                ? formatNumber(summary.average_coefficient_of_performance, 3)
-                : "",
+            value: summary.average_coefficient_of_performance ?? "",
           },
           {
             metric: "Latest Audit Date",
@@ -704,7 +588,7 @@ export const buildHVACSection = async ({
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "audit_date_label", label: "Audit Date" },
       { key: "average_cooling_produced_TR", label: "Avg Cooling (TR)" },
       { key: "average_chiller_power_used_kW", label: "Avg Chiller Power (kW)" },
@@ -713,37 +597,24 @@ export const buildHVACSection = async ({
         label: "Auxiliary Power (kW)",
       },
       { key: "total_plant_power_kW", label: "Total Plant Power (kW)" },
-      { key: "plant_efficiency_kW_per_TR", label: "Plant Efficiency (kW/TR)" },
-      { key: "coefficient_of_performance", label: "COP" },
+      {
+        key: "plant_efficiency_kW_per_TR",
+        label: "Plant Efficiency (kW/TR)",
+        decimals: 3,
+      },
+      { key: "coefficient_of_performance", label: "COP", decimals: 3 },
     ],
 
     table_rows: items.map((item) => ({
       sr_no: item.sr_no,
       audit_date_label: item.audit_date_label,
-      average_cooling_produced_TR:
-        item.average_cooling_produced_TR !== null
-          ? formatNumber(item.average_cooling_produced_TR)
-          : "",
+      average_cooling_produced_TR: item.average_cooling_produced_TR ?? null,
       average_chiller_power_used_kW:
-        item.average_chiller_power_used_kW !== null
-          ? formatNumber(item.average_chiller_power_used_kW)
-          : "",
-      total_auxiliary_power_used_kW:
-        item.total_auxiliary_power_used_kW !== null
-          ? formatNumber(item.total_auxiliary_power_used_kW)
-          : "",
-      total_plant_power_kW:
-        item.total_plant_power_kW !== null
-          ? formatNumber(item.total_plant_power_kW)
-          : "",
-      plant_efficiency_kW_per_TR:
-        item.plant_efficiency_kW_per_TR !== null
-          ? formatNumber(item.plant_efficiency_kW_per_TR, 3)
-          : "",
-      coefficient_of_performance:
-        item.coefficient_of_performance !== null
-          ? formatNumber(item.coefficient_of_performance, 3)
-          : "",
+        item.average_chiller_power_used_kW ?? null,
+      total_auxiliary_power_used_kW: item.total_auxiliary_power_used_kW ?? null,
+      total_plant_power_kW: item.total_plant_power_kW ?? null,
+      plant_efficiency_kW_per_TR: item.plant_efficiency_kW_per_TR ?? null,
+      coefficient_of_performance: item.coefficient_of_performance ?? null,
     })),
   };
 };

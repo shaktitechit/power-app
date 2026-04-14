@@ -35,11 +35,15 @@ import { useGetFacilitiesQuery } from "@/store/slices/facilityApiSlice";
 import { useGetUtilityAccountsQuery } from "@/store/slices/utilityApiSlice";
 import { toastHandler } from "@/lib/toast";
 import { useAppSelector } from "@/store/hooks";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
 
 type FacilityOption = {
   _id: string;
   name: string;
   city?: string;
+  audit_closure?: {
+    closed_at?: string;
+  };
 };
 
 type UtilityAccountOption = {
@@ -48,6 +52,12 @@ type UtilityAccountOption = {
   connection_type?: string;
   category?: string;
   facility_id?: string;
+  audit_step_submissions?: Record<
+    string,
+    {
+      submitted_at?: string;
+    }
+  >;
 };
 
 type ReportsSectionProps = {
@@ -152,6 +162,18 @@ const getUtilityAccountNumber = (
   if (!utilityAccount) return "-";
   if (typeof utilityAccount === "string") return utilityAccount;
   return utilityAccount.account_number || "-";
+};
+
+const getFacilityClosureStatusLabel = (facility: FacilityOption) => {
+  return facility.audit_closure?.closed_at ? "Closed" : "Open";
+};
+
+const getUtilityAuditStatusLabel = (account: UtilityAccountOption) => {
+  const isAuditCompleted = Boolean(
+    account.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
+      ?.submitted_at,
+  );
+  return isAuditCompleted ? "Audit Completed" : "Audit Pending";
 };
 
 export default function ReportsSection({
@@ -364,6 +386,7 @@ export default function ReportsSection({
                     <SelectItem key={facility._id} value={facility._id}>
                       {facility.name}
                       {facility.city ? ` - ${facility.city}` : ""}
+                      {` (${getFacilityClosureStatusLabel(facility)})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -416,6 +439,7 @@ export default function ReportsSection({
                       {account.connection_type
                         ? ` - ${account.connection_type}`
                         : ""}
+                      {` (${getUtilityAuditStatusLabel(account)})`}
                     </SelectItem>
                   ))}
                 </SelectContent>

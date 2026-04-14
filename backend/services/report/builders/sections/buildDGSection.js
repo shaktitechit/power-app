@@ -13,12 +13,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -428,13 +422,13 @@ export const buildDGSection = async ({
       {
         heading: "DG Basic Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "dg_name",
           "dg_make_model",
           "fuel_type",
           "rated_capacity_kVA",
           "rated_active_power_kW",
-          "year_of_installation",
+          { key: "year_of_installation", label: "Year Of Installation", type: "integer" },
           "audit_date_label",
         ],
         rows: items.map((item) => ({
@@ -442,16 +436,9 @@ export const buildDGSection = async ({
           dg_name: item.dg_name,
           dg_make_model: item.dg_make_model,
           fuel_type: item.fuel_type,
-          rated_capacity_kVA:
-            item.rated_capacity_kVA !== null
-              ? formatNumber(item.rated_capacity_kVA)
-              : "",
-          rated_active_power_kW:
-            item.rated_active_power_kW !== null
-              ? formatNumber(item.rated_active_power_kW)
-              : "",
-          year_of_installation:
-            item.year_of_installation !== null ? item.year_of_installation : "",
+          rated_capacity_kVA: item.rated_capacity_kVA ?? null,
+          rated_active_power_kW: item.rated_active_power_kW ?? null,
+          year_of_installation: item.year_of_installation ?? null,
           audit_date_label: item.audit_date_label,
         })),
       },
@@ -459,47 +446,31 @@ export const buildDGSection = async ({
       {
         heading: "Electrical Measurements",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "dg_name",
           "measured_voltage_LL",
           "measured_current_avg",
           "frequency_Hz",
           "measured_kW_output",
           "measured_kVA_output",
-          "power_factor",
+          { key: "power_factor", label: "Power Factor", decimals: 4 },
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           dg_name: item.dg_name,
-          measured_voltage_LL:
-            item.measured_voltage_LL !== null
-              ? formatNumber(item.measured_voltage_LL)
-              : "",
-          measured_current_avg:
-            item.measured_current_avg !== null
-              ? formatNumber(item.measured_current_avg)
-              : "",
-          frequency_Hz:
-            item.frequency_Hz !== null ? formatNumber(item.frequency_Hz) : "",
-          measured_kW_output:
-            item.measured_kW_output !== null
-              ? formatNumber(item.measured_kW_output)
-              : "",
-          measured_kVA_output:
-            item.measured_kVA_output !== null
-              ? formatNumber(item.measured_kVA_output)
-              : "",
-          power_factor:
-            item.power_factor !== null
-              ? formatNumber(item.power_factor, 4)
-              : "",
+          measured_voltage_LL: item.measured_voltage_LL ?? null,
+          measured_current_avg: item.measured_current_avg ?? null,
+          frequency_Hz: item.frequency_Hz ?? null,
+          measured_kW_output: item.measured_kW_output ?? null,
+          measured_kVA_output: item.measured_kVA_output ?? null,
+          power_factor: item.power_factor ?? null,
         })),
       },
 
       {
         heading: "Load Analysis",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "dg_name",
           "max_load_observed_kW",
           "min_load_observed_kW",
@@ -511,22 +482,10 @@ export const buildDGSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           dg_name: item.dg_name,
-          max_load_observed_kW:
-            item.max_load_observed_kW !== null
-              ? formatNumber(item.max_load_observed_kW)
-              : "",
-          min_load_observed_kW:
-            item.min_load_observed_kW !== null
-              ? formatNumber(item.min_load_observed_kW)
-              : "",
-          average_loading_percent:
-            item.average_loading_percent !== null
-              ? formatNumber(item.average_loading_percent)
-              : "",
-          load_factor_percent:
-            item.load_factor_percent !== null
-              ? formatNumber(item.load_factor_percent)
-              : "",
+          max_load_observed_kW: item.max_load_observed_kW ?? null,
+          min_load_observed_kW: item.min_load_observed_kW ?? null,
+          average_loading_percent: item.average_loading_percent ?? null,
+          load_factor_percent: item.load_factor_percent ?? null,
           idle_running_observed:
             item.idle_running_observed === null
               ? ""
@@ -545,86 +504,56 @@ export const buildDGSection = async ({
       {
         heading: "Fuel & Generation",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "dg_name",
           "annual_fuel_consumption_liters",
           "units_generated_per_year_kWh",
           "total_working_hours_per_year",
-          "fuel_consumption_per_hour_liters",
-          "units_generated_per_hour_kWh",
-          "specific_fuel_consumption_l_per_kWh",
+          { key: "fuel_consumption_per_hour_liters", label: "Fuel Consumption Per Hour Liters", decimals: 4 },
+          { key: "units_generated_per_hour_kWh", label: "Units Generated Per Hour KWh", decimals: 4 },
+          { key: "specific_fuel_consumption_l_per_kWh", label: "Specific Fuel Consumption L Per KWh", decimals: 4 },
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           dg_name: item.dg_name,
           annual_fuel_consumption_liters:
-            item.annual_fuel_consumption_liters !== null
-              ? formatNumber(item.annual_fuel_consumption_liters)
-              : "",
-          units_generated_per_year_kWh:
-            item.units_generated_per_year_kWh !== null
-              ? formatNumber(item.units_generated_per_year_kWh)
-              : "",
-          total_working_hours_per_year:
-            item.total_working_hours_per_year !== null
-              ? formatNumber(item.total_working_hours_per_year)
-              : "",
+            item.annual_fuel_consumption_liters ?? null,
+          units_generated_per_year_kWh: item.units_generated_per_year_kWh ?? null,
+          total_working_hours_per_year: item.total_working_hours_per_year ?? null,
           fuel_consumption_per_hour_liters:
-            item.fuel_consumption_per_hour_liters !== null
-              ? formatNumber(item.fuel_consumption_per_hour_liters, 4)
-              : "",
-          units_generated_per_hour_kWh:
-            item.units_generated_per_hour_kWh !== null
-              ? formatNumber(item.units_generated_per_hour_kWh, 4)
-              : "",
+            item.fuel_consumption_per_hour_liters ?? null,
+          units_generated_per_hour_kWh: item.units_generated_per_hour_kWh ?? null,
           specific_fuel_consumption_l_per_kWh:
-            item.specific_fuel_consumption_l_per_kWh !== null
-              ? formatNumber(item.specific_fuel_consumption_l_per_kWh, 4)
-              : "",
+            item.specific_fuel_consumption_l_per_kWh ?? null,
         })),
       },
 
       {
         heading: "Cost Analysis",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "dg_name",
           "fuel_cost_rs_per_liter",
           "annual_fuel_cost_rs",
-          "dg_cost_per_kWh_rs",
-          "grid_cost_per_kWh_rs",
+          { key: "dg_cost_per_kWh_rs", label: "DG Cost Per KWh Rs", decimals: 4 },
+          { key: "grid_cost_per_kWh_rs", label: "Grid Cost Per KWh Rs", decimals: 4 },
           "cost_difference_rs_per_kWh",
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           dg_name: item.dg_name,
-          fuel_cost_rs_per_liter:
-            item.fuel_cost_rs_per_liter !== null
-              ? formatNumber(item.fuel_cost_rs_per_liter)
-              : "",
-          annual_fuel_cost_rs:
-            item.annual_fuel_cost_rs !== null
-              ? formatNumber(item.annual_fuel_cost_rs)
-              : "",
-          dg_cost_per_kWh_rs:
-            item.dg_cost_per_kWh_rs !== null
-              ? formatNumber(item.dg_cost_per_kWh_rs, 4)
-              : "",
-          grid_cost_per_kWh_rs:
-            item.grid_cost_per_kWh_rs !== null
-              ? formatNumber(item.grid_cost_per_kWh_rs, 4)
-              : "",
-          cost_difference_rs_per_kWh:
-            item.cost_difference_rs_per_kWh !== null
-              ? formatNumber(item.cost_difference_rs_per_kWh)
-              : "",
+          fuel_cost_rs_per_liter: item.fuel_cost_rs_per_liter ?? null,
+          annual_fuel_cost_rs: item.annual_fuel_cost_rs ?? null,
+          dg_cost_per_kWh_rs: item.dg_cost_per_kWh_rs ?? null,
+          grid_cost_per_kWh_rs: item.grid_cost_per_kWh_rs ?? null,
+          cost_difference_rs_per_kWh: item.cost_difference_rs_per_kWh ?? null,
         })),
       },
 
       {
         heading: "Efficiency & Operating Conditions",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "dg_name",
           "calculated_efficiency_percent",
           "manufacturer_efficiency_percent",
@@ -636,37 +565,20 @@ export const buildDGSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           dg_name: item.dg_name,
-          calculated_efficiency_percent:
-            item.calculated_efficiency_percent !== null
-              ? formatNumber(item.calculated_efficiency_percent)
-              : "",
+          calculated_efficiency_percent: item.calculated_efficiency_percent ?? null,
           manufacturer_efficiency_percent:
-            item.manufacturer_efficiency_percent !== null
-              ? formatNumber(item.manufacturer_efficiency_percent)
-              : "",
-          efficiency_deviation_percent:
-            item.efficiency_deviation_percent !== null
-              ? formatNumber(item.efficiency_deviation_percent)
-              : "",
-          exhaust_temperature_C:
-            item.exhaust_temperature_C !== null
-              ? formatNumber(item.exhaust_temperature_C)
-              : "",
-          cooling_water_temperature_C:
-            item.cooling_water_temperature_C !== null
-              ? formatNumber(item.cooling_water_temperature_C)
-              : "",
-          lube_oil_pressure_bar:
-            item.lube_oil_pressure_bar !== null
-              ? formatNumber(item.lube_oil_pressure_bar)
-              : "",
+            item.manufacturer_efficiency_percent ?? null,
+          efficiency_deviation_percent: item.efficiency_deviation_percent ?? null,
+          exhaust_temperature_C: item.exhaust_temperature_C ?? null,
+          cooling_water_temperature_C: item.cooling_water_temperature_C ?? null,
+          lube_oil_pressure_bar: item.lube_oil_pressure_bar ?? null,
         })),
       },
 
       {
         heading: "Maintenance & Condition",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "dg_name",
           "total_operating_hours",
           "hours_since_last_overhaul",
@@ -676,14 +588,8 @@ export const buildDGSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           dg_name: item.dg_name,
-          total_operating_hours:
-            item.total_operating_hours !== null
-              ? formatNumber(item.total_operating_hours)
-              : "",
-          hours_since_last_overhaul:
-            item.hours_since_last_overhaul !== null
-              ? formatNumber(item.hours_since_last_overhaul)
-              : "",
+          total_operating_hours: item.total_operating_hours ?? null,
+          hours_since_last_overhaul: item.hours_since_last_overhaul ?? null,
           air_fuel_filter_condition: item.air_fuel_filter_condition,
           visible_smoke_or_abnormal_vibration:
             item.visible_smoke_or_abnormal_vibration === null
@@ -704,62 +610,35 @@ export const buildDGSection = async ({
           },
           {
             metric: "Average Measured kW Output",
-            value:
-              summary.average_measured_kW_output !== null
-                ? formatNumber(summary.average_measured_kW_output)
-                : "",
+            value: summary.average_measured_kW_output ?? "",
           },
           {
             metric: "Average Measured kVA Output",
-            value:
-              summary.average_measured_kVA_output !== null
-                ? formatNumber(summary.average_measured_kVA_output)
-                : "",
+            value: summary.average_measured_kVA_output ?? "",
           },
           {
             metric: "Average Power Factor",
-            value:
-              summary.average_power_factor !== null
-                ? formatNumber(summary.average_power_factor, 4)
-                : "",
+            value: summary.average_power_factor ?? "",
           },
           {
             metric: "Average DG Cost per kWh (Rs)",
-            value:
-              summary.average_dg_cost_per_kWh_rs !== null
-                ? formatNumber(summary.average_dg_cost_per_kWh_rs, 4)
-                : "",
+            value: summary.average_dg_cost_per_kWh_rs ?? "",
           },
           {
             metric: "Average Grid Cost per kWh (Rs)",
-            value:
-              summary.average_grid_cost_per_kWh_rs !== null
-                ? formatNumber(summary.average_grid_cost_per_kWh_rs, 4)
-                : "",
+            value: summary.average_grid_cost_per_kWh_rs ?? "",
           },
           {
             metric: "Average Loading (%)",
-            value:
-              summary.average_loading_percent !== null
-                ? formatNumber(summary.average_loading_percent)
-                : "",
+            value: summary.average_loading_percent ?? "",
           },
           {
             metric: "Average Specific Fuel Consumption (L/kWh)",
-            value:
-              summary.average_specific_fuel_consumption_l_per_kWh !== null
-                ? formatNumber(
-                    summary.average_specific_fuel_consumption_l_per_kWh,
-                    4,
-                  )
-                : "",
+            value: summary.average_specific_fuel_consumption_l_per_kWh ?? "",
           },
           {
             metric: "Average Calculated Efficiency (%)",
-            value:
-              summary.average_efficiency_percent !== null
-                ? formatNumber(summary.average_efficiency_percent)
-                : "",
+            value: summary.average_efficiency_percent ?? "",
           },
           {
             metric: "Latest Audit Date",
@@ -770,14 +649,14 @@ export const buildDGSection = async ({
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "dg_name", label: "DG Name" },
       { key: "audit_date_label", label: "Audit Date" },
       { key: "measured_kW_output", label: "Measured kW" },
       { key: "measured_kVA_output", label: "Measured kVA" },
-      { key: "power_factor", label: "Power Factor" },
-      { key: "dg_cost_per_kWh_rs", label: "DG Cost/kWh (Rs)" },
-      { key: "grid_cost_per_kWh_rs", label: "Grid Cost/kWh (Rs)" },
+      { key: "power_factor", label: "Power Factor", decimals: 4 },
+      { key: "dg_cost_per_kWh_rs", label: "DG Cost/kWh (Rs)", decimals: 4 },
+      { key: "grid_cost_per_kWh_rs", label: "Grid Cost/kWh (Rs)", decimals: 4 },
       { key: "average_loading_percent", label: "Loading (%)" },
     ],
 
@@ -785,28 +664,12 @@ export const buildDGSection = async ({
       sr_no: item.sr_no,
       dg_name: item.dg_name,
       audit_date_label: item.audit_date_label,
-      measured_kW_output:
-        item.measured_kW_output !== null
-          ? formatNumber(item.measured_kW_output)
-          : "",
-      measured_kVA_output:
-        item.measured_kVA_output !== null
-          ? formatNumber(item.measured_kVA_output)
-          : "",
-      power_factor:
-        item.power_factor !== null ? formatNumber(item.power_factor, 4) : "",
-      dg_cost_per_kWh_rs:
-        item.dg_cost_per_kWh_rs !== null
-          ? formatNumber(item.dg_cost_per_kWh_rs, 4)
-          : "",
-      grid_cost_per_kWh_rs:
-        item.grid_cost_per_kWh_rs !== null
-          ? formatNumber(item.grid_cost_per_kWh_rs, 4)
-          : "",
-      average_loading_percent:
-        item.average_loading_percent !== null
-          ? formatNumber(item.average_loading_percent)
-          : "",
+      measured_kW_output: item.measured_kW_output ?? null,
+      measured_kVA_output: item.measured_kVA_output ?? null,
+      power_factor: item.power_factor ?? null,
+      dg_cost_per_kWh_rs: item.dg_cost_per_kWh_rs ?? null,
+      grid_cost_per_kWh_rs: item.grid_cost_per_kWh_rs ?? null,
+      average_loading_percent: item.average_loading_percent ?? null,
     })),
   };
 };

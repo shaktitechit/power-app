@@ -14,12 +14,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -226,7 +220,7 @@ export const buildLuxSection = async ({
       {
         heading: "Lux Measurement Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "audit_date_label",
           "area_location",
           "room_type",
@@ -244,23 +238,12 @@ export const buildLuxSection = async ({
           audit_date_label: item.audit_date_label,
           area_location: item.area_location,
           room_type: item.room_type,
-          required_lux:
-            item.required_lux !== null ? formatNumber(item.required_lux) : "",
-          measured_lux_point_1:
-            item.measured_lux_point_1 !== null
-              ? formatNumber(item.measured_lux_point_1)
-              : "",
-          measured_lux_point_2:
-            item.measured_lux_point_2 !== null
-              ? formatNumber(item.measured_lux_point_2)
-              : "",
-          measured_lux_point_3:
-            item.measured_lux_point_3 !== null
-              ? formatNumber(item.measured_lux_point_3)
-              : "",
-          average_lux:
-            item.average_lux !== null ? formatNumber(item.average_lux) : "",
-          lux_gap: item.lux_gap !== null ? formatNumber(item.lux_gap) : "",
+          required_lux: item.required_lux ?? null,
+          measured_lux_point_1: item.measured_lux_point_1 ?? null,
+          measured_lux_point_2: item.measured_lux_point_2 ?? null,
+          measured_lux_point_3: item.measured_lux_point_3 ?? null,
+          average_lux: item.average_lux ?? null,
+          lux_gap: item.lux_gap ?? null,
           compliance_label: item.compliance_label,
           remarks: item.remarks,
         })),
@@ -284,31 +267,19 @@ export const buildLuxSection = async ({
           },
           {
             metric: "Compliance Percentage (%)",
-            value:
-              summary.compliance_percent !== null
-                ? formatNumber(summary.compliance_percent)
-                : "",
+            value: summary.compliance_percent ?? "",
           },
           {
             metric: "Average Required Lux",
-            value:
-              summary.average_required_lux !== null
-                ? formatNumber(summary.average_required_lux)
-                : "",
+            value: summary.average_required_lux ?? "",
           },
           {
             metric: "Average Measured Lux",
-            value:
-              summary.average_measured_lux !== null
-                ? formatNumber(summary.average_measured_lux)
-                : "",
+            value: summary.average_measured_lux ?? "",
           },
           {
             metric: "Average Lux Gap",
-            value:
-              summary.average_lux_gap !== null
-                ? formatNumber(summary.average_lux_gap)
-                : "",
+            value: summary.average_lux_gap ?? "",
           },
           {
             metric: "Latest Audit Date",
@@ -319,7 +290,7 @@ export const buildLuxSection = async ({
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "audit_date_label", label: "Audit Date" },
       { key: "area_location", label: "Area / Location" },
       { key: "room_type", label: "Room Type" },
@@ -337,23 +308,12 @@ export const buildLuxSection = async ({
       audit_date_label: item.audit_date_label,
       area_location: item.area_location,
       room_type: item.room_type,
-      required_lux:
-        item.required_lux !== null ? formatNumber(item.required_lux) : "",
-      measured_lux_point_1:
-        item.measured_lux_point_1 !== null
-          ? formatNumber(item.measured_lux_point_1)
-          : "",
-      measured_lux_point_2:
-        item.measured_lux_point_2 !== null
-          ? formatNumber(item.measured_lux_point_2)
-          : "",
-      measured_lux_point_3:
-        item.measured_lux_point_3 !== null
-          ? formatNumber(item.measured_lux_point_3)
-          : "",
-      average_lux:
-        item.average_lux !== null ? formatNumber(item.average_lux) : "",
-      lux_gap: item.lux_gap !== null ? formatNumber(item.lux_gap) : "",
+      required_lux: item.required_lux ?? null,
+      measured_lux_point_1: item.measured_lux_point_1 ?? null,
+      measured_lux_point_2: item.measured_lux_point_2 ?? null,
+      measured_lux_point_3: item.measured_lux_point_3 ?? null,
+      average_lux: item.average_lux ?? null,
+      lux_gap: item.lux_gap ?? null,
       compliance_label: item.compliance_label,
     })),
   };

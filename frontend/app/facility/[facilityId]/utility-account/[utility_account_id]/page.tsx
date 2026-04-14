@@ -23,6 +23,19 @@ import {
 } from "next/navigation";
 import { useGetUtilityAccountByIdQuery } from "@/store/slices/utilityApiSlice";
 import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
+import { useGetUtilityTariffsQuery } from "@/store/slices/utilityTariffApiSlice";
+import { useGetUtilityBillingRecordsQuery } from "@/store/slices/utilityBillingRecordApiSlice";
+import { useGetSolarGenerationRecordsQuery } from "@/store/slices/solarGenerationRecordApiSlice";
+import { useGetDGAuditRecordsQuery } from "@/store/slices/dgAuditRecordApiSlice";
+import { useGetTransformerAuditRecordsQuery } from "@/store/slices/transformerAuditRecordApiSlice";
+import { useGetPumpAuditRecordsQuery } from "@/store/slices/pumpAuditRecordApiSlice";
+import { useGetHVACAuditsQuery } from "@/store/slices/hvacAuditApiSlice";
+import { useGetACAuditRecordsQuery } from "@/store/slices/acAuditRecordApiSlice";
+import { useGetLightingAuditsQuery } from "@/store/slices/lightingAuditApiSlice";
+import { useGetFanAuditRecordsQuery } from "@/store/slices/fanAuditRecordApiSlice";
+import { useGetLuxMeasurementsQuery } from "@/store/slices/luxMeasurementApiSlice";
+import { useGetMiscLoadAuditsQuery } from "@/store/slices/miscLoadAuditApiSlice";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
 import { UtilityTariffSection } from "@/components/utility-tariff/utility-tariff-section";
 import { UtilityBillingRecordSection } from "@/components/utility-billing-record/utility-billing-record-section";
 import { SolarPlantSection } from "@/components/solar-plants/solar-plant-section";
@@ -36,10 +49,13 @@ import { MiscLoadAuditSection } from "@/components/misc/misc-load-audit-section"
 import { ACAuditRecordSection } from "@/components/ac/ac-audit-record-section";
 import { FanAuditRecordSection } from "@/components/fan/fan-audit-record";
 import { useAppSelector } from "@/store/hooks";
+import { AuditStepSubmitBar } from "@/components/utility-audit/audit-step-submit-bar";
 
 type TabItem = {
   id: string;
   label: string;
+  count?: number;
+  completed?: boolean;
 };
 
 type UtilityDocument = {
@@ -70,38 +86,238 @@ export default function ConnectionDetailsPage() {
 
   const facility = facilityById?.data?.facility;
 
-  const tabs = useMemo<TabItem[]>(
-    () =>
-      [
-        { id: "details", label: "Utility Account Details" },
-        { id: "tarrif", label: "Utility Tarrif" },
-        { id: "utility-billing-records", label: "Utility Billing Records" },
+  const skipBase = !utilityAccountId || !facilityId;
 
-        utilityAccount?.is_solar_connected
-          ? { id: "solar-plants", label: "Solar Audit" }
-          : null,
-
-        utilityAccount?.is_dg_connected
-          ? { id: "dg-sets", label: "DG Audit" }
-          : null,
-
-        utilityAccount?.is_transformer_connected
-          ? { id: "transformer", label: "Transformer Audit" }
-          : null,
-
-        utilityAccount?.is_pump_connected
-          ? { id: "pump", label: "Pump Audit" }
-          : null,
-
-        { id: "hvac", label: "HVAC Audit" },
-        { id: "ac", label: "AC Audit" },
-        { id: "lighting", label: "Lighting Audit" },
-        { id: "fan", label: "Fan Audit" },
-        { id: "lux", label: "LUX Measurement" },
-        { id: "misc", label: "Misc Audit" },
-      ].filter(Boolean) as TabItem[],
-    [utilityAccount],
+  const { data: tariffData } = useGetUtilityTariffsQuery(
+    { utility_account_id: utilityAccountId },
+    { skip: !utilityAccountId },
   );
+  const { data: billingData } = useGetUtilityBillingRecordsQuery(
+    { utility_account_id: utilityAccountId },
+    { skip: !utilityAccountId },
+  );
+  const { data: solarGenData } = useGetSolarGenerationRecordsQuery(
+    { utility_account_id: utilityAccountId, facility_id: facilityId },
+    { skip: skipBase || !utilityAccount?.is_solar_connected },
+  );
+  const { data: dgAuditData } = useGetDGAuditRecordsQuery(
+    { utility_account_id: utilityAccountId, facility_id: facilityId },
+    { skip: skipBase || !utilityAccount?.is_dg_connected },
+  );
+  const { data: transformerAuditData } = useGetTransformerAuditRecordsQuery(
+    { utility_account_id: utilityAccountId, facility_id: facilityId },
+    { skip: skipBase || !utilityAccount?.is_transformer_connected },
+  );
+  const { data: pumpAuditData } = useGetPumpAuditRecordsQuery(
+    { utility_account_id: utilityAccountId, facility_id: facilityId },
+    { skip: skipBase || !utilityAccount?.is_pump_connected },
+  );
+  const { data: hvacData } = useGetHVACAuditsQuery(
+    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { skip: skipBase },
+  );
+  const { data: acData } = useGetACAuditRecordsQuery(
+    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { skip: skipBase },
+  );
+  const { data: lightingData } = useGetLightingAuditsQuery(
+    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { skip: skipBase },
+  );
+  const { data: fanData } = useGetFanAuditRecordsQuery(
+    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { skip: skipBase },
+  );
+  const { data: luxData } = useGetLuxMeasurementsQuery(
+    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { skip: skipBase },
+  );
+  const { data: miscData } = useGetMiscLoadAuditsQuery(
+    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { skip: skipBase },
+  );
+
+  const tariffCount = tariffData?.data?.length ?? 0;
+  const billingCount = billingData?.data?.length ?? 0;
+  const solarRecordCount = solarGenData?.data?.length ?? 0;
+  const dgAuditCount = dgAuditData?.data?.length ?? 0;
+  const transformerAuditCount = transformerAuditData?.data?.length ?? 0;
+  const pumpAuditCount = pumpAuditData?.data?.length ?? 0;
+  const hvacCount = hvacData?.data?.length ?? 0;
+  const acCount = acData?.data?.length ?? 0;
+  const lightingCount = lightingData?.data?.length ?? 0;
+  const fanCount = fanData?.data?.length ?? 0;
+  const luxCount = luxData?.data?.length ?? 0;
+  const miscCount = miscData?.data?.length ?? 0;
+
+  const tabs = useMemo<TabItem[]>(() => {
+    const subs = utilityAccount?.audit_step_submissions;
+    const done = (step: string) => Boolean(subs?.[step]?.submitted_at);
+
+    return [
+      { id: "details", label: "Utility Account Details" },
+      {
+        id: UTILITY_AUDIT_STEP_IDS.TARIFF,
+        label: "Utility Tarrif",
+        count: tariffCount,
+        completed: done(UTILITY_AUDIT_STEP_IDS.TARIFF),
+      },
+      {
+        id: UTILITY_AUDIT_STEP_IDS.BILLING,
+        label: "Utility Billing Records",
+        count: billingCount,
+        completed: done(UTILITY_AUDIT_STEP_IDS.BILLING),
+      },
+
+      utilityAccount?.is_solar_connected
+        ? {
+            id: UTILITY_AUDIT_STEP_IDS.SOLAR,
+            label: "Solar Audit",
+            count: solarRecordCount,
+            completed: done(UTILITY_AUDIT_STEP_IDS.SOLAR),
+          }
+        : null,
+
+      utilityAccount?.is_dg_connected
+        ? {
+            id: UTILITY_AUDIT_STEP_IDS.DG,
+            label: "DG Audit",
+            count: dgAuditCount,
+            completed: done(UTILITY_AUDIT_STEP_IDS.DG),
+          }
+        : null,
+
+      utilityAccount?.is_transformer_connected
+        ? {
+            id: UTILITY_AUDIT_STEP_IDS.TRANSFORMER,
+            label: "Transformer Audit",
+            count: transformerAuditCount,
+            completed: done(UTILITY_AUDIT_STEP_IDS.TRANSFORMER),
+          }
+        : null,
+
+      utilityAccount?.is_pump_connected
+        ? {
+            id: UTILITY_AUDIT_STEP_IDS.PUMP,
+            label: "Pump Audit",
+            count: pumpAuditCount,
+            completed: done(UTILITY_AUDIT_STEP_IDS.PUMP),
+          }
+        : null,
+
+      {
+        id: UTILITY_AUDIT_STEP_IDS.HVAC,
+        label: "HVAC Audit",
+        count: hvacCount,
+        completed: done(UTILITY_AUDIT_STEP_IDS.HVAC),
+      },
+      {
+        id: UTILITY_AUDIT_STEP_IDS.AC,
+        label: "AC Audit",
+        count: acCount,
+        completed: done(UTILITY_AUDIT_STEP_IDS.AC),
+      },
+      {
+        id: UTILITY_AUDIT_STEP_IDS.LIGHTING,
+        label: "Lighting Audit",
+        count: lightingCount,
+        completed: done(UTILITY_AUDIT_STEP_IDS.LIGHTING),
+      },
+      {
+        id: UTILITY_AUDIT_STEP_IDS.FAN,
+        label: "Fan Audit",
+        count: fanCount,
+        completed: done(UTILITY_AUDIT_STEP_IDS.FAN),
+      },
+      {
+        id: UTILITY_AUDIT_STEP_IDS.LUX,
+        label: "LUX Measurement",
+        count: luxCount,
+        completed: done(UTILITY_AUDIT_STEP_IDS.LUX),
+      },
+      {
+        id: UTILITY_AUDIT_STEP_IDS.MISC,
+        label: "Misc Audit",
+        count: miscCount,
+        completed: done(UTILITY_AUDIT_STEP_IDS.MISC),
+      },
+      {
+        id: UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT,
+        label: "Preview and Submit",
+        completed: done(UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT),
+      },
+    ].filter(Boolean) as TabItem[];
+  }, [
+    utilityAccount?.audit_step_submissions,
+    utilityAccount?.is_solar_connected,
+    utilityAccount?.is_dg_connected,
+    utilityAccount?.is_transformer_connected,
+    utilityAccount?.is_pump_connected,
+    tariffCount,
+    billingCount,
+    solarRecordCount,
+    dgAuditCount,
+    transformerAuditCount,
+    pumpAuditCount,
+    hvacCount,
+    acCount,
+    lightingCount,
+    fanCount,
+    luxCount,
+    miscCount,
+  ]);
+
+  const finalAuditLocked = useMemo(() => {
+    const s = utilityAccount?.audit_step_submissions;
+    const lock = (id: string) => Boolean(s?.[id]?.submitted_at);
+    return lock(UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT);
+  }, [utilityAccount?.audit_step_submissions]);
+  const auditStatusLabel = finalAuditLocked ? "Completed" : "Pending";
+  const finalSubmitMissingItems = useMemo(() => {
+    const missing: string[] = [];
+
+    if (tariffCount <= 0) missing.push("Utility tariff records");
+    if (billingCount <= 0) missing.push("Utility billing records");
+    if (hvacCount <= 0) missing.push("HVAC audit records");
+    if (acCount <= 0) missing.push("AC audit records");
+    if (lightingCount <= 0) missing.push("Lighting audit records");
+    if (fanCount <= 0) missing.push("Fan audit records");
+    if (luxCount <= 0) missing.push("LUX measurement records");
+    if (miscCount <= 0) missing.push("Misc audit records");
+
+    if (utilityAccount?.is_solar_connected && solarRecordCount <= 0) {
+      missing.push("Solar audit records");
+    }
+    if (utilityAccount?.is_dg_connected && dgAuditCount <= 0) {
+      missing.push("DG audit records");
+    }
+    if (utilityAccount?.is_transformer_connected && transformerAuditCount <= 0) {
+      missing.push("Transformer audit records");
+    }
+    if (utilityAccount?.is_pump_connected && pumpAuditCount <= 0) {
+      missing.push("Pump audit records");
+    }
+
+    return missing;
+  }, [
+    utilityAccount?.is_solar_connected,
+    utilityAccount?.is_dg_connected,
+    utilityAccount?.is_transformer_connected,
+    utilityAccount?.is_pump_connected,
+    tariffCount,
+    billingCount,
+    solarRecordCount,
+    dgAuditCount,
+    transformerAuditCount,
+    pumpAuditCount,
+    hvacCount,
+    acCount,
+    lightingCount,
+    fanCount,
+    luxCount,
+    miscCount,
+  ]);
+  const canFinalSubmit = finalSubmitMissingItems.length === 0;
 
   const validTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
 
@@ -261,6 +477,19 @@ export default function ConnectionDetailsPage() {
                   </div>
 
                   <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Audit Status</span>
+                    <span
+                      className={`text-right font-medium ${
+                        finalAuditLocked
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : "text-amber-700 dark:text-amber-400"
+                      }`}
+                    >
+                      {auditStatusLabel}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Audit Date</span>
                     <span className="text-right text-foreground">
                       {utilityAccount.audit_date
@@ -378,6 +607,19 @@ export default function ConnectionDetailsPage() {
                     <p className="text-xs text-muted-foreground">Status</p>
                     <p className="mt-1 text-lg font-semibold text-foreground">
                       {utilityAccount.is_active ? "Active" : "Inactive"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <p className="text-xs text-muted-foreground">Audit Status</p>
+                    <p
+                      className={`mt-1 text-lg font-semibold ${
+                        finalAuditLocked
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : "text-amber-700 dark:text-amber-400"
+                      }`}
+                    >
+                      {auditStatusLabel}
                     </p>
                   </div>
                 </div>
@@ -505,14 +747,18 @@ export default function ConnectionDetailsPage() {
         </div>
       )}
 
-      {activeTab === "tarrif" && (
-        <UtilityTariffSection utilityAccountId={utilityAccountId} />
+      {activeTab === UTILITY_AUDIT_STEP_IDS.TARIFF && (
+        <UtilityTariffSection
+          utilityAccountId={utilityAccountId}
+          auditStepLocked={finalAuditLocked}
+        />
       )}
 
-      {activeTab === "utility-billing-records" && (
+      {activeTab === UTILITY_AUDIT_STEP_IDS.BILLING && (
         <div className="space-y-4">
           <UtilityBillingRecordSection
             utilityAccountId={utilityAccountId}
+            auditStepLocked={finalAuditLocked}
             billingCycle={
               utilityAccount?.billing_cycle === "monthly" ||
               utilityAccount?.billing_cycle === "bi-monthly" ||
@@ -524,94 +770,223 @@ export default function ConnectionDetailsPage() {
         </div>
       )}
 
-      {utilityAccount.is_solar_connected && activeTab === "solar-plants" && (
-        <div className="space-y-4">
-          <SolarPlantSection
-            utilityAccountId={utilityAccountId}
-            facilityId={facility._id}
-          />
-        </div>
-      )}
-
-      {utilityAccount.is_dg_connected && activeTab === "dg-sets" && (
-        <div className="space-y-4">
-          <DGSetSection
-            utilityAccountId={utilityAccountId}
-            facilityId={facility._id}
-          />
-        </div>
-      )}
-
-      {utilityAccount.is_transformer_connected &&
-        activeTab === "transformer" && (
+      {utilityAccount.is_solar_connected &&
+        activeTab === UTILITY_AUDIT_STEP_IDS.SOLAR && (
           <div className="space-y-4">
-            <TransformerSection
+            <SolarPlantSection
               utilityAccountId={utilityAccountId}
               facilityId={facility._id}
+              auditStepLocked={finalAuditLocked}
             />
           </div>
         )}
 
-      {utilityAccount.is_pump_connected && activeTab === "pump" && (
-        <div className="space-y-4">
-          <PumpSection
-            utilityAccountId={utilityAccountId}
-            facilityId={facility._id}
-          />
-        </div>
-      )}
+      {utilityAccount.is_dg_connected &&
+        activeTab === UTILITY_AUDIT_STEP_IDS.DG && (
+          <div className="space-y-4">
+            <DGSetSection
+              utilityAccountId={utilityAccountId}
+              facilityId={facility._id}
+              auditStepLocked={finalAuditLocked}
+            />
+          </div>
+        )}
 
-      {activeTab === "hvac" && (
+      {utilityAccount.is_transformer_connected &&
+        activeTab === UTILITY_AUDIT_STEP_IDS.TRANSFORMER && (
+          <div className="space-y-4">
+            <TransformerSection
+              utilityAccountId={utilityAccountId}
+              facilityId={facility._id}
+              auditStepLocked={finalAuditLocked}
+            />
+          </div>
+        )}
+
+      {utilityAccount.is_pump_connected &&
+        activeTab === UTILITY_AUDIT_STEP_IDS.PUMP && (
+          <div className="space-y-4">
+            <PumpSection
+              utilityAccountId={utilityAccountId}
+              facilityId={facility._id}
+              auditStepLocked={finalAuditLocked}
+            />
+          </div>
+        )}
+
+      {activeTab === UTILITY_AUDIT_STEP_IDS.HVAC && (
         <div className="space-y-4">
           <HVACAuditSection
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
+            auditStepLocked={finalAuditLocked}
           />
         </div>
       )}
 
-      {activeTab === "ac" && (
+      {activeTab === UTILITY_AUDIT_STEP_IDS.AC && (
         <div className="space-y-4">
           <ACAuditRecordSection
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
+            auditStepLocked={finalAuditLocked}
           />
         </div>
       )}
 
-      {activeTab === "lighting" && (
+      {activeTab === UTILITY_AUDIT_STEP_IDS.LIGHTING && (
         <div className="space-y-4">
           <LightingAuditSection
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
+            auditStepLocked={finalAuditLocked}
           />
         </div>
       )}
 
-      {activeTab === "fan" && (
+      {activeTab === UTILITY_AUDIT_STEP_IDS.FAN && (
         <div className="space-y-4">
           <FanAuditRecordSection
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
+            auditStepLocked={finalAuditLocked}
           />
         </div>
       )}
 
-      {activeTab === "lux" && (
+      {activeTab === UTILITY_AUDIT_STEP_IDS.LUX && (
         <div className="space-y-4">
           <LuxMeasurementSection
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
+            auditStepLocked={finalAuditLocked}
           />
         </div>
       )}
 
-      {activeTab === "misc" && (
+      {activeTab === UTILITY_AUDIT_STEP_IDS.MISC && (
         <div className="space-y-4">
           <MiscLoadAuditSection
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
+            auditStepLocked={finalAuditLocked}
           />
+        </div>
+      )}
+
+      {activeTab === UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT && (
+        <div className="space-y-4">
+          <Card className="border-border bg-card">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-card-foreground">
+                Audit Preview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 p-4 pt-0 sm:grid-cols-2 sm:p-6 sm:pt-0 lg:grid-cols-3">
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Utility tariff</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {tariffCount} record(s)
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">
+                  Utility billing records
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {billingCount} record(s)
+                </p>
+              </div>
+              {utilityAccount.is_solar_connected ? (
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="text-xs text-muted-foreground">Solar audit</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {solarRecordCount} record(s)
+                  </p>
+                </div>
+              ) : null}
+              {utilityAccount.is_dg_connected ? (
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="text-xs text-muted-foreground">DG audit</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {dgAuditCount} record(s)
+                  </p>
+                </div>
+              ) : null}
+              {utilityAccount.is_transformer_connected ? (
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="text-xs text-muted-foreground">
+                    Transformer audit
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {transformerAuditCount} record(s)
+                  </p>
+                </div>
+              ) : null}
+              {utilityAccount.is_pump_connected ? (
+                <div className="rounded-xl border border-border bg-muted/30 p-4">
+                  <p className="text-xs text-muted-foreground">Pump audit</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
+                    {pumpAuditCount} record(s)
+                  </p>
+                </div>
+              ) : null}
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">HVAC audit</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {hvacCount} record(s)
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">AC audit</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {acCount} record(s)
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Lighting audit</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {lightingCount} record(s)
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Fan audit</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {fanCount} record(s)
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">LUX measurement</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {luxCount} record(s)
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Misc audit</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {miscCount} record(s)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <AuditStepSubmitBar
+            utilityAccountId={utilityAccountId}
+            stepId={UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT}
+            stepLabel="Final utility audit"
+            auditStepLocked={finalAuditLocked}
+            disabled={!canFinalSubmit}
+          />
+          {!finalAuditLocked && !canFinalSubmit ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <p className="font-medium">
+                Final submit is blocked until all required audit data is filled.
+              </p>
+              <p className="mt-1">
+                Missing: {finalSubmitMissingItems.join(", ")}.
+              </p>
+            </div>
+          ) : null}
         </div>
       )}
     </DashboardLayout>

@@ -14,12 +14,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -359,7 +353,7 @@ export const buildTransformerSection = async ({
       {
         heading: "Transformer Basic Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "transformer_tag",
           "rated_capacity_kVA",
           "type_of_cooling",
@@ -372,23 +366,12 @@ export const buildTransformerSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           transformer_tag: item.transformer_tag,
-          rated_capacity_kVA:
-            item.rated_capacity_kVA !== null
-              ? formatNumber(item.rated_capacity_kVA)
-              : "",
+          rated_capacity_kVA: item.rated_capacity_kVA ?? null,
           type_of_cooling: item.type_of_cooling,
-          rated_HV_kV:
-            item.rated_HV_kV !== null ? formatNumber(item.rated_HV_kV) : "",
-          rated_LV_V:
-            item.rated_LV_V !== null ? formatNumber(item.rated_LV_V) : "",
-          no_load_loss_kW:
-            item.no_load_loss_kW !== null
-              ? formatNumber(item.no_load_loss_kW)
-              : "",
-          full_load_loss_kW:
-            item.full_load_loss_kW !== null
-              ? formatNumber(item.full_load_loss_kW)
-              : "",
+          rated_HV_kV: item.rated_HV_kV ?? null,
+          rated_LV_V: item.rated_LV_V ?? null,
+          no_load_loss_kW: item.no_load_loss_kW ?? null,
+          full_load_loss_kW: item.full_load_loss_kW ?? null,
           audit_date_label: item.audit_date_label,
         })),
       },
@@ -396,47 +379,31 @@ export const buildTransformerSection = async ({
       {
         heading: "Load & Electrical Measurements",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "transformer_tag",
           "average_load_kVA",
           "max_load_kVA",
           "percent_loading",
           "load_factor_percent",
-          "power_factor_LT",
+          { key: "power_factor_LT", label: "Power Factor LT", decimals: 3 },
           "harmonics_THD_percent",
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           transformer_tag: item.transformer_tag,
-          average_load_kVA:
-            item.average_load_kVA !== null
-              ? formatNumber(item.average_load_kVA)
-              : "",
-          max_load_kVA:
-            item.max_load_kVA !== null ? formatNumber(item.max_load_kVA) : "",
-          percent_loading:
-            item.percent_loading !== null
-              ? formatNumber(item.percent_loading)
-              : "",
-          load_factor_percent:
-            item.load_factor_percent !== null
-              ? formatNumber(item.load_factor_percent)
-              : "",
-          power_factor_LT:
-            item.power_factor_LT !== null
-              ? formatNumber(item.power_factor_LT, 3)
-              : "",
-          harmonics_THD_percent:
-            item.harmonics_THD_percent !== null
-              ? formatNumber(item.harmonics_THD_percent)
-              : "",
+          average_load_kVA: item.average_load_kVA ?? null,
+          max_load_kVA: item.max_load_kVA ?? null,
+          percent_loading: item.percent_loading ?? null,
+          load_factor_percent: item.load_factor_percent ?? null,
+          power_factor_LT: item.power_factor_LT ?? null,
+          harmonics_THD_percent: item.harmonics_THD_percent ?? null,
         })),
       },
 
       {
         heading: "Voltage & Current Measurements",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "transformer_tag",
           "line_voltage_Vr",
           "line_voltage_Vy",
@@ -451,91 +418,50 @@ export const buildTransformerSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           transformer_tag: item.transformer_tag,
-          line_voltage_Vr:
-            item.line_voltage_Vr !== null
-              ? formatNumber(item.line_voltage_Vr)
-              : "",
-          line_voltage_Vy:
-            item.line_voltage_Vy !== null
-              ? formatNumber(item.line_voltage_Vy)
-              : "",
-          line_voltage_Vb:
-            item.line_voltage_Vb !== null
-              ? formatNumber(item.line_voltage_Vb)
-              : "",
-          phase_voltage_Vr_n:
-            item.phase_voltage_Vr_n !== null
-              ? formatNumber(item.phase_voltage_Vr_n)
-              : "",
-          phase_voltage_Vy_n:
-            item.phase_voltage_Vy_n !== null
-              ? formatNumber(item.phase_voltage_Vy_n)
-              : "",
-          phase_voltage_Vb_n:
-            item.phase_voltage_Vb_n !== null
-              ? formatNumber(item.phase_voltage_Vb_n)
-              : "",
-          line_current_Ir:
-            item.line_current_Ir !== null
-              ? formatNumber(item.line_current_Ir)
-              : "",
-          line_current_Iy:
-            item.line_current_Iy !== null
-              ? formatNumber(item.line_current_Iy)
-              : "",
-          line_current_Ib:
-            item.line_current_Ib !== null
-              ? formatNumber(item.line_current_Ib)
-              : "",
+          line_voltage_Vr: item.line_voltage_Vr ?? null,
+          line_voltage_Vy: item.line_voltage_Vy ?? null,
+          line_voltage_Vb: item.line_voltage_Vb ?? null,
+          phase_voltage_Vr_n: item.phase_voltage_Vr_n ?? null,
+          phase_voltage_Vy_n: item.phase_voltage_Vy_n ?? null,
+          phase_voltage_Vb_n: item.phase_voltage_Vb_n ?? null,
+          line_current_Ir: item.line_current_Ir ?? null,
+          line_current_Iy: item.line_current_Iy ?? null,
+          line_current_Ib: item.line_current_Ib ?? null,
         })),
       },
 
       {
         heading: "Losses & Energy Analysis",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "transformer_tag",
           "annual_energy_supplied_kWh",
           "total_losses_kW",
           "annual_energy_losses_kWh",
-          "per_unit_cost_rs",
-          "cost_of_losses_rs",
-          "operating_hours_per_year",
+          { key: "per_unit_cost_rs", label: "Per Unit Cost Rs", decimals: 4 },
+          { key: "cost_of_losses_rs", label: "Cost Of Losses Rs", decimals: 4 },
+          {
+            key: "operating_hours_per_year",
+            label: "Operating Hours Per Year",
+            type: "integer",
+          },
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           transformer_tag: item.transformer_tag,
-          annual_energy_supplied_kWh:
-            item.annual_energy_supplied_kWh !== null
-              ? formatNumber(item.annual_energy_supplied_kWh)
-              : "",
-          total_losses_kW:
-            item.total_losses_kW !== null
-              ? formatNumber(item.total_losses_kW)
-              : "",
-          annual_energy_losses_kWh:
-            item.annual_energy_losses_kWh !== null
-              ? formatNumber(item.annual_energy_losses_kWh)
-              : "",
-          per_unit_cost_rs:
-            item.per_unit_cost_rs !== null
-              ? formatNumber(item.per_unit_cost_rs)
-              : "",
-          cost_of_losses_rs:
-            item.cost_of_losses_rs !== null
-              ? formatNumber(item.cost_of_losses_rs)
-              : "",
-          operating_hours_per_year:
-            item.operating_hours_per_year !== null
-              ? formatNumber(item.operating_hours_per_year)
-              : "",
+          annual_energy_supplied_kWh: item.annual_energy_supplied_kWh ?? null,
+          total_losses_kW: item.total_losses_kW ?? null,
+          annual_energy_losses_kWh: item.annual_energy_losses_kWh ?? null,
+          per_unit_cost_rs: item.per_unit_cost_rs ?? null,
+          cost_of_losses_rs: item.cost_of_losses_rs ?? null,
+          operating_hours_per_year: item.operating_hours_per_year ?? null,
         })),
       },
 
       {
         heading: "Maintenance & Safety",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "transformer_tag",
           "silica_gel_cobalt_type",
           "silica_gel_non_cobalt_type",
@@ -550,20 +476,16 @@ export const buildTransformerSection = async ({
           silica_gel_non_cobalt_type: item.silica_gel_non_cobalt_type,
           oil_level: item.oil_level,
           neutral_earth_resistance_ohms:
-            item.neutral_earth_resistance_ohms !== null
-              ? formatNumber(item.neutral_earth_resistance_ohms)
-              : "",
+            item.neutral_earth_resistance_ohms ?? null,
           body_to_earth_resistance_ohms:
-            item.body_to_earth_resistance_ohms !== null
-              ? formatNumber(item.body_to_earth_resistance_ohms)
-              : "",
+            item.body_to_earth_resistance_ohms ?? null,
         })),
       },
 
       {
         heading: "Observations & Recommendations",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "transformer_tag",
           "observation",
           "recommendation",
@@ -588,45 +510,27 @@ export const buildTransformerSection = async ({
           },
           {
             metric: "Total Annual Energy Supplied (kWh)",
-            value:
-              summary.total_annual_energy_supplied_kWh !== null
-                ? formatNumber(summary.total_annual_energy_supplied_kWh)
-                : "",
+            value: summary.total_annual_energy_supplied_kWh ?? "",
           },
           {
             metric: "Total Annual Energy Losses (kWh)",
-            value:
-              summary.total_annual_energy_losses_kWh !== null
-                ? formatNumber(summary.total_annual_energy_losses_kWh)
-                : "",
+            value: summary.total_annual_energy_losses_kWh ?? "",
           },
           {
             metric: "Total Cost of Losses (Rs)",
-            value:
-              summary.total_cost_of_losses_rs !== null
-                ? formatNumber(summary.total_cost_of_losses_rs)
-                : "",
+            value: summary.total_cost_of_losses_rs ?? "",
           },
           {
             metric: "Average Percent Loading (%)",
-            value:
-              summary.average_percent_loading !== null
-                ? formatNumber(summary.average_percent_loading)
-                : "",
+            value: summary.average_percent_loading ?? "",
           },
           {
             metric: "Average Power Factor LT",
-            value:
-              summary.average_power_factor_LT !== null
-                ? formatNumber(summary.average_power_factor_LT, 3)
-                : "",
+            value: summary.average_power_factor_LT ?? "",
           },
           {
             metric: "Average Load Factor (%)",
-            value:
-              summary.average_load_factor_percent !== null
-                ? formatNumber(summary.average_load_factor_percent)
-                : "",
+            value: summary.average_load_factor_percent ?? "",
           },
           {
             metric: "Latest Audit Date",
@@ -637,7 +541,7 @@ export const buildTransformerSection = async ({
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "transformer_tag", label: "Transformer Tag" },
       { key: "audit_date_label", label: "Audit Date" },
       { key: "average_load_kVA", label: "Average Load (kVA)" },
@@ -646,37 +550,28 @@ export const buildTransformerSection = async ({
         key: "annual_energy_supplied_kWh",
         label: "Annual Energy Supplied (kWh)",
       },
-      { key: "annual_energy_losses_kWh", label: "Annual Energy Losses (kWh)" },
-      { key: "cost_of_losses_rs", label: "Cost of Losses (Rs)" },
-      { key: "power_factor_LT", label: "PF LT" },
+      {
+        key: "annual_energy_losses_kWh",
+        label: "Annual Energy Losses (kWh)",
+      },
+      {
+        key: "cost_of_losses_rs",
+        label: "Cost of Losses (Rs)",
+        decimals: 4,
+      },
+      { key: "power_factor_LT", label: "PF LT", decimals: 3 },
     ],
 
     table_rows: items.map((item) => ({
       sr_no: item.sr_no,
       transformer_tag: item.transformer_tag,
       audit_date_label: item.audit_date_label,
-      average_load_kVA:
-        item.average_load_kVA !== null
-          ? formatNumber(item.average_load_kVA)
-          : "",
-      percent_loading:
-        item.percent_loading !== null ? formatNumber(item.percent_loading) : "",
-      annual_energy_supplied_kWh:
-        item.annual_energy_supplied_kWh !== null
-          ? formatNumber(item.annual_energy_supplied_kWh)
-          : "",
-      annual_energy_losses_kWh:
-        item.annual_energy_losses_kWh !== null
-          ? formatNumber(item.annual_energy_losses_kWh)
-          : "",
-      cost_of_losses_rs:
-        item.cost_of_losses_rs !== null
-          ? formatNumber(item.cost_of_losses_rs)
-          : "",
-      power_factor_LT:
-        item.power_factor_LT !== null
-          ? formatNumber(item.power_factor_LT, 3)
-          : "",
+      average_load_kVA: item.average_load_kVA ?? null,
+      percent_loading: item.percent_loading ?? null,
+      annual_energy_supplied_kWh: item.annual_energy_supplied_kWh ?? null,
+      annual_energy_losses_kWh: item.annual_energy_losses_kWh ?? null,
+      cost_of_losses_rs: item.cost_of_losses_rs ?? null,
+      power_factor_LT: item.power_factor_LT ?? null,
     })),
   };
 };

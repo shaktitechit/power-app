@@ -50,6 +50,12 @@ export interface Facility {
     email?: string;
   };
   closure_date?: string;
+  audit_closure?: {
+    closed_at?: string;
+    closed_by?: string;
+    reopened_at?: string;
+    reopened_by?: string;
+  };
   created_by: string;
   documents: FacilityDocument[];
   created_at?: string;
@@ -132,6 +138,12 @@ export interface UpdateFacilityResponse {
 export interface DeleteFacilityResponse {
   success: boolean;
   message: string;
+}
+
+export interface FacilityAuditClosureResponse {
+  success: boolean;
+  message: string;
+  data: Facility;
 }
 
 // Build FormData
@@ -246,6 +258,28 @@ export const facilityApiSlice = apiSlice.injectEndpoints({
         { type: "Facility", id },
       ],
     }),
+
+    closeFacilityAudit: builder.mutation<FacilityAuditClosureResponse, string>({
+      query: (id) => ({
+        url: `/v1/facilities/${id}/audit-close`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "Facility",
+        { type: "Facility", id },
+      ],
+    }),
+
+    openFacilityAudit: builder.mutation<FacilityAuditClosureResponse, string>({
+      query: (id) => ({
+        url: `/v1/facilities/${id}/audit-open`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "Facility",
+        { type: "Facility", id },
+      ],
+    }),
   }),
 });
 
@@ -255,4 +289,6 @@ export const {
   useGetFacilityByIdQuery,
   useUpdateFacilityMutation,
   useDeleteFacilityMutation,
+  useCloseFacilityAuditMutation,
+  useOpenFacilityAuditMutation,
 } = facilityApiSlice;

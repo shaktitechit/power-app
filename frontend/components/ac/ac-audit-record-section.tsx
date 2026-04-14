@@ -31,10 +31,14 @@ import {
 import { toastHandler } from "@/lib/toast";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
+import { AuditStepSubmitBar } from "@/components/utility-audit/audit-step-submit-bar";
+import { AuditStepLockedOverlay } from "@/components/utility-audit/audit-step-locked-overlay";
 
 interface ACAuditRecordSectionProps {
   facilityId: string;
   utilityAccountId: string;
+  auditStepLocked?: boolean;
 }
 
 type ExistingDocument = {
@@ -394,6 +398,7 @@ function auditToForm(record: any): ACAuditFormState {
 export function ACAuditRecordSection({
   facilityId,
   utilityAccountId,
+  auditStepLocked = false,
 }: ACAuditRecordSectionProps) {
   const user = useAppSelector((state) => state.auth.user);
   const canViewDocuments = user?.role === "admin";
@@ -647,13 +652,21 @@ export function ACAuditRecordSection({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      <AuditStepSubmitBar
+        utilityAccountId={utilityAccountId}
+        stepId={UTILITY_AUDIT_STEP_IDS.AC}
+        auditStepLocked={auditStepLocked}
+      />
+
+      <div className="relative">
+        <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium text-foreground">
           AC Audit Records
         </h3>
 
-        <Button onClick={handleAddMore}>
+        <Button onClick={handleAddMore} disabled={auditStepLocked}>
           <Plus className="mr-2 h-4 w-4" />
           Add More
         </Button>
@@ -1443,6 +1456,9 @@ export function ACAuditRecordSection({
           </Card>
         ))
       )}
+        </div>
+        {auditStepLocked ? <AuditStepLockedOverlay /> : null}
+      </div>
     </div>
   );
 }

@@ -97,6 +97,24 @@ const facilitySchema = new mongoose.Schema(
       type: Date,
     },
 
+    // Facility-level audit closure (after all utility audits are completed)
+    audit_closure: {
+      closed_at: {
+        type: Date,
+      },
+      closed_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      reopened_at: {
+        type: Date,
+      },
+      reopened_by: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    },
+
     // 📂 Documents (Images / PDFs)
     documents: [
       {

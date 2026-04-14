@@ -16,9 +16,9 @@ import {
 } from "@/components/ui/select";
 import { CreateFacilityForm } from "@/components/facility/create-facility-form";
 import { EditFacilityForm } from "@/components/facility/edit-facility-form";
-import type { Facility } from "@/lib/dummy-types";
 import { Plus, Search, Building2, Pencil, Trash2 } from "lucide-react";
 import {
+  type Facility,
   useGetFacilitiesQuery,
   useDeleteFacilityMutation,
 } from "@/store/slices/facilityApiSlice";
@@ -89,6 +89,26 @@ export default function FacilitiesPage() {
     }
   };
 
+  const actionsColumn: Column<Facility> = {
+    key: "actions",
+    header: "Actions",
+    render: (row: Facility) => (
+      <div
+        className="flex items-center gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => handleEditFacility(e, row)}
+        >
+          <Pencil className="mr-1 h-4 w-4" />
+          Edit
+        </Button>
+      </div>
+    ),
+  };
+
   const columns: Column<Facility>[] = [
     {
       key: "name",
@@ -123,6 +143,24 @@ export default function FacilitiesPage() {
       render: (row) => <StatusBadge status={row.status} />,
     },
     {
+      key: "closure_status",
+      header: "Closure Status",
+      render: (row) => {
+        const isClosed = Boolean(row.audit_closure?.closed_at);
+        return (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+              isClosed
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+            }`}
+          >
+            {isClosed ? "Closed" : "Open"}
+          </span>
+        );
+      },
+    },
+    {
       key: "client_representative",
       header: "Client Representative",
       hideOnMobile: true,
@@ -138,25 +176,7 @@ export default function FacilitiesPage() {
         <span className="text-foreground capitalize">{row.facility_type}</span>
       ),
     },
-    {
-      key: "actions",
-      header: "Actions",
-      render: (row: Facility) => (
-        <div
-          className="flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => handleEditFacility(e, row)}
-          >
-            <Pencil className="mr-1 h-4 w-4" />
-            Edit
-          </Button>
-        </div>
-      ),
-    },
+    ...(isAdmin ? [actionsColumn] : []),
   ];
 
   const handleRowClick = (facility: Facility) => {
@@ -204,13 +224,15 @@ export default function FacilitiesPage() {
           </Select>
         </div>
 
-        <Button
-          onClick={() => setIsWizardOpen(true)}
-          className="w-full sm:w-auto"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Facility
-        </Button>
+        {isAdmin ? (
+          <Button
+            onClick={() => setIsWizardOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Facility
+          </Button>
+        ) : null}
       </div>
 
       <DataTable
@@ -228,18 +250,22 @@ export default function FacilitiesPage() {
         </span>
       </div>
 
-      <CreateFacilityForm
-        open={isWizardOpen}
-        onOpenChange={setIsWizardOpen}
-        onComplete={handleCreateFacility}
-      />
+      {isAdmin ? (
+        <>
+          <CreateFacilityForm
+            open={isWizardOpen}
+            onOpenChange={setIsWizardOpen}
+            onComplete={handleCreateFacility}
+          />
 
-      <EditFacilityForm
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        onComplete={handleEditComplete}
-        facilityId={selectedFacilityId}
-      />
+          <EditFacilityForm
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            onComplete={handleEditComplete}
+            facilityId={selectedFacilityId}
+          />
+        </>
+      ) : null}
     </DashboardLayout>
   );
 }

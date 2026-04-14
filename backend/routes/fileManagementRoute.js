@@ -7,7 +7,7 @@ import {
 
 const router = express.Router();
 
-router.get("/files/:fileId/view", protect, redirectToViewUrl);
-router.get("/files/:fileId/download", protect, redirectToDownloadUrl);
+router.get("/files/:fileId/view", redirectToViewUrl);
+router.get("/files/:fileId/download", redirectToDownloadUrl);
 
 export default router;

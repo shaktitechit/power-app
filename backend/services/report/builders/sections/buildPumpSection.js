@@ -14,12 +14,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -400,41 +394,27 @@ export const buildPumpSection = async ({
       {
         heading: "Pump Basic Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "pump_tag_number",
           "make_model",
-          "rated_power_kW_or_HP",
-          "rated_flow_m3_per_hr",
-          "rated_head_m",
-          "rated_speed_RPM",
-          "number_of_stages",
-          "year_of_installation",
+          { key: "rated_power_kW_or_HP", label: "Rated Power Kw Or HP" },
+          { key: "rated_flow_m3_per_hr", label: "Rated Flow M3 Per Hr" },
+          { key: "rated_head_m", label: "Rated Head M" },
+          { key: "rated_speed_RPM", label: "Rated Speed RPM", type: "integer" },
+          { key: "number_of_stages", label: "Number Of Stages", type: "integer" },
+          { key: "year_of_installation", label: "Year Of Installation", type: "integer" },
           "audit_date_label",
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           pump_tag_number: item.pump_tag_number,
           make_model: item.make_model,
-          rated_power_kW_or_HP:
-            item.rated_power_kW_or_HP !== null
-              ? formatNumber(item.rated_power_kW_or_HP)
-              : "",
-          rated_flow_m3_per_hr:
-            item.rated_flow_m3_per_hr !== null
-              ? formatNumber(item.rated_flow_m3_per_hr)
-              : "",
-          rated_head_m:
-            item.rated_head_m !== null ? formatNumber(item.rated_head_m) : "",
-          rated_speed_RPM:
-            item.rated_speed_RPM !== null
-              ? formatNumber(item.rated_speed_RPM, 0)
-              : "",
-          number_of_stages:
-            item.number_of_stages !== null
-              ? formatNumber(item.number_of_stages, 0)
-              : "",
-          year_of_installation:
-            item.year_of_installation !== null ? item.year_of_installation : "",
+          rated_power_kW_or_HP: item.rated_power_kW_or_HP ?? null,
+          rated_flow_m3_per_hr: item.rated_flow_m3_per_hr ?? null,
+          rated_head_m: item.rated_head_m ?? null,
+          rated_speed_RPM: item.rated_speed_RPM ?? null,
+          number_of_stages: item.number_of_stages ?? null,
+          year_of_installation: item.year_of_installation ?? null,
           audit_date_label: item.audit_date_label,
         })),
       },
@@ -442,7 +422,7 @@ export const buildPumpSection = async ({
       {
         heading: "Hydraulic Measurements",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "pump_tag_number",
           "suction_head_m",
           "discharge_static_head_m",
@@ -455,45 +435,25 @@ export const buildPumpSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           pump_tag_number: item.pump_tag_number,
-          suction_head_m:
-            item.suction_head_m !== null
-              ? formatNumber(item.suction_head_m)
-              : "",
-          discharge_static_head_m:
-            item.discharge_static_head_m !== null
-              ? formatNumber(item.discharge_static_head_m)
-              : "",
-          total_dynamic_head_m:
-            item.total_dynamic_head_m !== null
-              ? formatNumber(item.total_dynamic_head_m)
-              : "",
+          suction_head_m: item.suction_head_m ?? null,
+          discharge_static_head_m: item.discharge_static_head_m ?? null,
+          total_dynamic_head_m: item.total_dynamic_head_m ?? null,
           delivery_pipe_diameter_inches:
-            item.delivery_pipe_diameter_inches !== null
-              ? formatNumber(item.delivery_pipe_diameter_inches)
-              : "",
-          tank_or_sump_capacity:
-            item.tank_or_sump_capacity !== null
-              ? formatNumber(item.tank_or_sump_capacity)
-              : "",
-          time_to_fill_tank_minutes:
-            item.time_to_fill_tank_minutes !== null
-              ? formatNumber(item.time_to_fill_tank_minutes)
-              : "",
-          actual_flow_m3_per_hr:
-            item.actual_flow_m3_per_hr !== null
-              ? formatNumber(item.actual_flow_m3_per_hr)
-              : "",
+            item.delivery_pipe_diameter_inches ?? null,
+          tank_or_sump_capacity: item.tank_or_sump_capacity ?? null,
+          time_to_fill_tank_minutes: item.time_to_fill_tank_minutes ?? null,
+          actual_flow_m3_per_hr: item.actual_flow_m3_per_hr ?? null,
         })),
       },
 
       {
         heading: "Electrical Measurements",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "pump_tag_number",
           "voltage_V",
           "current_A",
-          "power_factor",
+          { key: "power_factor", label: "Power Factor", decimals: 3 },
           "input_power_kW",
           "operating_hours_per_day",
           "daily_energy_consumption_kWh",
@@ -501,70 +461,47 @@ export const buildPumpSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           pump_tag_number: item.pump_tag_number,
-          voltage_V:
-            item.voltage_V !== null ? formatNumber(item.voltage_V) : "",
-          current_A:
-            item.current_A !== null ? formatNumber(item.current_A) : "",
-          power_factor:
-            item.power_factor !== null
-              ? formatNumber(item.power_factor, 3)
-              : "",
-          input_power_kW:
-            item.input_power_kW !== null
-              ? formatNumber(item.input_power_kW)
-              : "",
-          operating_hours_per_day:
-            item.operating_hours_per_day !== null
-              ? formatNumber(item.operating_hours_per_day)
-              : "",
-          daily_energy_consumption_kWh:
-            item.daily_energy_consumption_kWh !== null
-              ? formatNumber(item.daily_energy_consumption_kWh)
-              : "",
+          voltage_V: item.voltage_V ?? null,
+          current_A: item.current_A ?? null,
+          power_factor: item.power_factor ?? null,
+          input_power_kW: item.input_power_kW ?? null,
+          operating_hours_per_day: item.operating_hours_per_day ?? null,
+          daily_energy_consumption_kWh: item.daily_energy_consumption_kWh ?? null,
         })),
       },
 
       {
         heading: "Performance & Energy Analysis",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "pump_tag_number",
           "hydraulic_output_power_kW",
           "overall_pump_set_efficiency_percent",
           "motor_loading_percent",
-          "specific_energy_consumption_kWh_per_m3",
+          {
+            key: "specific_energy_consumption_kWh_per_m3",
+            label: "Specific Energy Consumption KWh Per M3",
+            decimals: 3,
+          },
           "annual_energy_consumption_kWh",
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           pump_tag_number: item.pump_tag_number,
-          hydraulic_output_power_kW:
-            item.hydraulic_output_power_kW !== null
-              ? formatNumber(item.hydraulic_output_power_kW)
-              : "",
+          hydraulic_output_power_kW: item.hydraulic_output_power_kW ?? null,
           overall_pump_set_efficiency_percent:
-            item.overall_pump_set_efficiency_percent !== null
-              ? formatNumber(item.overall_pump_set_efficiency_percent)
-              : "",
-          motor_loading_percent:
-            item.motor_loading_percent !== null
-              ? formatNumber(item.motor_loading_percent)
-              : "",
+            item.overall_pump_set_efficiency_percent ?? null,
+          motor_loading_percent: item.motor_loading_percent ?? null,
           specific_energy_consumption_kWh_per_m3:
-            item.specific_energy_consumption_kWh_per_m3 !== null
-              ? formatNumber(item.specific_energy_consumption_kWh_per_m3, 3)
-              : "",
-          annual_energy_consumption_kWh:
-            item.annual_energy_consumption_kWh !== null
-              ? formatNumber(item.annual_energy_consumption_kWh)
-              : "",
+            item.specific_energy_consumption_kWh_per_m3 ?? null,
+          annual_energy_consumption_kWh: item.annual_energy_consumption_kWh ?? null,
         })),
       },
 
       {
         heading: "Operational Observations",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "pump_tag_number",
           "control_valve_throttling",
           "vfd_installed",
@@ -595,52 +532,31 @@ export const buildPumpSection = async ({
           },
           {
             metric: "Total Daily Energy Consumption (kWh)",
-            value:
-              summary.total_daily_energy_consumption_kWh !== null
-                ? formatNumber(summary.total_daily_energy_consumption_kWh)
-                : "",
+            value: summary.total_daily_energy_consumption_kWh ?? "",
           },
           {
             metric: "Total Annual Energy Consumption (kWh)",
-            value:
-              summary.total_annual_energy_consumption_kWh !== null
-                ? formatNumber(summary.total_annual_energy_consumption_kWh)
-                : "",
+            value: summary.total_annual_energy_consumption_kWh ?? "",
           },
           {
             metric: "Average Input Power (kW)",
-            value:
-              summary.average_input_power_kW !== null
-                ? formatNumber(summary.average_input_power_kW)
-                : "",
+            value: summary.average_input_power_kW ?? "",
           },
           {
             metric: "Average Efficiency (%)",
-            value:
-              summary.average_efficiency_percent !== null
-                ? formatNumber(summary.average_efficiency_percent)
-                : "",
+            value: summary.average_efficiency_percent ?? "",
           },
           {
             metric: "Average Motor Loading (%)",
-            value:
-              summary.average_motor_loading_percent !== null
-                ? formatNumber(summary.average_motor_loading_percent)
-                : "",
+            value: summary.average_motor_loading_percent ?? "",
           },
           {
             metric: "Average Specific Energy (kWh/m3)",
-            value:
-              summary.average_specific_energy_kWh_per_m3 !== null
-                ? formatNumber(summary.average_specific_energy_kWh_per_m3, 3)
-                : "",
+            value: summary.average_specific_energy_kWh_per_m3 ?? "",
           },
           {
             metric: "Average Actual Flow (m3/hr)",
-            value:
-              summary.average_actual_flow_m3_per_hr !== null
-                ? formatNumber(summary.average_actual_flow_m3_per_hr)
-                : "",
+            value: summary.average_actual_flow_m3_per_hr ?? "",
           },
           {
             metric: "Pumps with VFD Installed",
@@ -663,7 +579,7 @@ export const buildPumpSection = async ({
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "pump_tag_number", label: "Pump Tag" },
       { key: "audit_date_label", label: "Audit Date" },
       { key: "actual_flow_m3_per_hr", label: "Actual Flow (m3/hr)" },
@@ -683,6 +599,7 @@ export const buildPumpSection = async ({
       {
         key: "specific_energy_consumption_kWh_per_m3",
         label: "Specific Energy (kWh/m3)",
+        decimals: 3,
       },
       { key: "pump_condition", label: "Condition" },
     ],
@@ -691,28 +608,14 @@ export const buildPumpSection = async ({
       sr_no: item.sr_no,
       pump_tag_number: item.pump_tag_number,
       audit_date_label: item.audit_date_label,
-      actual_flow_m3_per_hr:
-        item.actual_flow_m3_per_hr !== null
-          ? formatNumber(item.actual_flow_m3_per_hr)
-          : "",
-      input_power_kW:
-        item.input_power_kW !== null ? formatNumber(item.input_power_kW) : "",
+      actual_flow_m3_per_hr: item.actual_flow_m3_per_hr ?? null,
+      input_power_kW: item.input_power_kW ?? null,
       overall_pump_set_efficiency_percent:
-        item.overall_pump_set_efficiency_percent !== null
-          ? formatNumber(item.overall_pump_set_efficiency_percent)
-          : "",
-      motor_loading_percent:
-        item.motor_loading_percent !== null
-          ? formatNumber(item.motor_loading_percent)
-          : "",
-      annual_energy_consumption_kWh:
-        item.annual_energy_consumption_kWh !== null
-          ? formatNumber(item.annual_energy_consumption_kWh)
-          : "",
+        item.overall_pump_set_efficiency_percent ?? null,
+      motor_loading_percent: item.motor_loading_percent ?? null,
+      annual_energy_consumption_kWh: item.annual_energy_consumption_kWh ?? null,
       specific_energy_consumption_kWh_per_m3:
-        item.specific_energy_consumption_kWh_per_m3 !== null
-          ? formatNumber(item.specific_energy_consumption_kWh_per_m3, 3)
-          : "",
+        item.specific_energy_consumption_kWh_per_m3 ?? null,
       pump_condition: item.pump_condition || "",
     })),
   };

@@ -28,11 +28,14 @@ import {
 import { toastHandler } from "@/lib/toast";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
+import { AuditStepLockedOverlay } from "@/components/utility-audit/audit-step-locked-overlay";
 
 interface PumpAuditRecordSectionProps {
   facilityId: string;
   utilityAccountId: string;
   pumpId: string;
+  auditStepLocked?: boolean;
+  hideAuditSubmitChrome?: boolean;
 }
 
 type ExistingDocument = {
@@ -219,6 +222,8 @@ export function PumpAuditRecordSection({
   facilityId,
   utilityAccountId,
   pumpId,
+  auditStepLocked = false,
+  hideAuditSubmitChrome = false,
 }: PumpAuditRecordSectionProps) {
   const user = useAppSelector((state) => state.auth.user);
   const canViewDocuments = user?.role === "admin";
@@ -492,7 +497,16 @@ export function PumpAuditRecordSection({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      {auditStepLocked && !hideAuditSubmitChrome ? (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-950 dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-blue-100">
+          Pump audit for this utility account has been submitted and is locked
+          for editing.
+        </div>
+      ) : null}
+
+      <div className="relative">
+        <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium text-foreground">
           Pump Audit Record
@@ -994,6 +1008,9 @@ export function PumpAuditRecordSection({
           </div>
         </CardContent>
       </Card>
+        </div>
+        {auditStepLocked ? <AuditStepLockedOverlay /> : null}
+      </div>
     </div>
   );
 }

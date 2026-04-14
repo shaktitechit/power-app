@@ -29,9 +29,13 @@ import {
   parseUtilityTariffExcel,
   type TariffFormState,
 } from "@/lib/utility-tariff-excel";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
+import { AuditStepSubmitBar } from "@/components/utility-audit/audit-step-submit-bar";
+import { AuditStepLockedOverlay } from "@/components/utility-audit/audit-step-locked-overlay";
 
 interface UtilityTariffSectionProps {
   utilityAccountId: string;
+  auditStepLocked?: boolean;
 }
 
 const editableInputClass =
@@ -65,6 +69,7 @@ function toDateInput(value?: string | null) {
 
 export function UtilityTariffSection({
   utilityAccountId,
+  auditStepLocked = false,
 }: UtilityTariffSectionProps) {
   const user = useAppSelector((state) => state.auth.user);
   const canViewDocuments = user?.role === "admin";
@@ -283,26 +288,35 @@ export function UtilityTariffSection({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Utility Tariff</CardTitle>
+    <div className="relative space-y-4">
+      <AuditStepSubmitBar
+        utilityAccountId={utilityAccountId}
+        stepId={UTILITY_AUDIT_STEP_IDS.TARIFF}
+        auditStepLocked={auditStepLocked}
+      />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            id="tariff-excel-import"
-            type="file"
-            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-            className="hidden"
-            onChange={handleExcelFileChange}
-            disabled={excelImporting}
-          />
+      <div className="relative">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Utility Tariff</CardTitle>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadExcelTemplate}
-          >
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                id="tariff-excel-import"
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="hidden"
+                onChange={handleExcelFileChange}
+                disabled={excelImporting || auditStepLocked}
+              />
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadExcelTemplate}
+                disabled={auditStepLocked}
+              >
             <Download className="mr-2 h-4 w-4" />
             Excel template
           </Button>
@@ -609,5 +623,8 @@ export function UtilityTariffSection({
         </div>
       </CardContent>
     </Card>
+        {auditStepLocked ? <AuditStepLockedOverlay /> : null}
+      </div>
+    </div>
   );
 }

@@ -14,12 +14,6 @@ const normalizeNumber = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
-const formatNumber = (value, decimals = 2) => {
-  const num = normalizeNumber(value);
-  if (num === null) return "";
-  return num.toFixed(decimals);
-};
-
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -235,7 +229,7 @@ export const buildFanSection = async ({
       {
         heading: "Fan Basic Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "audit_date_label",
           "building_block",
           "area_location",
@@ -259,26 +253,19 @@ export const buildFanSection = async ({
       {
         heading: "Electrical Details",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "fan_type",
           "rated_power_W",
           "measured_power_W",
-          "quantity_nos",
+          { key: "quantity_nos", label: "Quantity Nos", type: "integer" },
           "speed_control_type",
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           fan_type: item.fan_type,
-          rated_power_W:
-            item.rated_power_W !== null ? formatNumber(item.rated_power_W) : "",
-          measured_power_W:
-            item.measured_power_W !== null
-              ? formatNumber(item.measured_power_W)
-              : "",
-          quantity_nos:
-            item.quantity_nos !== null
-              ? formatNumber(item.quantity_nos, 0)
-              : "",
+          rated_power_W: item.rated_power_W ?? null,
+          measured_power_W: item.measured_power_W ?? null,
+          quantity_nos: item.quantity_nos ?? null,
           speed_control_type: item.speed_control_type,
         })),
       },
@@ -286,7 +273,7 @@ export const buildFanSection = async ({
       {
         heading: "Operating Pattern",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "fan_type",
           "operating_hours_per_day",
           "operating_days_per_year",
@@ -294,21 +281,15 @@ export const buildFanSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           fan_type: item.fan_type,
-          operating_hours_per_day:
-            item.operating_hours_per_day !== null
-              ? formatNumber(item.operating_hours_per_day)
-              : "",
-          operating_days_per_year:
-            item.operating_days_per_year !== null
-              ? formatNumber(item.operating_days_per_year)
-              : "",
+          operating_hours_per_day: item.operating_hours_per_day ?? null,
+          operating_days_per_year: item.operating_days_per_year ?? null,
         })),
       },
 
       {
         heading: "Performance & Calculations",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "fan_type",
           "loading_factor_percent",
           "connected_load_kW",
@@ -317,18 +298,10 @@ export const buildFanSection = async ({
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           fan_type: item.fan_type,
-          loading_factor_percent:
-            item.loading_factor_percent !== null
-              ? formatNumber(item.loading_factor_percent)
-              : "",
-          connected_load_kW:
-            item.connected_load_kW !== null
-              ? formatNumber(item.connected_load_kW)
-              : "",
+          loading_factor_percent: item.loading_factor_percent ?? null,
+          connected_load_kW: item.connected_load_kW ?? null,
           annual_energy_consumption_kWh:
-            item.annual_energy_consumption_kWh !== null
-              ? formatNumber(item.annual_energy_consumption_kWh)
-              : "",
+            item.annual_energy_consumption_kWh ?? null,
         })),
       },
 
@@ -346,51 +319,36 @@ export const buildFanSection = async ({
           },
           {
             metric: "Total Connected Load (kW)",
-            value:
-              summary.total_connected_load_kW !== null
-                ? formatNumber(summary.total_connected_load_kW)
-                : "",
+            value: summary.total_connected_load_kW ?? "",
           },
           {
             metric: "Total Annual Energy Consumption (kWh)",
-            value:
-              summary.total_annual_energy_consumption_kWh !== null
-                ? formatNumber(summary.total_annual_energy_consumption_kWh)
-                : "",
+            value: summary.total_annual_energy_consumption_kWh ?? "",
           },
           {
             metric: "Average Rated Power (W)",
-            value:
-              summary.average_rated_power_W !== null
-                ? formatNumber(summary.average_rated_power_W)
-                : "",
+            value: summary.average_rated_power_W ?? "",
           },
           {
             metric: "Average Measured Power (W)",
-            value:
-              summary.average_measured_power_W !== null
-                ? formatNumber(summary.average_measured_power_W)
-                : "",
+            value: summary.average_measured_power_W ?? "",
           },
           {
             metric: "Average Loading Factor (%)",
-            value:
-              summary.average_loading_factor_percent !== null
-                ? formatNumber(summary.average_loading_factor_percent)
-                : "",
+            value: summary.average_loading_factor_percent ?? "",
           },
         ],
       },
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "audit_date_label", label: "Audit Date" },
       { key: "area_location", label: "Area / Location" },
       { key: "fan_type", label: "Fan Type" },
       { key: "rated_power_W", label: "Rated Power (W)" },
       { key: "measured_power_W", label: "Measured Power (W)" },
-      { key: "quantity_nos", label: "Quantity (Nos)" },
+      { key: "quantity_nos", label: "Quantity (Nos)", type: "integer" },
       { key: "loading_factor_percent", label: "Loading Factor (%)" },
       { key: "connected_load_kW", label: "Connected Load (kW)" },
       {
@@ -404,26 +362,13 @@ export const buildFanSection = async ({
       audit_date_label: item.audit_date_label,
       area_location: item.area_location,
       fan_type: item.fan_type,
-      rated_power_W:
-        item.rated_power_W !== null ? formatNumber(item.rated_power_W) : "",
-      measured_power_W:
-        item.measured_power_W !== null
-          ? formatNumber(item.measured_power_W)
-          : "",
-      quantity_nos:
-        item.quantity_nos !== null ? formatNumber(item.quantity_nos, 0) : "",
-      loading_factor_percent:
-        item.loading_factor_percent !== null
-          ? formatNumber(item.loading_factor_percent)
-          : "",
-      connected_load_kW:
-        item.connected_load_kW !== null
-          ? formatNumber(item.connected_load_kW)
-          : "",
+      rated_power_W: item.rated_power_W ?? null,
+      measured_power_W: item.measured_power_W ?? null,
+      quantity_nos: item.quantity_nos ?? null,
+      loading_factor_percent: item.loading_factor_percent ?? null,
+      connected_load_kW: item.connected_load_kW ?? null,
       annual_energy_consumption_kWh:
-        item.annual_energy_consumption_kWh !== null
-          ? formatNumber(item.annual_energy_consumption_kWh)
-          : "",
+        item.annual_energy_consumption_kWh ?? null,
     })),
   };
 };

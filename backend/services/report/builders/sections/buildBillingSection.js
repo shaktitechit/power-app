@@ -527,14 +527,14 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
   sections.push({
     heading: "Billing Accounts Summary",
     columns: [
-      "sr_no",
+      { key: "sr_no", label: "Sr No", type: "integer" },
       "account_number",
       "connection_type",
       "category",
       "provider",
       "billing_cycle",
-      "sanctioned_demand_kVA_label",
-      "total_records",
+      "sanctioned_demand_kVA",
+      { key: "total_records", label: "Total Records", type: "integer" },
       "total_units_kWh",
       "total_units_kVAh",
       "total_monthly_electricity_bill_rs",
@@ -547,17 +547,13 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
       category: group.account.category,
       provider: group.account.provider,
       billing_cycle: group.account.billing_cycle,
-      sanctioned_demand_kVA_label: group.account.sanctioned_demand_kVA_label,
+      sanctioned_demand_kVA: group.account.sanctioned_demand_kVA ?? null,
       total_records: group.summary.total_records,
-      total_units_kWh: formatNumber(group.summary.total_units_kWh),
-      total_units_kVAh: formatNumber(group.summary.total_units_kVAh),
-      total_monthly_electricity_bill_rs: formatNumber(
-        group.summary.total_monthly_electricity_bill_rs,
-      ),
-      grid_cost_per_kWh_rs:
-        group.summary.grid_cost_per_kWh_rs !== null
-          ? formatNumber(group.summary.grid_cost_per_kWh_rs)
-          : "",
+      total_units_kWh: group.summary.total_units_kWh ?? null,
+      total_units_kVAh: group.summary.total_units_kVAh ?? null,
+      total_monthly_electricity_bill_rs:
+        group.summary.total_monthly_electricity_bill_rs ?? null,
+      grid_cost_per_kWh_rs: group.summary.grid_cost_per_kWh_rs ?? null,
     })),
   });
 
@@ -576,7 +572,11 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         { field: "Billing Cycle", value: group.account.billing_cycle || "" },
         {
           field: "Sanctioned Demand (kVA)",
-          value: group.account.sanctioned_demand_kVA_label || "",
+          value:
+            group.account.sanctioned_demand_kVA !== null &&
+            group.account.sanctioned_demand_kVA !== undefined
+              ? group.account.sanctioned_demand_kVA
+              : "",
         },
       ],
     });
@@ -584,58 +584,56 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
     sections.push({
       heading: `${group.account.account_number || "Utility Account"} - Billing Records`,
       columns: [
-        "sr_no",
+        { key: "sr_no", label: "Sr No", type: "integer" },
         "bill_no",
         "provider",
         "billing_cycle",
-        "sanctioned_demand_kVA_label",
+        "sanctioned_demand_kVA",
         "billing_period_label",
-        "billing_days_label",
-        "mdi_kVA_label",
-        "units_kWh_label",
-        "units_kVAh_label",
-        "pf_label",
-        "monthly_electricity_bill_rs_label",
-        "average_per_unit_cost_rs_label",
+        { key: "billing_days", label: "Billing Days", type: "integer" },
+        "mdi_kVA",
+        "units_kWh",
+        "units_kVAh",
+        { key: "pf", label: "PF", decimals: 4 },
+        "monthly_electricity_bill_rs",
+        "average_per_unit_cost_rs",
       ],
       rows: group.records.map((item) => ({
         sr_no: item.sr_no,
         bill_no: item.bill_no,
         provider: item.provider || "",
         billing_cycle: item.billing_cycle || "",
-        sanctioned_demand_kVA_label: item.sanctioned_demand_kVA_label || "",
+        sanctioned_demand_kVA: item.sanctioned_demand_kVA ?? null,
         billing_period_label: item.billing_period_label,
-        billing_days_label: item.billing_days_label,
-        mdi_kVA_label: item.mdi_kVA_label,
-        units_kWh_label: item.units_kWh_label,
-        units_kVAh_label: item.units_kVAh_label,
-        pf_label: item.pf_label,
-        monthly_electricity_bill_rs_label:
-          item.monthly_electricity_bill_rs_label,
-        average_per_unit_cost_rs_label: item.average_per_unit_cost_rs_label,
+        billing_days: item.billing_days ?? null,
+        mdi_kVA: item.mdi_kVA ?? null,
+        units_kWh: item.units_kWh ?? null,
+        units_kVAh: item.units_kVAh ?? null,
+        pf: item.pf ?? null,
+        monthly_electricity_bill_rs: item.monthly_electricity_bill_rs ?? null,
+        average_per_unit_cost_rs: item.average_per_unit_cost_rs ?? null,
       })),
     });
 
     sections.push({
       heading: `${group.account.account_number || "Utility Account"} - Charge Breakdown`,
       columns: [
-        "sr_no",
+        { key: "sr_no", label: "Sr No", type: "integer" },
         "bill_no",
-        "fixed_charges_rs_label",
-        "energy_charges_rs_label",
-        "taxes_and_rent_rs_label",
-        "other_charges_rs_label",
-        "monthly_electricity_bill_rs_label",
+        "fixed_charges_rs",
+        "energy_charges_rs",
+        "taxes_and_rent_rs",
+        "other_charges_rs",
+        "monthly_electricity_bill_rs",
       ],
       rows: group.records.map((item) => ({
         sr_no: item.sr_no,
         bill_no: item.bill_no,
-        fixed_charges_rs_label: item.fixed_charges_rs_label,
-        energy_charges_rs_label: item.energy_charges_rs_label,
-        taxes_and_rent_rs_label: item.taxes_and_rent_rs_label,
-        other_charges_rs_label: item.other_charges_rs_label,
-        monthly_electricity_bill_rs_label:
-          item.monthly_electricity_bill_rs_label,
+        fixed_charges_rs: item.fixed_charges_rs ?? null,
+        energy_charges_rs: item.energy_charges_rs ?? null,
+        taxes_and_rent_rs: item.taxes_and_rent_rs ?? null,
+        other_charges_rs: item.other_charges_rs ?? null,
+        monthly_electricity_bill_rs: item.monthly_electricity_bill_rs ?? null,
       })),
     });
 
@@ -646,64 +644,43 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         { metric: "Total Records", value: group.summary.total_records },
         {
           metric: "Total Monthly Electricity Bill (Rs)",
-          value: formatNumber(group.summary.total_monthly_electricity_bill_rs),
+          value: group.summary.total_monthly_electricity_bill_rs ?? "",
         },
         {
           metric: "Total Units (kWh)",
-          value: formatNumber(group.summary.total_units_kWh),
+          value: group.summary.total_units_kWh ?? "",
         },
         {
           metric: "Total Units (kVAh)",
-          value: formatNumber(group.summary.total_units_kVAh),
+          value: group.summary.total_units_kVAh ?? "",
         },
         {
           metric: "Average Monthly Bill (Rs)",
-          value:
-            group.summary.average_monthly_bill_rs !== null
-              ? formatNumber(group.summary.average_monthly_bill_rs)
-              : "",
+          value: group.summary.average_monthly_bill_rs ?? "",
         },
         {
           metric: "Average Units (kWh)",
-          value:
-            group.summary.average_units_kWh !== null
-              ? formatNumber(group.summary.average_units_kWh)
-              : "",
+          value: group.summary.average_units_kWh ?? "",
         },
         {
           metric: "Average Units (kVAh)",
-          value:
-            group.summary.average_units_kVAh !== null
-              ? formatNumber(group.summary.average_units_kVAh)
-              : "",
+          value: group.summary.average_units_kVAh ?? "",
         },
         {
           metric: "Average MDI (kVA)",
-          value:
-            group.summary.average_mdi_kVA !== null
-              ? formatNumber(group.summary.average_mdi_kVA)
-              : "",
+          value: group.summary.average_mdi_kVA ?? "",
         },
         {
           metric: "Average PF",
-          value:
-            group.summary.average_pf !== null
-              ? Number(group.summary.average_pf).toFixed(4)
-              : "",
+          value: group.summary.average_pf ?? "",
         },
         {
           metric: "Grid Cost per kVAh (Rs)",
-          value:
-            group.summary.grid_cost_per_kVAh_rs !== null
-              ? formatNumber(group.summary.grid_cost_per_kVAh_rs)
-              : "",
+          value: group.summary.grid_cost_per_kVAh_rs ?? "",
         },
         {
           metric: "Grid Cost per kWh (Rs)",
-          value:
-            group.summary.grid_cost_per_kWh_rs !== null
-              ? formatNumber(group.summary.grid_cost_per_kWh_rs)
-              : "",
+          value: group.summary.grid_cost_per_kWh_rs ?? "",
         },
         {
           metric: "Latest Billing Period End",
@@ -721,66 +698,51 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
       { metric: "Total Billing Records", value: overallSummary.total_records },
       {
         metric: "Total Monthly Electricity Bill (Rs)",
-        value: formatNumber(overallSummary.total_monthly_electricity_bill_rs),
+        value: overallSummary.total_monthly_electricity_bill_rs ?? "",
       },
       {
         metric: "Total Units kWh",
-        value: formatNumber(overallSummary.total_units_kWh),
+        value: overallSummary.total_units_kWh ?? "",
       },
       {
         metric: "Total Units kVAh",
-        value: formatNumber(overallSummary.total_units_kVAh),
+        value: overallSummary.total_units_kVAh ?? "",
       },
       {
         metric: "Total Fixed Charges Rs",
-        value: formatNumber(overallSummary.total_fixed_charges_rs),
+        value: overallSummary.total_fixed_charges_rs ?? "",
       },
       {
         metric: "Total Energy Charges Rs",
-        value: formatNumber(overallSummary.total_energy_charges_rs),
+        value: overallSummary.total_energy_charges_rs ?? "",
       },
       {
         metric: "Total Taxes and Rent Rs",
-        value: formatNumber(overallSummary.total_taxes_and_rent_rs),
+        value: overallSummary.total_taxes_and_rent_rs ?? "",
       },
       {
         metric: "Total Other Charges Rs",
-        value: formatNumber(overallSummary.total_other_charges_rs),
+        value: overallSummary.total_other_charges_rs ?? "",
       },
       {
         metric: "Average Monthly Bill Rs",
-        value:
-          overallSummary.average_monthly_bill_rs !== null
-            ? formatNumber(overallSummary.average_monthly_bill_rs)
-            : "",
+        value: overallSummary.average_monthly_bill_rs ?? "",
       },
       {
         metric: "Average Units kWh",
-        value:
-          overallSummary.average_units_kWh !== null
-            ? formatNumber(overallSummary.average_units_kWh)
-            : "",
+        value: overallSummary.average_units_kWh ?? "",
       },
       {
         metric: "Average Units kVAh",
-        value:
-          overallSummary.average_units_kVAh !== null
-            ? formatNumber(overallSummary.average_units_kVAh)
-            : "",
+        value: overallSummary.average_units_kVAh ?? "",
       },
       {
         metric: "Average MDI kVA",
-        value:
-          overallSummary.average_mdi_kVA !== null
-            ? formatNumber(overallSummary.average_mdi_kVA)
-            : "",
+        value: overallSummary.average_mdi_kVA ?? "",
       },
       {
         metric: "Average PF",
-        value:
-          overallSummary.average_pf !== null
-            ? Number(overallSummary.average_pf).toFixed(4)
-            : "",
+        value: overallSummary.average_pf ?? "",
       },
       {
         metric: "Latest Billing Period End",
@@ -788,17 +750,11 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
       },
       {
         metric: "Grid Cost per kVAh Rs",
-        value:
-          overallSummary.grid_cost_per_kVAh_rs !== null
-            ? formatNumber(overallSummary.grid_cost_per_kVAh_rs)
-            : "",
+        value: overallSummary.grid_cost_per_kVAh_rs ?? "",
       },
       {
         metric: "Grid Cost per kWh Rs",
-        value:
-          overallSummary.grid_cost_per_kWh_rs !== null
-            ? formatNumber(overallSummary.grid_cost_per_kWh_rs)
-            : "",
+        value: overallSummary.grid_cost_per_kWh_rs ?? "",
       },
     ],
   });
@@ -896,22 +852,22 @@ export const buildBillingSection = async ({
     sections,
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "account_number", label: "Account Number" },
       { key: "provider", label: "Provider" },
       { key: "billing_cycle", label: "Billing Cycle" },
       {
-        key: "sanctioned_demand_kVA_label",
+        key: "sanctioned_demand_kVA",
         label: "Sanctioned Demand (kVA)",
       },
       { key: "bill_no", label: "Bill No" },
       { key: "billing_period_label", label: "Billing Period" },
-      { key: "units_kWh_label", label: "Units (kWh)" },
-      { key: "units_kVAh_label", label: "Units (kVAh)" },
-      { key: "pf_label", label: "PF" },
-      { key: "monthly_electricity_bill_rs_label", label: "Monthly Bill (Rs)" },
+      { key: "units_kWh", label: "Units (kWh)" },
+      { key: "units_kVAh", label: "Units (kVAh)" },
+      { key: "pf", label: "PF", decimals: 4 },
+      { key: "monthly_electricity_bill_rs", label: "Monthly Bill (Rs)" },
       {
-        key: "average_per_unit_cost_rs_label",
+        key: "average_per_unit_cost_rs",
         label: "Avg / Unit Cost (Rs)",
       },
     ],
@@ -922,14 +878,14 @@ export const buildBillingSection = async ({
         item.account_number || item.utility_account?.account_number || "",
       provider: item.provider || "",
       billing_cycle: item.billing_cycle || "",
-      sanctioned_demand_kVA_label: item.sanctioned_demand_kVA_label || "",
+      sanctioned_demand_kVA: item.sanctioned_demand_kVA ?? null,
       bill_no: item.bill_no,
       billing_period_label: item.billing_period_label,
-      units_kWh_label: item.units_kWh_label,
-      units_kVAh_label: item.units_kVAh_label,
-      pf_label: item.pf_label,
-      monthly_electricity_bill_rs_label: item.monthly_electricity_bill_rs_label,
-      average_per_unit_cost_rs_label: item.average_per_unit_cost_rs_label,
+      units_kWh: item.units_kWh ?? null,
+      units_kVAh: item.units_kVAh ?? null,
+      pf: item.pf ?? null,
+      monthly_electricity_bill_rs: item.monthly_electricity_bill_rs ?? null,
+      average_per_unit_cost_rs: item.average_per_unit_cost_rs ?? null,
     })),
   };
 };

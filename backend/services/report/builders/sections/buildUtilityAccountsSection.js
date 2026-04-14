@@ -114,10 +114,7 @@ const normalizeUtilityAccount = (account, index = 0) => {
     },
     {
       label: "Sanctioned Demand (kVA)",
-      value:
-        normalized.sanctioned_demand_kVA !== null
-          ? formatNumber(normalized.sanctioned_demand_kVA)
-          : "",
+      value: normalized.sanctioned_demand_kVA ?? "",
     },
     {
       label: "Solar Connected",
@@ -166,7 +163,7 @@ const normalizeUtilityAccount = (account, index = 0) => {
       label: "Sanctioned Demand (kVA)",
       value:
         normalized.sanctioned_demand_kVA !== null
-          ? formatNumber(normalized.sanctioned_demand_kVA)
+          ? normalized.sanctioned_demand_kVA
           : "-",
     },
   ];
@@ -216,11 +213,11 @@ const buildGroupedSections = (accounts = []) => {
   sections.push({
     heading: "Utility Account Details",
     columns: [
-      "sr_no",
+      { key: "sr_no", label: "Sr No", type: "integer" },
       "account_number",
       "connection_type",
       "category",
-      "sanctioned_demand_kVA_label",
+      "sanctioned_demand_kVA",
       "is_active",
     ],
     rows: accounts.map((item) => ({
@@ -228,7 +225,7 @@ const buildGroupedSections = (accounts = []) => {
       account_number: item.account_number,
       connection_type: item.connection_type,
       category: item.category,
-      sanctioned_demand_kVA_label: item.sanctioned_demand_kVA_label,
+      sanctioned_demand_kVA: item.sanctioned_demand_kVA ?? null,
       is_active: item.is_active ? "Active" : "Inactive",
     })),
   });
@@ -236,7 +233,7 @@ const buildGroupedSections = (accounts = []) => {
   sections.push({
     heading: "System Connectivity",
     columns: [
-      "sr_no",
+      { key: "sr_no", label: "Sr No", type: "integer" },
       "account_number",
       "is_solar_connected",
       "is_dg_connected",
@@ -266,10 +263,7 @@ const buildGroupedSections = (accounts = []) => {
         { field: "Category", value: item.category || "" },
         {
           field: "Sanctioned Demand (kVA)",
-          value:
-            item.sanctioned_demand_kVA !== null
-              ? formatNumber(item.sanctioned_demand_kVA)
-              : "",
+          value: item.sanctioned_demand_kVA ?? "",
         },
         {
           field: "Solar Connected",
@@ -413,11 +407,11 @@ export const buildUtilityAccountsSection = async ({
 
     // keep renderer compatibility
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "account_number", label: "Account Number" },
       { key: "connection_type", label: "Connection Type" },
       { key: "category", label: "Category" },
-      { key: "sanctioned_demand_kVA_label", label: "Sanctioned Demand (kVA)" },
+      { key: "sanctioned_demand_kVA", label: "Sanctioned Demand (kVA)" },
       { key: "is_solar_connected", label: "Solar Connected" },
       { key: "is_dg_connected", label: "DG Connected" },
       { key: "is_transformer_connected", label: "Transformer Connected" },
@@ -430,7 +424,7 @@ export const buildUtilityAccountsSection = async ({
       account_number: item.account_number,
       connection_type: item.connection_type,
       category: item.category,
-      sanctioned_demand_kVA_label: item.sanctioned_demand_kVA_label,
+      sanctioned_demand_kVA: item.sanctioned_demand_kVA ?? null,
       is_solar_connected: item.is_solar_connected ? "Yes" : "No",
       is_dg_connected: item.is_dg_connected ? "Yes" : "No",
       is_transformer_connected: item.is_transformer_connected ? "Yes" : "No",

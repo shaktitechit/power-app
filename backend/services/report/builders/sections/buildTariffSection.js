@@ -271,7 +271,7 @@ export const buildTariffSection = async ({
       {
         heading: "Tariff Applicability",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "account_number",
           "connection_type",
           "category",
@@ -293,47 +293,46 @@ export const buildTariffSection = async ({
       {
         heading: "Core Tariff Charges",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "account_number",
-          "basic_energy_charges_rs_per_unit_label",
-          "fixed_charges_rs_per_kW_or_per_kVA_label",
-          "ed_percent_label",
-          "octroi_rs_per_unit_label",
+          "basic_energy_charges_rs_per_unit",
+          "fixed_charges_rs_per_kW_or_per_kVA",
+          { key: "ed_percent", label: "ED (%)", decimals: 2 },
+          "octroi_rs_per_unit",
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           account_number: item.utility_account?.account_number || "",
-          basic_energy_charges_rs_per_unit_label:
-            item.basic_energy_charges_rs_per_unit_label,
-          fixed_charges_rs_per_kW_or_per_kVA_label:
-            item.fixed_charges_rs_per_kW_or_per_kVA_label,
-          ed_percent_label: item.ed_percent_label,
-          octroi_rs_per_unit_label: item.octroi_rs_per_unit_label,
+          basic_energy_charges_rs_per_unit:
+            item.basic_energy_charges_rs_per_unit ?? null,
+          fixed_charges_rs_per_kW_or_per_kVA:
+            item.fixed_charges_rs_per_kW_or_per_kVA ?? null,
+          ed_percent: item.ed_percent ?? null,
+          octroi_rs_per_unit: item.octroi_rs_per_unit ?? null,
         })),
       },
 
       {
         heading: "Additional Charges & Adjustments",
         columns: [
-          "sr_no",
+          { key: "sr_no", label: "Sr No", type: "integer" },
           "account_number",
-          "surcharge_rs_label",
-          "cow_cess_rs_label",
-          "rental_rs_label",
-          "infracess_rs_label",
-          "other_charges_or_rebates_rs_label",
-          "any_other_rs_label",
+          "surcharge_rs",
+          "cow_cess_rs",
+          "rental_rs",
+          "infracess_rs",
+          "other_charges_or_rebates_rs",
+          "any_other_rs",
         ],
         rows: items.map((item) => ({
           sr_no: item.sr_no,
           account_number: item.utility_account?.account_number || "",
-          surcharge_rs_label: item.surcharge_rs_label,
-          cow_cess_rs_label: item.cow_cess_rs_label,
-          rental_rs_label: item.rental_rs_label,
-          infracess_rs_label: item.infracess_rs_label,
-          other_charges_or_rebates_rs_label:
-            item.other_charges_or_rebates_rs_label,
-          any_other_rs_label: item.any_other_rs_label,
+          surcharge_rs: item.surcharge_rs ?? null,
+          cow_cess_rs: item.cow_cess_rs ?? null,
+          rental_rs: item.rental_rs ?? null,
+          infracess_rs: item.infracess_rs ?? null,
+          other_charges_or_rebates_rs: item.other_charges_or_rebates_rs ?? null,
+          any_other_rs: item.any_other_rs ?? null,
         })),
       },
 
@@ -355,39 +354,31 @@ export const buildTariffSection = async ({
           },
           {
             metric: "Average Current Energy Charges (Rs/Unit)",
-            value:
-              summary.average_basic_energy_charges_rs_per_unit !== null
-                ? formatNumber(summary.average_basic_energy_charges_rs_per_unit)
-                : "",
+            value: summary.average_basic_energy_charges_rs_per_unit ?? "",
           },
           {
             metric: "Average Current Fixed Charges (Rs/kW or kVA)",
-            value:
-              summary.average_fixed_charges_rs_per_kW_or_per_kVA !== null
-                ? formatNumber(
-                    summary.average_fixed_charges_rs_per_kW_or_per_kVA,
-                  )
-                : "",
+            value: summary.average_fixed_charges_rs_per_kW_or_per_kVA ?? "",
           },
         ],
       },
     ],
 
     table_columns: [
-      { key: "sr_no", label: "Sr No" },
+      { key: "sr_no", label: "Sr No", type: "integer" },
       { key: "account_number", label: "Account Number" },
       { key: "effective_from_label", label: "Effective From" },
       { key: "effective_to_label", label: "Effective To" },
       {
-        key: "basic_energy_charges_rs_per_unit_label",
+        key: "basic_energy_charges_rs_per_unit",
         label: "Energy Charges (Rs/Unit)",
       },
       {
-        key: "fixed_charges_rs_per_kW_or_per_kVA_label",
+        key: "fixed_charges_rs_per_kW_or_per_kVA",
         label: "Fixed Charges (Rs/kW or kVA)",
       },
-      { key: "ed_percent_label", label: "ED (%)" },
-      { key: "surcharge_rs_label", label: "Surcharge (Rs)" },
+      { key: "ed_percent", label: "ED (%)", decimals: 2 },
+      { key: "surcharge_rs", label: "Surcharge (Rs)" },
     ],
 
     table_rows: items.map((item) => ({
@@ -395,12 +386,12 @@ export const buildTariffSection = async ({
       account_number: item.utility_account?.account_number || "",
       effective_from_label: item.effective_from_label,
       effective_to_label: item.effective_to_label,
-      basic_energy_charges_rs_per_unit_label:
-        item.basic_energy_charges_rs_per_unit_label,
-      fixed_charges_rs_per_kW_or_per_kVA_label:
-        item.fixed_charges_rs_per_kW_or_per_kVA_label,
-      ed_percent_label: item.ed_percent_label,
-      surcharge_rs_label: item.surcharge_rs_label,
+      basic_energy_charges_rs_per_unit:
+        item.basic_energy_charges_rs_per_unit ?? null,
+      fixed_charges_rs_per_kW_or_per_kVA:
+        item.fixed_charges_rs_per_kW_or_per_kVA ?? null,
+      ed_percent: item.ed_percent ?? null,
+      surcharge_rs: item.surcharge_rs ?? null,
     })),
   };
 };
