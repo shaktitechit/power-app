@@ -85,6 +85,10 @@ export interface UtilityAccount {
     string,
     { submitted_at?: ISODateString; submitted_by?: ID }
   >;
+  audit_step_no_data?: Record<
+    string,
+    { declared_at?: ISODateString; declared_by?: ID }
+  >;
   created_at: ISODateString;
   updated_at: ISODateString;
 }

@@ -34,11 +34,14 @@ import { useAppSelector } from "@/store/hooks";
 import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
 import { AuditStepSubmitBar } from "@/components/utility-audit/audit-step-submit-bar";
 import { AuditStepLockedOverlay } from "@/components/utility-audit/audit-step-locked-overlay";
+import { AuditNoDataEmptyState } from "@/components/utility-audit/audit-no-data-empty-state";
+import type { AuditStepNoDataEntry } from "@/store/slices/utilityApiSlice";
 
 interface LightingAuditSectionProps {
   facilityId: string;
   utilityAccountId: string;
   auditStepLocked?: boolean;
+  auditStepNoData?: Record<string, AuditStepNoDataEntry>;
 }
 
 type ExistingDocument = {
@@ -203,9 +206,14 @@ export function LightingAuditSection({
   facilityId,
   utilityAccountId,
   auditStepLocked = false,
+  auditStepNoData,
 }: LightingAuditSectionProps) {
   const user = useAppSelector((state) => state.auth.user);
   const canViewDocuments = user?.role === "admin";
+  const isAdmin = user?.role === "admin";
+  const noDataDeclared = Boolean(
+    auditStepNoData?.[UTILITY_AUDIT_STEP_IDS.LIGHTING]?.declared_at,
+  );
   const { data, isLoading, refetch } = useGetLightingAuditsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
@@ -413,12 +421,16 @@ export function LightingAuditSection({
 
       <div className="relative">
         <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-foreground">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-base font-medium text-foreground sm:text-lg">
           Lighting Audit Records
         </h3>
 
-        <Button onClick={handleAddMore} disabled={auditStepLocked}>
+        <Button
+          onClick={handleAddMore}
+          disabled={auditStepLocked || noDataDeclared}
+          className="w-full shrink-0 sm:w-auto"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add More
         </Button>
@@ -431,12 +443,13 @@ export function LightingAuditSection({
       )}
 
       {forms.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-sm text-muted-foreground">
-            No lighting audits found. Click{" "}
-            <span className="font-medium">Add More</span> to create one.
-          </CardContent>
-        </Card>
+        <AuditNoDataEmptyState
+          utilityAccountId={utilityAccountId}
+          stepId={UTILITY_AUDIT_STEP_IDS.LIGHTING}
+          auditStepLocked={auditStepLocked}
+          isAdmin={isAdmin}
+          noDataDeclared={noDataDeclared}
+        />
       ) : (
         forms.map((form, index) => (
           <Card key={form.localId}>

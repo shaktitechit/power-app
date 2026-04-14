@@ -18,6 +18,22 @@ export const UTILITY_AUDIT_STEP_IDS = {
 export type UtilityAuditStepId =
   (typeof UTILITY_AUDIT_STEP_IDS)[keyof typeof UTILITY_AUDIT_STEP_IDS];
 
+/** Load-audit tabs that may be marked "no data" (matches backend NO_DATA_AUDIT_STEPS). */
+export const AUDIT_NO_DATA_STEP_IDS = [
+  UTILITY_AUDIT_STEP_IDS.HVAC,
+  UTILITY_AUDIT_STEP_IDS.AC,
+  UTILITY_AUDIT_STEP_IDS.LIGHTING,
+  UTILITY_AUDIT_STEP_IDS.FAN,
+  UTILITY_AUDIT_STEP_IDS.LUX,
+  UTILITY_AUDIT_STEP_IDS.MISC,
+] as const;
+
+export type AuditNoDataStepId = (typeof AUDIT_NO_DATA_STEP_IDS)[number];
+
+export function isAuditNoDataStepId(step: string): step is AuditNoDataStepId {
+  return (AUDIT_NO_DATA_STEP_IDS as readonly string[]).includes(step);
+}
+
 export const UTILITY_AUDIT_STEP_LABELS: Record<string, string> = {
   [UTILITY_AUDIT_STEP_IDS.TARIFF]: "Utility tariff",
   [UTILITY_AUDIT_STEP_IDS.BILLING]: "Utility billing records",

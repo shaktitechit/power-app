@@ -3,10 +3,17 @@ import mongoose from "mongoose";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
 import UtilityAccount from "../modals/utilityAccount.js";
+import HVACAudit from "../modals/hvacAudit.js";
+import ACAuditRecord from "../modals/acAuditRecord.js";
+import LightingAuditRecord from "../modals/lightingAuditRecord.js";
+import FanAuditRecord from "../modals/fanAuditRecord.js";
+import LuxMeasurement from "../modals/luxMeasurement.js";
+import MiscLoadAuditRecord from "../modals/miscLoadAuditRecord.js";
 import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
+import { isFacilityAuditClosed } from "../helpers/auditState.js";
 
 // helper: admin check
 const isAdmin = (user) => user?.role === "admin";
@@ -49,6 +56,29 @@ const ALLOWED_AUDIT_STEPS = [
   "misc",
   "preview-and-submit",
 ];
+
+/** Steps that may be explicitly marked as "no data" (load audits only). */
+const NO_DATA_AUDIT_STEPS = ["hvac", "ac", "lighting", "fan", "lux", "misc"];
+
+const countNoDataStepRecords = async (step, utilityAccountId) => {
+  const q = { utility_account_id: utilityAccountId };
+  switch (step) {
+    case "hvac":
+      return HVACAudit.countDocuments(q);
+    case "ac":
+      return ACAuditRecord.countDocuments(q);
+    case "lighting":
+      return LightingAuditRecord.countDocuments(q);
+    case "fan":
+      return FanAuditRecord.countDocuments(q);
+    case "lux":
+      return LuxMeasurement.countDocuments(q);
+    case "misc":
+      return MiscLoadAuditRecord.countDocuments(q);
+    default:
+      return -1;
+  }
+};
 
 // helper: parse booleans safely
 const parseBoolean = (value, defaultValue = false) => {
@@ -397,6 +427,166 @@ const allowUtilityAuditStep = asyncHandler(async (req, res) => {
   });
 });
 
+// POST declare "no data" for a load-audit tab (only when zero records; facility must be open)
+const declareAuditStepNoData = asyncHandler(async (req, res) => {
+  const step = req.body?.step;
+  if (!step || typeof step !== "string" || !NO_DATA_AUDIT_STEPS.includes(step)) {
+    res.status(400);
+    throw new Error("Invalid audit step for no-data declaration");
+  }
+
+  const utilityAccount = await UtilityAccount.findById(req.params.id);
+
+  if (!utilityAccount) {
+    res.status(404);
+    throw new Error("Utility account not found");
+  }
+
+  const facility = await getAccessibleFacility(
+    req.user,
+    utilityAccount.facility_id,
+  );
+
+  if (!facility) {
+    res.status(403);
+    throw new Error("Access denied");
+  }
+
+  const facilityDoc = await Facility.findById(utilityAccount.facility_id);
+  if (isFacilityAuditClosed(facilityDoc)) {
+    res.status(403);
+    throw new Error("Facility audit is closed");
+  }
+
+  const count = await countNoDataStepRecords(step, utilityAccount._id);
+  if (count < 0) {
+    res.status(400);
+    throw new Error("Invalid step");
+  }
+  if (count > 0) {
+    res.status(400);
+    throw new Error("Cannot declare no data while audit records exist for this step");
+  }
+
+  const prev =
+    utilityAccount.audit_step_no_data &&
+    typeof utilityAccount.audit_step_no_data === "object" &&
+    !Array.isArray(utilityAccount.audit_step_no_data)
+      ? { ...utilityAccount.audit_step_no_data }
+      : {};
+
+  prev[step] = {
+    declared_at: new Date(),
+    declared_by: req.user._id,
+  };
+
+  utilityAccount.audit_step_no_data = prev;
+  utilityAccount.markModified("audit_step_no_data");
+
+  const updated = await utilityAccount.save();
+
+  await createRecentActivity({
+    actor: req.user,
+    action: "updated",
+    entity_type: "utility_account",
+    entity_id: updated._id,
+    entity_name: updated.account_number,
+    facility_id: updated.facility_id,
+    utility_account_id: updated._id,
+    message: buildActivityMessage({
+      actorName: req.user?.name || "User",
+      action: "updated",
+      entityLabel: "utility account (audit — no data declared)",
+      entityName: step,
+    }),
+    meta: {
+      audit_step_no_data: step,
+    },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "No data declared for this audit step",
+    data: updated,
+  });
+});
+
+// POST clear "no data" declaration (admin only — re-enables adding records)
+const clearAuditStepNoData = asyncHandler(async (req, res) => {
+  if (!isAdmin(req.user)) {
+    res.status(403);
+    throw new Error("Only administrators can clear a no-data declaration");
+  }
+
+  const step = req.body?.step;
+  if (!step || typeof step !== "string" || !NO_DATA_AUDIT_STEPS.includes(step)) {
+    res.status(400);
+    throw new Error("Invalid audit step for no-data clear");
+  }
+
+  const utilityAccount = await UtilityAccount.findById(req.params.id);
+
+  if (!utilityAccount) {
+    res.status(404);
+    throw new Error("Utility account not found");
+  }
+
+  const facility = await getAccessibleFacility(
+    req.user,
+    utilityAccount.facility_id,
+  );
+
+  if (!facility) {
+    res.status(403);
+    throw new Error("Access denied");
+  }
+
+  const facilityDoc = await Facility.findById(utilityAccount.facility_id);
+  if (isFacilityAuditClosed(facilityDoc)) {
+    res.status(403);
+    throw new Error("Facility audit is closed");
+  }
+
+  const prev =
+    utilityAccount.audit_step_no_data &&
+    typeof utilityAccount.audit_step_no_data === "object" &&
+    !Array.isArray(utilityAccount.audit_step_no_data)
+      ? { ...utilityAccount.audit_step_no_data }
+      : {};
+
+  delete prev[step];
+
+  utilityAccount.audit_step_no_data = prev;
+  utilityAccount.markModified("audit_step_no_data");
+
+  const updated = await utilityAccount.save();
+
+  await createRecentActivity({
+    actor: req.user,
+    action: "updated",
+    entity_type: "utility_account",
+    entity_id: updated._id,
+    entity_name: updated.account_number,
+    facility_id: updated.facility_id,
+    utility_account_id: updated._id,
+    message: buildActivityMessage({
+      actorName: req.user?.name || "User",
+      action: "updated",
+      entityLabel: "utility account (audit — no data cleared)",
+      entityName: step,
+    }),
+    meta: {
+      audit_step_no_data_cleared: step,
+    },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "No-data declaration cleared; you can add records again",
+    data: updated,
+  });
+});
+
 // UPDATE
 const updateUtilityAccount = asyncHandler(async (req, res) => {
   const {
@@ -597,6 +787,8 @@ export {
   getUtilityAccountById,
   submitUtilityAuditStep,
   allowUtilityAuditStep,
+  declareAuditStepNoData,
+  clearAuditStepNoData,
   updateUtilityAccount,
   deleteUtilityAccount,
 };

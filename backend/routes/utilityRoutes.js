@@ -6,6 +6,8 @@ import {
   getUtilityAccountById,
   submitUtilityAuditStep,
   allowUtilityAuditStep,
+  declareAuditStepNoData,
+  clearAuditStepNoData,
   updateUtilityAccount,
   deleteUtilityAccount,
 } from "../controllers/utilityController.js";
@@ -20,6 +22,8 @@ router
 
 router.post("/:id/audit-step-submit", protect, submitUtilityAuditStep);
 router.post("/:id/audit-step-allow", protect, allowUtilityAuditStep);
+router.post("/:id/audit-no-data-declare", protect, declareAuditStepNoData);
+router.post("/:id/audit-no-data-clear", protect, clearAuditStepNoData);
 
 router
   .route("/:id")

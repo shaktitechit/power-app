@@ -109,6 +109,15 @@ const utilityAccountSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+
+    /**
+     * Optional "no data" declaration for load-audit tabs (hvac, ac, lighting, fan, lux, misc).
+     * step key -> { declared_at, declared_by }
+     */
+    audit_step_no_data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   {
     timestamps: {

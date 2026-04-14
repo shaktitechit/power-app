@@ -273,17 +273,39 @@ export default function ConnectionDetailsPage() {
     return lock(UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT);
   }, [utilityAccount?.audit_step_submissions]);
   const auditStatusLabel = finalAuditLocked ? "Completed" : "Pending";
+  const noData = utilityAccount?.audit_step_no_data;
+
+  const hasStepDataOrNoData = (
+    count: number,
+    stepKey: string,
+  ): boolean => {
+    if (count > 0) return true;
+    return Boolean(noData?.[stepKey]?.declared_at);
+  };
+
   const finalSubmitMissingItems = useMemo(() => {
     const missing: string[] = [];
 
     if (tariffCount <= 0) missing.push("Utility tariff records");
     if (billingCount <= 0) missing.push("Utility billing records");
-    if (hvacCount <= 0) missing.push("HVAC audit records");
-    if (acCount <= 0) missing.push("AC audit records");
-    if (lightingCount <= 0) missing.push("Lighting audit records");
-    if (fanCount <= 0) missing.push("Fan audit records");
-    if (luxCount <= 0) missing.push("LUX measurement records");
-    if (miscCount <= 0) missing.push("Misc audit records");
+    if (!hasStepDataOrNoData(hvacCount, UTILITY_AUDIT_STEP_IDS.HVAC)) {
+      missing.push("HVAC audit records");
+    }
+    if (!hasStepDataOrNoData(acCount, UTILITY_AUDIT_STEP_IDS.AC)) {
+      missing.push("AC audit records");
+    }
+    if (!hasStepDataOrNoData(lightingCount, UTILITY_AUDIT_STEP_IDS.LIGHTING)) {
+      missing.push("Lighting audit records");
+    }
+    if (!hasStepDataOrNoData(fanCount, UTILITY_AUDIT_STEP_IDS.FAN)) {
+      missing.push("Fan audit records");
+    }
+    if (!hasStepDataOrNoData(luxCount, UTILITY_AUDIT_STEP_IDS.LUX)) {
+      missing.push("LUX measurement records");
+    }
+    if (!hasStepDataOrNoData(miscCount, UTILITY_AUDIT_STEP_IDS.MISC)) {
+      missing.push("Misc audit records");
+    }
 
     if (utilityAccount?.is_solar_connected && solarRecordCount <= 0) {
       missing.push("Solar audit records");
@@ -304,6 +326,7 @@ export default function ConnectionDetailsPage() {
     utilityAccount?.is_dg_connected,
     utilityAccount?.is_transformer_connected,
     utilityAccount?.is_pump_connected,
+    utilityAccount?.audit_step_no_data,
     tariffCount,
     billingCount,
     solarRecordCount,
@@ -822,6 +845,7 @@ export default function ConnectionDetailsPage() {
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
             auditStepLocked={finalAuditLocked}
+            auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
       )}
@@ -832,6 +856,7 @@ export default function ConnectionDetailsPage() {
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
             auditStepLocked={finalAuditLocked}
+            auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
       )}
@@ -842,6 +867,7 @@ export default function ConnectionDetailsPage() {
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
             auditStepLocked={finalAuditLocked}
+            auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
       )}
@@ -852,6 +878,7 @@ export default function ConnectionDetailsPage() {
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
             auditStepLocked={finalAuditLocked}
+            auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
       )}
@@ -862,6 +889,7 @@ export default function ConnectionDetailsPage() {
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
             auditStepLocked={finalAuditLocked}
+            auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
       )}
@@ -872,6 +900,7 @@ export default function ConnectionDetailsPage() {
             facilityId={facility._id}
             utilityAccountId={utilityAccountId}
             auditStepLocked={finalAuditLocked}
+            auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
       )}

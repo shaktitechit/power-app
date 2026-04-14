@@ -12,6 +12,11 @@ export interface UtilityAuditStepSubmission {
   submitted_by?: string;
 }
 
+export interface AuditStepNoDataEntry {
+  declared_at?: string;
+  declared_by?: string;
+}
+
 export interface UtilityAccount {
   _id: string;
   facility_id: string;
@@ -37,6 +42,9 @@ export interface UtilityAccount {
 
   /** Step id -> submission metadata (from audit-step-submit) */
   audit_step_submissions?: Record<string, UtilityAuditStepSubmission>;
+
+  /** Step id -> no-data declaration (hvac, ac, lighting, fan, lux, misc) */
+  audit_step_no_data?: Record<string, AuditStepNoDataEntry>;
 
   created_at?: string;
   updated_at?: string;
@@ -311,6 +319,38 @@ export const utilityApiSlice = apiSlice.injectEndpoints({
         "Facility",
       ],
     }),
+
+    declareAuditStepNoData: builder.mutation<
+      SubmitUtilityAuditStepResponse,
+      { utilityAccountId: string; step: string }
+    >({
+      query: ({ utilityAccountId, step }) => ({
+        url: `/v1/utilities/${utilityAccountId}/audit-no-data-declare`,
+        method: "POST",
+        body: { step },
+      }),
+      invalidatesTags: (_result, _error, { utilityAccountId }) => [
+        "UtilityAccount",
+        { type: "UtilityAccount", id: utilityAccountId },
+        "Facility",
+      ],
+    }),
+
+    clearAuditStepNoData: builder.mutation<
+      SubmitUtilityAuditStepResponse,
+      { utilityAccountId: string; step: string }
+    >({
+      query: ({ utilityAccountId, step }) => ({
+        url: `/v1/utilities/${utilityAccountId}/audit-no-data-clear`,
+        method: "POST",
+        body: { step },
+      }),
+      invalidatesTags: (_result, _error, { utilityAccountId }) => [
+        "UtilityAccount",
+        { type: "UtilityAccount", id: utilityAccountId },
+        "Facility",
+      ],
+    }),
   }),
 });
 
@@ -322,4 +362,6 @@ export const {
   useDeleteUtilityAccountMutation,
   useSubmitUtilityAuditStepMutation,
   useAllowUtilityAuditStepMutation,
+  useDeclareAuditStepNoDataMutation,
+  useClearAuditStepNoDataMutation,
 } = utilityApiSlice;
