@@ -166,43 +166,51 @@ export default function DashboardPage() {
                   <Link
                     key={facility._id}
                     href={`/facility/${facility._id}`}
-                    className="group rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:border-primary/40 hover:bg-muted/40"
+                    className="group flex min-h-[8.5rem] min-w-0 flex-col rounded-xl border border-border bg-muted/20 p-3 transition-colors hover:border-primary/40 hover:bg-muted/40 sm:min-h-0 sm:p-4"
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-2">
                       <div className="min-w-0">
-                        <h3 className="truncate font-semibold text-foreground group-hover:text-primary">
+                        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground group-hover:text-primary sm:text-base">
                           {facility.name}
                         </h3>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 truncate text-xs text-muted-foreground sm:text-sm">
                           {facility.city || "Unknown city"}
                         </p>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                         <StatusBadge status={facility.status || "active"} />
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium leading-none sm:text-xs ${
+                          title={
+                            auditClosed
+                              ? "Facility audit closed"
+                              : "Facility audit open"
+                          }
+                          className={`inline-flex max-w-full rounded-full px-2 py-0.5 text-[10px] font-medium leading-none sm:max-w-none sm:text-xs ${
                             auditClosed
                               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
                               : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
                           }`}
                         >
-                          {auditClosed ? "Audit closed" : "Audit open"}
+                          <span className="truncate sm:whitespace-normal">
+                            {auditClosed ? "Audit closed" : "Audit open"}
+                          </span>
                         </span>
                       </div>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground sm:text-sm">
-                      <span>{facility.facility_type || "Facility"}</span>
-                    </div>
-
-                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <TrendingUp className="h-3.5 w-3.5 shrink-0" />
-                      <span>
-                        Updated{" "}
-                        {formatRelativeTime(
-                          facility.updatedAt || facility.createdAt,
-                        )}
-                      </span>
+                    <div className="mt-3 min-w-0 space-y-1.5 border-t border-border/60 pt-3 text-xs text-muted-foreground sm:mt-4 sm:text-sm">
+                      <p className="truncate capitalize">
+                        {facility.facility_type || "Facility"}
+                      </p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <TrendingUp className="h-3.5 w-3.5 shrink-0" />
+                        <span className="min-w-0 truncate">
+                          Updated{" "}
+                          {formatRelativeTime(
+                            facility.updatedAt || facility.createdAt,
+                          )}
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 );

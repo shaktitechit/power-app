@@ -1,8 +1,7 @@
 "use client";
 
-import { Search, User, ChevronDown, Menu } from "lucide-react";
+import { User, ChevronDown, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +15,6 @@ import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { useLogoutMutation } from "@/store/slices/userApiSlice";
 import { logout } from "@/store/slices/authSlice";
-import { useMyPresence } from "@/hooks/useMyPresence";
 import { usePresenceMap } from "@/hooks/presenceMap";
 import { socket } from "@/lib/socket";
 import { toastHandler } from "@/lib/toast";
@@ -112,26 +110,10 @@ export function Header({
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-3 md:gap-4">
-        <FontSizeControl />
-        <ThemeToggle />
-
-        <div className="relative hidden lg:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search..."
-            className="w-48 bg-secondary pl-9 xl:w-64"
-          />
+        <div className="hidden md:flex">
+          <FontSizeControl />
         </div>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-foreground lg:hidden"
-        >
-          <Search className="h-5 w-5" />
-          <span className="sr-only">Search</span>
-        </Button>
+        <ThemeToggle />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
