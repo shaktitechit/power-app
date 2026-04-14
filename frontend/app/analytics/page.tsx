@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
       subtitle="Power infrastructure insights and trends"
     >
       {/* 🔹 Key Metrics */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatsCard
           title="Total Facilities"
           value={analytics.totalFacilities}
@@ -149,9 +149,9 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 🔹 Charts Row 1 */}
-      <div className="mt-4 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2">
+      <div className="mt-4 grid min-w-0 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2">
         {/* Audit Trends */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
@@ -160,7 +160,7 @@ export default function AnalyticsPage() {
           </CardHeader>
 
           <CardContent>
-            <div className="h-[250px]">
+            <div className="h-[250px] min-h-[200px] w-full min-w-0">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={timeSeriesData}>
                   <defs>
@@ -195,14 +195,14 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Audit Status */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Audit Status Distribution</CardTitle>
           </CardHeader>
 
           <CardContent>
-            <div className="h-[250px]">
-              <ResponsiveContainer>
+            <div className="h-[250px] min-h-[200px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={statusData} dataKey="value">
                     {statusData.map((entry, i) => (
@@ -219,16 +219,16 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 🔹 Charts Row 2 */}
-      <div className="mt-4 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2">
+      <div className="mt-4 grid min-w-0 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2">
         {/* Capacity by City */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Capacity by City</CardTitle>
           </CardHeader>
 
           <CardContent>
-            <div className="h-[250px]">
-              <ResponsiveContainer>
+            <div className="h-[250px] min-h-[200px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={capacityByCity} layout="vertical">
                   <XAxis type="number" />
                   <YAxis type="category" dataKey="city" />
@@ -241,14 +241,14 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Energy Source */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Energy Source Distribution</CardTitle>
           </CardHeader>
 
           <CardContent>
-            <div className="h-[250px]">
-              <ResponsiveContainer>
+            <div className="h-[250px] min-h-[200px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={energySourceData}>
                   <XAxis dataKey="name" />
                   <YAxis />
@@ -266,7 +266,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 🔹 Summary Cards */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-6 grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatsCard
           title="Total Connections"
           value={analytics.totalConnections}

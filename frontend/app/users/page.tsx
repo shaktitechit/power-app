@@ -315,8 +315,8 @@ export default function UsersPage() {
 
   return (
     <DashboardLayout title="Users" subtitle="Manage system users and roles">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:justify-between">
-        <div className="relative flex-1 max-w-md">
+      <div className="mb-6 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative min-w-0 w-full flex-1 sm:max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search users..."
@@ -326,7 +326,10 @@ export default function UsersPage() {
           />
         </div>
 
-        <Button onClick={() => setIsAddDialogOpen(true)}>
+        <Button
+          onClick={() => setIsAddDialogOpen(true)}
+          className="w-full shrink-0 sm:w-auto"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add User
         </Button>
@@ -339,7 +342,7 @@ export default function UsersPage() {
         emptyMessage="No users found"
       />
 
-      <div className="mt-4 flex justify-between text-sm text-muted-foreground">
+      <div className="mt-4 flex min-w-0 flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-0">
         <span>
           Showing {filteredUsers.length} of {users.length}
         </span>

@@ -312,13 +312,13 @@ export default function FacilityWorkspacePage() {
       title={facility.name}
       subtitle={`${facility.city}, ${facility.address}`}
     >
-      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/facilities"
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Facilities
+          <ArrowLeft className="h-4 w-4 shrink-0" />
+          <span className="truncate">Back to Facilities</span>
         </Link>
         <StatusBadge status={facility.status} />
       </div>
@@ -700,13 +700,13 @@ export default function FacilityWorkspacePage() {
           </Card>
 
           <Card className="border-border bg-card">
-            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-              <div className="text-sm text-muted-foreground">
+            <CardContent className="flex min-w-0 flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="min-w-0 text-sm text-muted-foreground">
                 {facilityAuditClosed
                   ? "Facility audit is currently closed."
                   : "All utility audits are completed. You can close the facility audit now."}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 {!facilityAuditClosed ? (
                   <Button
                     onClick={handleCloseFacilityAudit}

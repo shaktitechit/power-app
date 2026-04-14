@@ -31,10 +31,15 @@ export function CustomTabs({
   tabGridClassName = "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6",
 }: CustomTabsProps) {
   return (
-    <div className={cn("border-b border-border", className)}>
+    <div
+      className={cn(
+        "touch-pan-x overscroll-x-contain border-b border-border [-webkit-overflow-scrolling:touch]",
+        className,
+      )}
+    >
       <nav
         aria-label="Tabs"
-        className={cn("grid gap-x-0", tabGridClassName)}
+        className={cn("grid min-w-0 gap-x-0", tabGridClassName)}
       >
         {tabs.map((tab) => (
           <div

@@ -35,7 +35,7 @@ export function DashboardLayout({
       />
       <div
         className={cn(
-          "flex min-h-screen flex-col transition-all duration-300",
+          "flex min-h-screen min-w-0 flex-1 flex-col transition-all duration-300",
           // Desktop margins
           "lg:ml-64",
           isCollapsed && "lg:ml-16",
@@ -46,7 +46,9 @@ export function DashboardLayout({
           subtitle={subtitle}
           onMenuClick={() => setIsMobileOpen(true)}
         />
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-auto p-4 sm:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

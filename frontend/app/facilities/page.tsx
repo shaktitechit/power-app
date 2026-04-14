@@ -199,9 +199,9 @@ export default function FacilitiesPage() {
       title="Facilities"
       subtitle="Manage all audited facilities"
     >
-      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:gap-4">
-          <div className="relative flex-1 sm:max-w-md">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 w-full flex-1 flex-col gap-3 sm:flex-row sm:gap-4">
+          <div className="relative min-w-0 flex-1 sm:max-w-md">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
@@ -238,13 +238,12 @@ export default function FacilitiesPage() {
       <DataTable
         columns={columns}
         data={filteredFacilities}
+        loading={facilitiesLoading}
         onRowClick={handleRowClick}
-        emptyMessage={
-          facilitiesLoading ? "Loading facilities..." : "No facilities found"
-        }
+        emptyMessage="No facilities found"
       />
 
-      <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground sm:text-sm">
+      <div className="mt-4 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:text-sm">
         <span>
           Showing {filteredFacilities.length} of {facilities.length} facilities
         </span>

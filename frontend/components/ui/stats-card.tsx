@@ -24,16 +24,16 @@ export function StatsCard({
 }: StatsCardProps) {
   return (
     <Card className={cn("border-border bg-card", className)}>
-      <CardContent className="p-3 sm:p-4 lg:p-6 flex items-center justify-center">
+      <CardContent className="flex min-w-0 items-center gap-3 p-3 sm:gap-4 sm:p-4 lg:p-6">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-10 sm:w-10 lg:h-12 lg:w-12">
           <Icon className="h-4 w-4 text-primary sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
         </div>
-        <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
           <div className="min-w-0 space-y-1 sm:space-y-2">
             <p className="truncate text-xs font-medium text-muted-foreground sm:text-sm">
               {title}
             </p>
-            <p className="text-xl font-bold text-card-foreground sm:text-2xl lg:text-3xl">
+            <p className="break-words text-xl font-bold text-card-foreground sm:text-2xl lg:text-3xl">
               {value}
             </p>
             {description && (

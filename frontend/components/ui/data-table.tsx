@@ -24,24 +24,26 @@ interface DataTableProps<T> {
   onRowClick?: (row?: T) => void;
   emptyMessage?: string;
   className?: string;
+  /** When true, shows a loading row instead of data (avoids layout shift on narrow screens). */
+  loading?: boolean;
 }
 
 export function DataTable<T extends Record<string, unknown>>({
-  columns,
-  data,
+  columns = [],
+  data = [],
   onRowClick,
   emptyMessage = "No data available",
   className,
+  loading = false,
 }: DataTableProps<T>) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-border bg-card",
+        "w-full min-w-0 overflow-hidden rounded-lg border border-border bg-card",
         className,
       )}
     >
-      <div className="overflow-x-auto">
-        <Table>
+      <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent">
               {columns.map((column) => (
@@ -59,10 +61,19 @@ export function DataTable<T extends Record<string, unknown>>({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.length === 0 ? (
+            {loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={Math.max(columns.length, 1)}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : data.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={Math.max(columns.length, 1)}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {emptyMessage}
@@ -88,15 +99,14 @@ export function DataTable<T extends Record<string, unknown>>({
                     >
                       {column.render
                         ? column.render(row)
-                        : (row[column.key] as React.ReactNode)}
+                        : (row[column.key as keyof T] as React.ReactNode)}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             )}
           </TableBody>
-        </Table>
-      </div>
+      </Table>
     </div>
   );
 }

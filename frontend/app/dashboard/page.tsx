@@ -130,13 +130,13 @@ export default function DashboardPage() {
       subtitle={`Welcome back, ${user?.name || "User"}`}
     >
       {/* Facilities — primary focus */}
-      <Card className="border-border bg-card">
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 border-b border-border/60 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+      <Card className="min-w-0 border-border bg-card">
+        <CardHeader className="flex min-w-0 flex-row flex-wrap items-start justify-between gap-3 border-b border-border/60 pb-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
               <Building2 className="h-5 w-5 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0">
               <CardTitle className="text-lg text-card-foreground">
                 Recent facilities
               </CardTitle>
@@ -153,8 +153,8 @@ export default function DashboardPage() {
           </Link>
         </CardHeader>
 
-        <CardContent className="pt-6">
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <CardContent className="min-w-0 pt-6">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             {facilitiesLoading ? (
               <p className="col-span-full text-sm text-muted-foreground">
                 Loading facilities...
@@ -217,10 +217,10 @@ export default function DashboardPage() {
       </Card>
 
       {/* Activity & team */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card className="border-border bg-card">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-border/60 pb-4">
-            <div>
+      <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-2">
+        <Card className="min-w-0 border-border bg-card">
+          <CardHeader className="flex min-w-0 flex-row items-center justify-between gap-3 border-b border-border/60 pb-4">
+            <div className="min-w-0 flex-1">
               <CardTitle className="text-card-foreground">
                 Recent activity
               </CardTitle>
@@ -228,16 +228,16 @@ export default function DashboardPage() {
                 Latest 10 actions in your workspace
               </p>
             </div>
-            <Activity className="h-5 w-5 text-muted-foreground" />
+            <Activity className="h-5 w-5 shrink-0 text-muted-foreground" />
           </CardHeader>
 
-          <CardContent className="pt-6">
+          <CardContent className="min-w-0 pt-6">
             {dashboardLoading || dashboardFetching ? (
               <p className="text-sm text-muted-foreground">
                 Loading activities...
               </p>
             ) : recentActivities.length > 0 ? (
-              <ScrollArea className="h-[min(22rem,45vh)] pr-3">
+              <ScrollArea className="h-[min(22rem,45vh)] min-w-0 pr-3">
                 <div className="space-y-3">
                   {recentActivities.map((activity) => (
                     <div
@@ -269,7 +269,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card">
+        <Card className="min-w-0 border-border bg-card">
           <CardHeader className="border-b border-border/60 pb-4">
             <CardTitle className="text-card-foreground">Team presence</CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -277,13 +277,13 @@ export default function DashboardPage() {
             </p>
           </CardHeader>
 
-          <CardContent className="pt-6">
+          <CardContent className="min-w-0 pt-6">
             {dashboardLoading || dashboardFetching ? (
               <p className="text-sm text-muted-foreground">
                 Loading presence...
               </p>
             ) : userAppearance.length > 0 ? (
-              <ScrollArea className="h-[min(22rem,45vh)] pr-3">
+              <ScrollArea className="h-[min(22rem,45vh)] min-w-0 pr-3">
                 <div className="space-y-3">
                   {userAppearance.map((member) => {
                     const mergedStatus = getMergedPresenceStatus(member);

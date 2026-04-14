@@ -86,8 +86,8 @@ export function Header({
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:px-6">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center justify-between gap-2 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:gap-3 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <Button
           variant="ghost"
           size="icon"
@@ -98,20 +98,20 @@ export function Header({
           <span className="sr-only">Open menu</span>
         </Button>
 
-        <div className="flex flex-col">
-          <h1 className="text-base font-semibold text-foreground sm:text-lg">
+        <div className="min-w-0 flex flex-col">
+          <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">
             {title}
           </h1>
 
           {subtitle && (
-            <p className="hidden text-sm text-muted-foreground sm:block">
+            <p className="hidden truncate text-sm text-muted-foreground sm:block">
               {subtitle}
             </p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-3 md:gap-4">
         <FontSizeControl />
         <ThemeToggle />
 

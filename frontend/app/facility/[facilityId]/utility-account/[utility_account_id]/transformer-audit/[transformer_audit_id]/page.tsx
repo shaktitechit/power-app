@@ -147,13 +147,15 @@ export default function ConnectionDetailsPage() {
       title={UtilityAccount.account_number}
       subtitle={`${facility.name} - ${UtilityAccount.connection_type} Utility Account - ${transformerAccount.transformer_tag} Transformer`}
     >
-      <div className="mb-6">
+      <div className="mb-6 min-w-0">
         <Link
           href={`/facility/${facilityId}/utility-account/${utilityAccountId}`}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="flex min-w-0 max-w-full items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back to {UtilityAccount.account_number}
+          <ArrowLeft className="h-4 w-4 shrink-0" />
+          <span className="truncate">
+            Back to {UtilityAccount.account_number}
+          </span>
         </Link>
       </div>
 

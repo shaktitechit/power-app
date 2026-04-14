@@ -111,7 +111,7 @@ export function Sidebar({
         <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
           <Link
             href="/dashboard"
-            className="flex items-center gap-3"
+            className="flex min-w-0 flex-1 items-center gap-3"
             onClick={handleLinkClick}
           >
             <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-sidebar-border/60">
@@ -126,7 +126,7 @@ export function Sidebar({
             </div>
 
             {(!isCollapsed || isMobileOpen) && (
-              <span className="text-lg font-semibold text-sidebar-foreground">
+              <span className="truncate text-lg font-semibold text-sidebar-foreground">
                 Shakti Powers
               </span>
             )}

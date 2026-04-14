@@ -131,11 +131,13 @@
 @layer base {
   html {
     font-size: calc(16px * var(--app-font-scale));
+    overflow-x: clip;
   }
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: clip;
   }
 }
