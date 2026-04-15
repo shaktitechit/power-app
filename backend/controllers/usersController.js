@@ -20,6 +20,7 @@ const issueTokensForUser = async (res, user) => {
   const refreshToken = signRefreshToken(user._id);
 
   user.refreshTokenHash = hashToken(refreshToken);
+  user.previousRefreshTokenHash = null;
   await user.save();
 
   setAuthCookies(res, {
@@ -120,18 +121,25 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid token type" });
   }
 
-  const user = await User.findById(decoded.id).select("+refreshTokenHash");
+  const user = await User.findById(decoded.id).select(
+    "+refreshTokenHash +previousRefreshTokenHash",
+  );
 
   if (!user || user.status !== "active") {
     return res.status(401).json({ message: "User not found or inactive" });
   }
 
-  if (user.refreshTokenHash !== hashToken(refreshToken)) {
+  const incomingRefreshHash = hashToken(refreshToken);
+  const isCurrentToken = user.refreshTokenHash === incomingRefreshHash;
+  const isPreviousToken = user.previousRefreshTokenHash === incomingRefreshHash;
+
+  if (!isCurrentToken && !isPreviousToken) {
     return res.status(401).json({ message: "Refresh token revoked" });
   }
 
   const accessToken = signAccessToken(user._id);
   const newRefreshToken = signRefreshToken(user._id);
+  user.previousRefreshTokenHash = user.refreshTokenHash;
   user.refreshTokenHash = hashToken(newRefreshToken);
   await user.save();
 
@@ -152,6 +160,7 @@ const userLogout = asyncHandler(async (req, res) => {
 
   if (user) {
     user.refreshTokenHash = null;
+    user.previousRefreshTokenHash = null;
     await user.save();
   }
 

@@ -71,6 +71,12 @@ const userSchema = new mongoose.Schema(
       default: null,
       select: false,
     },
+    /** Previous refresh token hash for one-step rotation race tolerance */
+    previousRefreshTokenHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
   },
   {
     timestamps: {
