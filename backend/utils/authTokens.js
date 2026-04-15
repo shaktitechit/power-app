@@ -59,8 +59,8 @@ export const signAccessToken = (userId) =>
     expiresIn: getAccessExpiresIn(),
   });
 
-export const signRefreshToken = (userId) =>
-  jwt.sign({ id: userId, typ: "refresh" }, getRefreshSecret(), {
+export const signRefreshTokenForSession = (userId, sessionId) =>
+  jwt.sign({ id: userId, sid: String(sessionId), typ: "refresh" }, getRefreshSecret(), {
     expiresIn: getRefreshExpiresIn(),
   });
 

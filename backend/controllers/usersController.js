@@ -1,5 +1,6 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import User from "../modals/user.js";
+import UserSession from "../modals/userSession.js";
 import PresenceLog from "../modals/presenceLog.js";
 import jwt from "jsonwebtoken";
 // import passport from "passport";
@@ -8,20 +9,37 @@ import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 import {
   clearAuthCookies,
+  getRefreshExpiresIn,
   getRefreshSecret,
   hashToken,
+  parseDurationToMs,
   setAuthCookies,
   signAccessToken,
-  signRefreshToken,
+  signRefreshTokenForSession,
 } from "../utils/authTokens.js";
 
-const issueTokensForUser = async (res, user) => {
-  const accessToken = signAccessToken(user._id);
-  const refreshToken = signRefreshToken(user._id);
+const extractIp = (req) => {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return req.ip || null;
+};
 
-  user.refreshTokenHash = hashToken(refreshToken);
-  user.previousRefreshTokenHash = null;
-  await user.save();
+const issueTokensForUser = async (req, res, user) => {
+  const accessToken = signAccessToken(user._id);
+  const session = new UserSession({
+    userId: user._id,
+    tokenHash: "",
+    userAgent: req.get("user-agent") || null,
+    ip: extractIp(req),
+    expiresAt: new Date(Date.now() + parseDurationToMs(getRefreshExpiresIn())),
+    lastUsedAt: new Date(),
+  });
+
+  const refreshToken = signRefreshTokenForSession(user._id, session._id);
+  session.tokenHash = hashToken(refreshToken);
+  await session.save();
 
   setAuthCookies(res, {
     accessToken,
@@ -58,7 +76,7 @@ const loginUser = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Invalid Credentials" });
   }
 
-  await issueTokensForUser(res, user);
+  await issueTokensForUser(req, res, user);
 
   res.json({
     _id: user._id,
@@ -121,27 +139,42 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid token type" });
   }
 
-  const user = await User.findById(decoded.id).select(
-    "+refreshTokenHash +previousRefreshTokenHash",
-  );
+  if (!decoded.sid) {
+    return res.status(401).json({ message: "Invalid refresh session" });
+  }
+
+  const [user, session] = await Promise.all([
+    User.findById(decoded.id),
+    UserSession.findById(decoded.sid).select("+tokenHash +previousTokenHash"),
+  ]);
 
   if (!user || user.status !== "active") {
     return res.status(401).json({ message: "User not found or inactive" });
   }
 
+  if (!session || String(session.userId) !== String(user._id)) {
+    return res.status(401).json({ message: "Refresh token revoked" });
+  }
+
+  if (session.revokedAt || session.expiresAt.getTime() <= Date.now()) {
+    return res.status(401).json({ message: "Refresh token revoked" });
+  }
+
   const incomingRefreshHash = hashToken(refreshToken);
-  const isCurrentToken = user.refreshTokenHash === incomingRefreshHash;
-  const isPreviousToken = user.previousRefreshTokenHash === incomingRefreshHash;
+  const isCurrentToken = session.tokenHash === incomingRefreshHash;
+  const isPreviousToken = session.previousTokenHash === incomingRefreshHash;
 
   if (!isCurrentToken && !isPreviousToken) {
     return res.status(401).json({ message: "Refresh token revoked" });
   }
 
   const accessToken = signAccessToken(user._id);
-  const newRefreshToken = signRefreshToken(user._id);
-  user.previousRefreshTokenHash = user.refreshTokenHash;
-  user.refreshTokenHash = hashToken(newRefreshToken);
-  await user.save();
+  const newRefreshToken = signRefreshTokenForSession(user._id, session._id);
+  session.previousTokenHash = session.tokenHash;
+  session.tokenHash = hashToken(newRefreshToken);
+  session.lastUsedAt = new Date();
+  session.expiresAt = new Date(Date.now() + parseDurationToMs(getRefreshExpiresIn()));
+  await session.save();
 
   setAuthCookies(res, {
     accessToken,
@@ -156,12 +189,19 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 //@desc POST logged-out user
 //@access Private
 const userLogout = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("+refreshTokenHash");
-
-  if (user) {
-    user.refreshTokenHash = null;
-    user.previousRefreshTokenHash = null;
-    await user.save();
+  const refreshToken = req.cookies.refreshToken;
+  if (refreshToken) {
+    try {
+      const decoded = jwt.verify(refreshToken, getRefreshSecret());
+      if (decoded?.sid && String(decoded?.id) === String(req.user._id)) {
+        await UserSession.findOneAndUpdate(
+          { _id: decoded.sid, userId: req.user._id, revokedAt: null },
+          { revokedAt: new Date() },
+        );
+      }
+    } catch {
+      // Ignore invalid refresh token on logout and still clear cookies.
+    }
   }
 
   clearAuthCookies(res);
