@@ -5,12 +5,20 @@ import type {
 } from "@reduxjs/toolkit/query";
 import { fetchBaseQuery, createApi } from "@reduxjs/toolkit/query/react";
 
+function isHttpUnauthorized(error: FetchBaseQueryError | undefined) {
+  if (!error) return false;
+  const s = error.status;
+  return s === 401 || s === "401";
+}
+
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: "/api",
   credentials: "include",
   headers: {
     "Content-Type": "application/json",
   },
+  fetchFn: (input, init) =>
+    fetch(input, { ...init, cache: init?.cache ?? "no-store" }),
 });
 
 let refreshPromise: Promise<unknown> | null = null;
@@ -22,7 +30,7 @@ const baseQueryWithReauth: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   let result = await rawBaseQuery(args, api, extraOptions);
 
-  if (result.error?.status !== 401) {
+  if (!isHttpUnauthorized(result.error)) {
     return result;
   }
 
@@ -33,7 +41,7 @@ const baseQueryWithReauth: BaseQueryFn<
 
   if (!refreshPromise) {
     refreshPromise = rawBaseQuery(
-      { url: "/v1/users/refresh", method: "POST" },
+      { url: "/v1/users/refresh", method: "POST", body: {} },
       api,
       extraOptions,
     ).finally(() => {

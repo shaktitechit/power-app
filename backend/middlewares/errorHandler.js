@@ -33,6 +33,16 @@ const errorHandler = (err, req, res, next) => {
     message = "Resource not found";
   }
 
+  // 🔹 Operational HTTP status on the error (e.g. auth failures with explicit statusCode)
+  if (
+    !(err.name === "CastError" && err.kind === "ObjectId") &&
+    typeof err.statusCode === "number" &&
+    err.statusCode >= 400 &&
+    err.statusCode < 600
+  ) {
+    statusCode = err.statusCode;
+  }
+
   // 🔹 Decide log level based on status
   const level =
     statusCode >= 500 ? "error" : statusCode >= 400 ? "warn" : "info";
