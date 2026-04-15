@@ -1,12 +1,32 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
-const cookieDefaults = () => ({
-  httpOnly: true,
-  secure: true,
-  sameSite: "none",
-  path: "/",
-});
+/**
+ * Cookie options for auth tokens.
+ * - Development (HTTP): secure must be false or browsers won't store/send cookies.
+ * - Production (HTTPS): secure true; same-site Next.js `/api` proxy → default `lax`.
+ * - Cross-origin API only: set COOKIE_SAMESITE=none and COOKIE_SECURE=true (SameSite=None requires Secure).
+ */
+const cookieDefaults = () => {
+  const secure =
+    process.env.COOKIE_SECURE === "false"
+      ? false
+      : process.env.COOKIE_SECURE === "true"
+        ? true
+        : process.env.NODE_ENV === "production";
+
+  let sameSite = process.env.COOKIE_SAMESITE || "lax";
+  if (sameSite === "none" && !secure) {
+    sameSite = "lax";
+  }
+
+  return {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: "/",
+  };
+};
 
 export const getAccessSecret = () =>
   process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;

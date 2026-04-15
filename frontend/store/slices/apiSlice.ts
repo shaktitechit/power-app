@@ -43,7 +43,8 @@ const baseQueryWithReauth: BaseQueryFn<
 
   const refreshResult = await refreshPromise;
   if (refreshResult.error) {
-    return result;
+    // Surface refresh failure (e.g. no/expired refresh cookie) instead of the original 401
+    return refreshResult;
   }
 
   return rawBaseQuery(args, api, extraOptions);

@@ -10,14 +10,17 @@ import {
   updateUser,
   deleteUser,
 } from "../controllers/usersController.js";
-import { authRateLimiter } from "../middlewares/rateLimitLoggerMiddleware.js";
+import {
+  apiRateLimiter,
+  authRateLimiter,
+} from "../middlewares/rateLimitLoggerMiddleware.js";
 
 const router = express.Router();
 
-// 🔐 Auth
+// 🔐 Auth (refresh uses general API limiter — token rotation is not brute-force like login)
 router.post("/register", authRateLimiter, registerUser);
 router.post("/login", authRateLimiter, loginUser);
-router.post("/refresh", authRateLimiter, refreshAccessToken);
+router.post("/refresh", apiRateLimiter, refreshAccessToken);
 router.post("/logout", protect, userLogout);
 
 // 👤 Profile
