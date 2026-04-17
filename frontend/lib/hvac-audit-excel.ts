@@ -302,26 +302,6 @@ export function downloadHVACAuditExcelTemplate(
     SHEET_TOWER,
   );
 
-  // --- Summary (mostly computed in UI; included for export / optional edits)
-  const sumRows: (string | number)[][] = [["Field", "Value"]];
-  const s = form.summary;
-  const summaryPairs: [string, string][] = [
-    ["Average Cooling Produced (TR)", s.average_cooling_produced_TR],
-    ["Average Chiller Power Used (kW)", s.average_chiller_power_used_kW],
-    ["Total Auxiliary Power Used (kW)", s.total_auxiliary_power_used_kW],
-    ["Total Plant Power (kW)", s.total_plant_power_kW],
-    ["Plant Efficiency (kW/TR)", s.plant_efficiency_kW_per_TR],
-    ["Coefficient of Performance", s.coefficient_of_performance],
-  ];
-  for (const [a, b] of summaryPairs) {
-    sumRows.push([a, b]);
-  }
-  XLSX.utils.book_append_sheet(
-    wb,
-    XLSX.utils.aoa_to_sheet(sumRows),
-    SHEET_SUMMARY,
-  );
-
   XLSX.writeFile(wb, filename);
 }
 

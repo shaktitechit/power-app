@@ -44,21 +44,16 @@ export const TRANSFORMER_AUDIT_EXCEL_FIELDS: {
   key: keyof TransformerAuditExcelFormState;
   label: string;
 }[] = [
-  { key: "total_losses_kW", label: "Total Losses at Full Load (kW)" },
   { key: "average_load_kVA", label: "Average Load Measured (kVA)" },
-  { key: "percent_loading", label: "% Loading" },
   { key: "max_load_kVA", label: "Max Load (kVA)" },
-  { key: "load_factor_percent", label: "Load Factor (%)" },
 
   { key: "operating_hours_per_year", label: "Operating Hours / Year" },
   {
     key: "annual_energy_supplied_kWh",
     label: "Annual Energy Supplied (kWh)",
   },
-  { key: "annual_energy_losses_kWh", label: "Annual Energy Losses (kWh)" },
 
   { key: "per_unit_cost_rs", label: "Per Unit Cost (₹)" },
-  { key: "cost_of_losses_rs", label: "Cost of Losses (₹)" },
 
   { key: "power_factor_LT", label: "Power Factor (LT)" },
   { key: "harmonics_THD_percent", label: "Harmonics THD (%)" },

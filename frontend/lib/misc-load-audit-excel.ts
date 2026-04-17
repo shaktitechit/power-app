@@ -33,18 +33,12 @@ export const MISC_LOAD_AUDIT_DETAIL_FIELDS: {
 export const MISC_LOAD_AUDIT_CALC_FIELDS: {
   key: keyof MiscLoadAuditExcelFormState;
   label: string;
-}[] = [
-  {
-    key: "estimated_annual_energy_kWh",
-    label: "Estimated Annual Energy (kWh)",
-  },
-];
+}[] = [];
 
 export const MISC_LOAD_AUDIT_ALL_EXCEL_KEYS: (keyof MiscLoadAuditExcelFormState)[] =
   Array.from(
     new Set<keyof MiscLoadAuditExcelFormState>([
       ...MISC_LOAD_AUDIT_DETAIL_FIELDS.map((x) => x.key),
-      ...MISC_LOAD_AUDIT_CALC_FIELDS.map((x) => x.key),
     ]),
   );
 

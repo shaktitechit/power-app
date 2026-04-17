@@ -8,8 +8,9 @@ export const hasValidDate = (value) => {
 };
 
 export const isFacilityAuditClosed = (facility) =>
-  hasValidDate(facility?.audit_closure?.closed_at) ||
-  hasValidDate(facility?.closure_date);
+  // IMPORTANT: `closure_date` on Facility is a planned/business closure date,
+  // not the audit lock state. Audit lock must only follow `audit_closure.closed_at`.
+  hasValidDate(facility?.audit_closure?.closed_at);
 
 export const isUtilityAuditCompleted = (utility) =>
   hasValidDate(

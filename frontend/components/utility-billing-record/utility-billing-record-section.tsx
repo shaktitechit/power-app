@@ -451,7 +451,7 @@ function mergeBillingServerWithLocalEdits(
 
 const editableInputClass = "bg-background border-border";
 const autoInputClass =
-  "bg-sky-50 border-sky-200 text-sky-900 font-medium disabled:opacity-100 disabled:cursor-not-allowed dark:bg-sky-950/30 dark:border-sky-800 dark:text-sky-100";
+  "cursor-not-allowed border border-dashed border-sky-300 bg-sky-100 text-sky-900 opacity-100 dark:border-sky-700 dark:bg-sky-950/60 dark:text-sky-100";
 
 export function UtilityBillingRecordSection({
   utilityAccountId,

@@ -105,7 +105,7 @@ const editableInputClass =
   "border-input bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary";
 
 const autoInputClass =
-  "cursor-not-allowed border border-dashed border-border bg-muted/50 text-muted-foreground opacity-90";
+  "cursor-not-allowed border border-dashed border-sky-300 bg-sky-100 text-sky-900 opacity-100 dark:border-sky-700 dark:bg-sky-950/60 dark:text-sky-100";
 
 const getInputClass = (disabled: boolean) =>
   disabled ? autoInputClass : editableInputClass;
@@ -363,16 +363,11 @@ export function TransformerAuditRecordSection({
     const rowPrefill: Partial<
       Record<keyof TransformerAuditExcelFormState, string>
     > = {
-      total_losses_kW: form.total_losses_kW,
       average_load_kVA: form.average_load_kVA,
-      percent_loading: form.percent_loading,
       max_load_kVA: form.max_load_kVA,
-      load_factor_percent: form.load_factor_percent,
       operating_hours_per_year: form.operating_hours_per_year,
       annual_energy_supplied_kWh: form.annual_energy_supplied_kWh,
-      annual_energy_losses_kWh: form.annual_energy_losses_kWh,
       per_unit_cost_rs: form.per_unit_cost_rs,
-      cost_of_losses_rs: form.cost_of_losses_rs,
       power_factor_LT: form.power_factor_LT,
       harmonics_THD_percent: form.harmonics_THD_percent,
       neutral_earth_resistance_ohms: form.neutral_earth_resistance_ohms,

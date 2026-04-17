@@ -44,16 +44,12 @@ export const LIGHTING_AUDIT_DETAIL_FIELDS: {
 export const LIGHTING_AUDIT_CALC_FIELDS: {
   key: keyof LightingAuditExcelFormState;
   label: string;
-}[] = [
-  { key: "connected_load_kW", label: "Connected Load (kW)" },
-  { key: "annual_energy_kWh", label: "Annual Energy (kWh)" },
-];
+}[] = [];
 
 export const LIGHTING_AUDIT_ALL_EXCEL_KEYS: (keyof LightingAuditExcelFormState)[] =
   Array.from(
     new Set<keyof LightingAuditExcelFormState>([
       ...LIGHTING_AUDIT_DETAIL_FIELDS.map((x) => x.key),
-      ...LIGHTING_AUDIT_CALC_FIELDS.map((x) => x.key),
     ]),
   );
 

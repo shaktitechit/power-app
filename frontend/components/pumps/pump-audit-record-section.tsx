@@ -20,6 +20,7 @@ import {
   useGetPumpAuditRecordsQuery,
   useUpdatePumpAuditRecordMutation,
 } from "@/store/slices/pumpAuditRecordApiSlice";
+import { useGetPumpByIdQuery } from "@/store/slices/pumpApiSlice";
 import {
   downloadPumpAuditTemplate,
   parsePumpAuditExcel,
@@ -87,7 +88,7 @@ const editableInputClass =
   "border-input bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary";
 
 const autoInputClass =
-  "cursor-not-allowed border border-dashed border-border bg-muted/50 text-muted-foreground opacity-90";
+  "cursor-not-allowed border border-dashed border-sky-300 bg-sky-100 text-sky-900 opacity-100 dark:border-sky-700 dark:bg-sky-950/60 dark:text-sky-100";
 
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-90";
@@ -114,22 +115,39 @@ const formatAutoValue = (value: number) => {
   return Number.isFinite(value) && value !== 0 ? value.toFixed(2) : "";
 };
 
-function calculatePumpAutoFields(form: PumpAuditFormState) {
+function calculatePumpAutoFields(
+  form: PumpAuditFormState,
+  ratedPowerkWOrHP: number,
+) {
   const suctionHead = toNumber(form.suction_head_m);
   const dischargeStaticHead = toNumber(form.discharge_static_head_m);
   const actualFlow = toNumber(form.actual_flow_m3_per_hr);
   const dailyEnergy = toNumber(form.daily_energy_consumption_kWh);
+  const inputPower = toNumber(form.input_power_kW);
 
   const totalDynamicHead = suctionHead + dischargeStaticHead;
 
   const hydraulicOutputPower =
     (actualFlow * totalDynamicHead * 1000 * 9.81) / 3600000;
 
+  const overallPumpSetEfficiency =
+    inputPower > 0 ? (hydraulicOutputPower / inputPower) * 100 : 0;
+
+  const motorLoading =
+    ratedPowerkWOrHP > 0 ? (inputPower / ratedPowerkWOrHP) * 100 : 0;
+
+  const specificEnergyConsumption = actualFlow > 0 ? inputPower / actualFlow : 0;
+
   const annualEnergyConsumption = dailyEnergy * 365;
 
   return {
     total_dynamic_head_m: formatAutoValue(totalDynamicHead),
     hydraulic_output_power_kW: formatAutoValue(hydraulicOutputPower),
+    overall_pump_set_efficiency_percent: formatAutoValue(overallPumpSetEfficiency),
+    motor_loading_percent: formatAutoValue(motorLoading),
+    specific_energy_consumption_kWh_per_m3: formatAutoValue(
+      specificEnergyConsumption,
+    ),
     annual_energy_consumption_kWh: formatAutoValue(annualEnergyConsumption),
   };
 }
@@ -227,6 +245,10 @@ export function PumpAuditRecordSection({
 }: PumpAuditRecordSectionProps) {
   const user = useAppSelector((state) => state.auth.user);
   const canViewDocuments = user?.role === "admin";
+  const { data: pumpData } = useGetPumpByIdQuery(pumpId, {
+    skip: !pumpId,
+  });
+  const ratedPowerkWOrHP = Number(pumpData?.data?.rated_power_kW_or_HP) || 0;
   const { data, isLoading, refetch } = useGetPumpAuditRecordsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
@@ -259,7 +281,7 @@ export function PumpAuditRecordSection({
     const emptyForm = createEmptyForm();
     return {
       ...emptyForm,
-      ...calculatePumpAutoFields(emptyForm),
+      ...calculatePumpAutoFields(emptyForm, ratedPowerkWOrHP),
     };
   });
   const [excelImporting, setExcelImporting] = useState(false);
@@ -269,16 +291,16 @@ export function PumpAuditRecordSection({
       const mappedForm = recordToForm(latestRecord);
       setForm({
         ...mappedForm,
-        ...calculatePumpAutoFields(mappedForm),
+        ...calculatePumpAutoFields(mappedForm, ratedPowerkWOrHP),
       });
     } else {
       const emptyForm = createEmptyForm();
       setForm({
         ...emptyForm,
-        ...calculatePumpAutoFields(emptyForm),
+        ...calculatePumpAutoFields(emptyForm, ratedPowerkWOrHP),
       });
     }
-  }, [latestRecord]);
+  }, [latestRecord, ratedPowerkWOrHP]);
 
   const updateForm = (
     key: keyof PumpAuditFormState,
@@ -290,7 +312,10 @@ export function PumpAuditRecordSection({
         [key]: value,
       } as PumpAuditFormState;
 
-      const calculatedFields = calculatePumpAutoFields(updatedForm);
+      const calculatedFields = calculatePumpAutoFields(
+        updatedForm,
+        ratedPowerkWOrHP,
+      );
 
       return {
         ...updatedForm,
@@ -315,14 +340,6 @@ export function PumpAuditRecordSection({
       input_power_kW: form.input_power_kW,
       operating_hours_per_day: form.operating_hours_per_day,
       daily_energy_consumption_kWh: form.daily_energy_consumption_kWh,
-      total_dynamic_head_m: form.total_dynamic_head_m,
-      hydraulic_output_power_kW: form.hydraulic_output_power_kW,
-      overall_pump_set_efficiency_percent:
-        form.overall_pump_set_efficiency_percent,
-      motor_loading_percent: form.motor_loading_percent,
-      specific_energy_consumption_kWh_per_m3:
-        form.specific_energy_consumption_kWh_per_m3,
-      annual_energy_consumption_kWh: form.annual_energy_consumption_kWh,
       control_valve_throttling: form.control_valve_throttling,
       vfd_installed: form.vfd_installed,
       pump_condition: form.pump_condition,
@@ -363,7 +380,7 @@ export function PumpAuditRecordSection({
         }
         return {
           ...next,
-          ...calculatePumpAutoFields(next),
+          ...calculatePumpAutoFields(next, ratedPowerkWOrHP),
         };
       });
       toast.success("Form filled from Excel.");
@@ -384,13 +401,13 @@ export function PumpAuditRecordSection({
       const mappedForm = recordToForm(latestRecord);
       setForm({
         ...mappedForm,
-        ...calculatePumpAutoFields(mappedForm),
+        ...calculatePumpAutoFields(mappedForm, ratedPowerkWOrHP),
       });
     } else {
       const emptyForm = createEmptyForm();
       setForm({
         ...emptyForm,
-        ...calculatePumpAutoFields(emptyForm),
+        ...calculatePumpAutoFields(emptyForm, ratedPowerkWOrHP),
       });
     }
   };
@@ -771,14 +788,8 @@ export function PumpAuditRecordSection({
                 <Input
                   type="number"
                   value={form.overall_pump_set_efficiency_percent}
-                  onChange={(e) =>
-                    updateForm(
-                      "overall_pump_set_efficiency_percent",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={getInputClass(!form.isEditing)}
+                  disabled
+                  className={autoInputClass}
                 />
               </div>
 
@@ -787,11 +798,8 @@ export function PumpAuditRecordSection({
                 <Input
                   type="number"
                   value={form.motor_loading_percent}
-                  onChange={(e) =>
-                    updateForm("motor_loading_percent", e.target.value)
-                  }
-                  disabled={!form.isEditing}
-                  className={getInputClass(!form.isEditing)}
+                  disabled
+                  className={autoInputClass}
                 />
               </div>
 
@@ -800,14 +808,8 @@ export function PumpAuditRecordSection({
                 <Input
                   type="number"
                   value={form.specific_energy_consumption_kWh_per_m3}
-                  onChange={(e) =>
-                    updateForm(
-                      "specific_energy_consumption_kWh_per_m3",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={getInputClass(!form.isEditing)}
+                  disabled
+                  className={autoInputClass}
                 />
               </div>
 

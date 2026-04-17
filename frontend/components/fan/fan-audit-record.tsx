@@ -95,7 +95,7 @@ type FanAuditFormState = {
 const editableInputClass =
   "border-input bg-background text-foreground placeholder:text-muted-foreground";
 const autoInputClass =
-  "border-warning/50 bg-warning/10 text-foreground placeholder:text-muted-foreground";
+  "cursor-not-allowed border border-dashed border-sky-300 bg-sky-100 text-sky-900 opacity-100 dark:border-sky-700 dark:bg-sky-950/60 dark:text-sky-100";
 
 const createEmptyForm = (): FanAuditFormState => ({
   localId: `new-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,

@@ -19,7 +19,7 @@ export interface AuditStepNoDataEntry {
 
 export interface UtilityAccount {
   _id: string;
-  facility_id: string;
+  facility_id: string | { _id?: string; name?: string; city?: string };
   account_number: string;
   connection_type: "LT" | "HT";
   category?: string;

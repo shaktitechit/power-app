@@ -88,7 +88,7 @@ const editableInputClass =
   "border-input bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary";
 
 const autoInputClass =
-  "cursor-not-allowed border border-dashed border-border bg-muted text-muted-foreground";
+  "cursor-not-allowed border border-dashed border-sky-300 bg-sky-100 text-sky-900 opacity-100 dark:border-sky-700 dark:bg-sky-950/60 dark:text-sky-100";
 
 const getInputClass = (disabled: boolean) =>
   disabled ? autoInputClass : editableInputClass;
@@ -628,7 +628,7 @@ export function LuxMeasurementSection({
                   <Input
                     value={form.average_lux}
                     disabled
-                    className={getInputClass(!form.isEditing)}
+                    className={autoInputClass}
                   />
                 </div>
 
@@ -643,7 +643,7 @@ export function LuxMeasurementSection({
                           : "Non-compliant"
                     }
                     disabled
-                    className={getInputClass(!form.isEditing)}
+                    className={autoInputClass}
                   />
                 </div>
               </div>

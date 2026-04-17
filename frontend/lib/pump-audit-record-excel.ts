@@ -56,22 +56,6 @@ export const PUMP_AUDIT_EXCEL_FIELDS: {
     label: "Daily Energy Consumption (kWh)",
   },
 
-  { key: "total_dynamic_head_m", label: "Total Dynamic Head (m)" },
-  { key: "hydraulic_output_power_kW", label: "Hydraulic Output Power (kW)" },
-  {
-    key: "overall_pump_set_efficiency_percent",
-    label: "Overall Pump Set Efficiency (%)",
-  },
-  { key: "motor_loading_percent", label: "Motor Loading (%)" },
-  {
-    key: "specific_energy_consumption_kWh_per_m3",
-    label: "Specific Energy Consumption (kWh/m³)",
-  },
-  {
-    key: "annual_energy_consumption_kWh",
-    label: "Annual Energy Consumption (kWh)",
-  },
-
   {
     key: "control_valve_throttling",
     label: "Control Valve Throttling (Yes/No)",

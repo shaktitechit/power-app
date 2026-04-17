@@ -80,13 +80,28 @@ export default function ConnectionDetailsPage() {
     useGetUtilityAccountByIdQuery(utilityAccountId);
 
   const utilityAccount = utility?.data;
+  const utilityFacilityId = useMemo(() => {
+    const raw = utilityAccount?.facility_id as
+      | string
+      | { _id?: string }
+      | undefined;
+    if (!raw) return "";
+    if (typeof raw === "string") return raw;
+    if (raw._id) {
+      return String(raw._id);
+    }
+    return "";
+  }, [utilityAccount?.facility_id]);
+  const effectiveFacilityId = utilityFacilityId || facilityId;
 
   const { data: facilityById, isLoading: facilityLoading } =
-    useGetFacilityByIdQuery(facilityId);
+    useGetFacilityByIdQuery(effectiveFacilityId, {
+      skip: !effectiveFacilityId,
+    });
 
   const facility = facilityById?.data?.facility;
 
-  const skipBase = !utilityAccountId || !facilityId;
+  const skipBase = !utilityAccountId || !effectiveFacilityId;
 
   const { data: tariffData } = useGetUtilityTariffsQuery(
     { utility_account_id: utilityAccountId },
@@ -97,43 +112,43 @@ export default function ConnectionDetailsPage() {
     { skip: !utilityAccountId },
   );
   const { data: solarGenData } = useGetSolarGenerationRecordsQuery(
-    { utility_account_id: utilityAccountId, facility_id: facilityId },
+    { utility_account_id: utilityAccountId, facility_id: effectiveFacilityId },
     { skip: skipBase || !utilityAccount?.is_solar_connected },
   );
   const { data: dgAuditData } = useGetDGAuditRecordsQuery(
-    { utility_account_id: utilityAccountId, facility_id: facilityId },
+    { utility_account_id: utilityAccountId, facility_id: effectiveFacilityId },
     { skip: skipBase || !utilityAccount?.is_dg_connected },
   );
   const { data: transformerAuditData } = useGetTransformerAuditRecordsQuery(
-    { utility_account_id: utilityAccountId, facility_id: facilityId },
+    { utility_account_id: utilityAccountId, facility_id: effectiveFacilityId },
     { skip: skipBase || !utilityAccount?.is_transformer_connected },
   );
   const { data: pumpAuditData } = useGetPumpAuditRecordsQuery(
-    { utility_account_id: utilityAccountId, facility_id: facilityId },
+    { utility_account_id: utilityAccountId, facility_id: effectiveFacilityId },
     { skip: skipBase || !utilityAccount?.is_pump_connected },
   );
   const { data: hvacData } = useGetHVACAuditsQuery(
-    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { facility_id: effectiveFacilityId, utility_account_id: utilityAccountId },
     { skip: skipBase },
   );
   const { data: acData } = useGetACAuditRecordsQuery(
-    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { facility_id: effectiveFacilityId, utility_account_id: utilityAccountId },
     { skip: skipBase },
   );
   const { data: lightingData } = useGetLightingAuditsQuery(
-    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { facility_id: effectiveFacilityId, utility_account_id: utilityAccountId },
     { skip: skipBase },
   );
   const { data: fanData } = useGetFanAuditRecordsQuery(
-    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { facility_id: effectiveFacilityId, utility_account_id: utilityAccountId },
     { skip: skipBase },
   );
   const { data: luxData } = useGetLuxMeasurementsQuery(
-    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { facility_id: effectiveFacilityId, utility_account_id: utilityAccountId },
     { skip: skipBase },
   );
   const { data: miscData } = useGetMiscLoadAuditsQuery(
-    { facility_id: facilityId, utility_account_id: utilityAccountId },
+    { facility_id: effectiveFacilityId, utility_account_id: utilityAccountId },
     { skip: skipBase },
   );
 
@@ -272,6 +287,8 @@ export default function ConnectionDetailsPage() {
     const lock = (id: string) => Boolean(s?.[id]?.submitted_at);
     return lock(UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT);
   }, [utilityAccount?.audit_step_submissions]);
+  const facilityAuditLocked = Boolean(facility?.audit_closure?.closed_at);
+  const auditStepLocked = finalAuditLocked || facilityAuditLocked;
   const auditStatusLabel = finalAuditLocked ? "Completed" : "Pending";
   const noData = utilityAccount?.audit_step_no_data;
 
@@ -358,6 +375,23 @@ export default function ConnectionDetailsPage() {
     setActiveTab((prev) => (prev === urlTab ? prev : urlTab));
   }, [searchParams, validTabIds]);
 
+  useEffect(() => {
+    if (!utilityFacilityId || !utilityAccountId) return;
+    if (utilityFacilityId === facilityId) return;
+    const params = new URLSearchParams(searchParams.toString());
+    const query = params.toString();
+    router.replace(
+      `/facility/${utilityFacilityId}/utility-account/${utilityAccountId}${query ? `?${query}` : ""}`,
+      { scroll: false },
+    );
+  }, [
+    utilityFacilityId,
+    utilityAccountId,
+    facilityId,
+    searchParams,
+    router,
+  ]);
+
   const handleTabChange = (tabId: string) => {
     const validTab = getValidTab(tabId);
 
@@ -366,9 +400,12 @@ export default function ConnectionDetailsPage() {
 
     setActiveTab(validTab);
 
-    router.replace(`${pathname}?${params.toString()}`, {
+    router.replace(
+      `/facility/${effectiveFacilityId}/utility-account/${utilityAccountId}?${params.toString()}`,
+      {
       scroll: false,
-    });
+      },
+    );
   };
 
   if (utilityAccountLoading || facilityLoading) {
@@ -391,7 +428,7 @@ export default function ConnectionDetailsPage() {
           <Button
             variant="outline"
             className="mt-4"
-            onClick={() => router.push(`/facility/${facilityId}`)}
+            onClick={() => router.push(`/facility/${effectiveFacilityId}`)}
           >
             Back to Facility
           </Button>
@@ -407,7 +444,7 @@ export default function ConnectionDetailsPage() {
     >
       <div className="mb-6 min-w-0">
         <Link
-          href={`/facility/${facilityId}`}
+          href={`/facility/${effectiveFacilityId}`}
           className="flex min-w-0 max-w-full items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
@@ -775,7 +812,7 @@ export default function ConnectionDetailsPage() {
       {activeTab === UTILITY_AUDIT_STEP_IDS.TARIFF && (
         <UtilityTariffSection
           utilityAccountId={utilityAccountId}
-          auditStepLocked={finalAuditLocked}
+          auditStepLocked={auditStepLocked}
         />
       )}
 
@@ -783,7 +820,7 @@ export default function ConnectionDetailsPage() {
         <div className="space-y-4">
           <UtilityBillingRecordSection
             utilityAccountId={utilityAccountId}
-            auditStepLocked={finalAuditLocked}
+            auditStepLocked={auditStepLocked}
             billingCycle={
               utilityAccount?.billing_cycle === "monthly" ||
               utilityAccount?.billing_cycle === "bi-monthly" ||
@@ -800,8 +837,8 @@ export default function ConnectionDetailsPage() {
           <div className="space-y-4">
             <SolarPlantSection
               utilityAccountId={utilityAccountId}
-              facilityId={facility._id}
-              auditStepLocked={finalAuditLocked}
+              facilityId={effectiveFacilityId}
+              auditStepLocked={auditStepLocked}
             />
           </div>
         )}
@@ -811,8 +848,8 @@ export default function ConnectionDetailsPage() {
           <div className="space-y-4">
             <DGSetSection
               utilityAccountId={utilityAccountId}
-              facilityId={facility._id}
-              auditStepLocked={finalAuditLocked}
+              facilityId={effectiveFacilityId}
+              auditStepLocked={auditStepLocked}
             />
           </div>
         )}
@@ -822,8 +859,8 @@ export default function ConnectionDetailsPage() {
           <div className="space-y-4">
             <TransformerSection
               utilityAccountId={utilityAccountId}
-              facilityId={facility._id}
-              auditStepLocked={finalAuditLocked}
+              facilityId={effectiveFacilityId}
+              auditStepLocked={auditStepLocked}
             />
           </div>
         )}
@@ -833,8 +870,8 @@ export default function ConnectionDetailsPage() {
           <div className="space-y-4">
             <PumpSection
               utilityAccountId={utilityAccountId}
-              facilityId={facility._id}
-              auditStepLocked={finalAuditLocked}
+              facilityId={effectiveFacilityId}
+              auditStepLocked={auditStepLocked}
             />
           </div>
         )}
@@ -842,9 +879,9 @@ export default function ConnectionDetailsPage() {
       {activeTab === UTILITY_AUDIT_STEP_IDS.HVAC && (
         <div className="space-y-4">
           <HVACAuditSection
-            facilityId={facility._id}
+            facilityId={effectiveFacilityId}
             utilityAccountId={utilityAccountId}
-            auditStepLocked={finalAuditLocked}
+            auditStepLocked={auditStepLocked}
             auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
@@ -853,9 +890,9 @@ export default function ConnectionDetailsPage() {
       {activeTab === UTILITY_AUDIT_STEP_IDS.AC && (
         <div className="space-y-4">
           <ACAuditRecordSection
-            facilityId={facility._id}
+            facilityId={effectiveFacilityId}
             utilityAccountId={utilityAccountId}
-            auditStepLocked={finalAuditLocked}
+            auditStepLocked={auditStepLocked}
             auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
@@ -864,9 +901,9 @@ export default function ConnectionDetailsPage() {
       {activeTab === UTILITY_AUDIT_STEP_IDS.LIGHTING && (
         <div className="space-y-4">
           <LightingAuditSection
-            facilityId={facility._id}
+            facilityId={effectiveFacilityId}
             utilityAccountId={utilityAccountId}
-            auditStepLocked={finalAuditLocked}
+            auditStepLocked={auditStepLocked}
             auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
@@ -875,9 +912,9 @@ export default function ConnectionDetailsPage() {
       {activeTab === UTILITY_AUDIT_STEP_IDS.FAN && (
         <div className="space-y-4">
           <FanAuditRecordSection
-            facilityId={facility._id}
+            facilityId={effectiveFacilityId}
             utilityAccountId={utilityAccountId}
-            auditStepLocked={finalAuditLocked}
+            auditStepLocked={auditStepLocked}
             auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
@@ -886,9 +923,9 @@ export default function ConnectionDetailsPage() {
       {activeTab === UTILITY_AUDIT_STEP_IDS.LUX && (
         <div className="space-y-4">
           <LuxMeasurementSection
-            facilityId={facility._id}
+            facilityId={effectiveFacilityId}
             utilityAccountId={utilityAccountId}
-            auditStepLocked={finalAuditLocked}
+            auditStepLocked={auditStepLocked}
             auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
@@ -897,9 +934,9 @@ export default function ConnectionDetailsPage() {
       {activeTab === UTILITY_AUDIT_STEP_IDS.MISC && (
         <div className="space-y-4">
           <MiscLoadAuditSection
-            facilityId={facility._id}
+            facilityId={effectiveFacilityId}
             utilityAccountId={utilityAccountId}
-            auditStepLocked={finalAuditLocked}
+            auditStepLocked={auditStepLocked}
             auditStepNoData={utilityAccount?.audit_step_no_data}
           />
         </div>
@@ -1005,7 +1042,7 @@ export default function ConnectionDetailsPage() {
             utilityAccountId={utilityAccountId}
             stepId={UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT}
             stepLabel="Final utility audit"
-            auditStepLocked={finalAuditLocked}
+            auditStepLocked={auditStepLocked}
             disabled={!canFinalSubmit}
           />
           {!finalAuditLocked && !canFinalSubmit ? (

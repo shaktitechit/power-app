@@ -63,13 +63,11 @@ export const DG_AUDIT_EXCEL_FIELDS: {
   { key: "measured_current_avg", label: "Measured Current Avg" },
   { key: "measured_kW_output", label: "Measured kW Output" },
   { key: "measured_kVA_output", label: "Measured kVA Output" },
-  { key: "power_factor", label: "Power Factor" },
   { key: "frequency_Hz", label: "Frequency (Hz)" },
 
   { key: "max_load_observed_kW", label: "Max Load Observed (kW)" },
   { key: "min_load_observed_kW", label: "Min Load Observed (kW)" },
   { key: "average_loading_percent", label: "Average Loading (%)" },
-  { key: "load_factor_percent", label: "Load Factor (%)" },
   {
     key: "idle_running_observed",
     label: "Idle Running Observed (Yes/No)",
@@ -79,11 +77,6 @@ export const DG_AUDIT_EXCEL_FIELDS: {
   { key: "annual_fuel_consumption_liters", label: "Annual Fuel Consumption (L)" },
   { key: "units_generated_per_year_kWh", label: "Units Generated / Year (kWh)" },
   { key: "total_working_hours_per_year", label: "Total Working Hours / Year" },
-  { key: "units_generated_per_hour_kWh", label: "Units Generated / Hour (kWh)" },
-  {
-    key: "fuel_consumption_per_hour_liters",
-    label: "Fuel Consumption / Hour (L)",
-  },
 
   { key: "fuel_consumption_during_test_lph", label: "Fuel Consumption During Test (L/h)" },
   {
@@ -92,26 +85,17 @@ export const DG_AUDIT_EXCEL_FIELDS: {
   },
 
   {
-    key: "specific_fuel_consumption_l_per_kWh",
-    label: "Specific Fuel Consumption (L/kWh)",
-  },
-  {
     key: "manufacturer_sfc_l_per_kWh",
     label: "Manufacturer SFC (L/kWh)",
   },
-  { key: "sfc_deviation_percent", label: "SFC Deviation (%)" },
 
   { key: "fuel_cost_rs_per_liter", label: "Fuel Cost (₹/L)" },
-  { key: "annual_fuel_cost_rs", label: "Annual Fuel Cost (₹)" },
-  { key: "dg_cost_per_kWh_rs", label: "DG Cost / kWh (₹)" },
   { key: "grid_cost_per_kWh_rs", label: "Grid Cost / kWh (₹)" },
 
-  { key: "calculated_efficiency_percent", label: "Calculated Efficiency (%)" },
   {
     key: "manufacturer_efficiency_percent",
     label: "Manufacturer Efficiency (%)",
   },
-  { key: "efficiency_deviation_percent", label: "Efficiency Deviation (%)" },
 
   { key: "exhaust_temperature_C", label: "Exhaust Temperature (°C)" },
   {
@@ -124,7 +108,6 @@ export const DG_AUDIT_EXCEL_FIELDS: {
     label: "Lube Oil Consumption (L/year)",
   },
 
-  { key: "total_operating_hours", label: "Total Operating Hours" },
   { key: "hours_since_last_overhaul", label: "Hours Since Last Overhaul" },
 
   {

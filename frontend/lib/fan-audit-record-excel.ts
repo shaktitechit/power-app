@@ -54,20 +54,12 @@ export const FAN_AUDIT_DETAIL_FIELDS: {
 export const FAN_AUDIT_CALC_FIELDS: {
   key: keyof FanAuditExcelFormState;
   label: string;
-}[] = [
-  { key: "loading_factor_percent", label: "Loading Factor (%)" },
-  { key: "connected_load_kW", label: "Connected Load (kW)" },
-  {
-    key: "annual_energy_consumption_kWh",
-    label: "Annual Energy Consumption (kWh)",
-  },
-];
+}[] = [];
 
 export const FAN_AUDIT_ALL_EXCEL_KEYS: (keyof FanAuditExcelFormState)[] =
   Array.from(
     new Set<keyof FanAuditExcelFormState>([
       ...FAN_AUDIT_DETAIL_FIELDS.map((x) => x.key),
-      ...FAN_AUDIT_CALC_FIELDS.map((x) => x.key),
     ]),
   );
 

@@ -34,19 +34,12 @@ export const LUX_MEASUREMENT_DETAIL_FIELDS: {
 export const LUX_MEASUREMENT_CALC_FIELDS: {
   key: keyof LuxMeasurementExcelFormState;
   label: string;
-}[] = [
-  { key: "average_lux", label: "Average Lux" },
-  {
-    key: "compliance",
-    label: "Compliance (Compliant / Non-compliant)",
-  },
-];
+}[] = [];
 
 export const LUX_MEASUREMENT_ALL_EXCEL_KEYS: (keyof LuxMeasurementExcelFormState)[] =
   Array.from(
     new Set<keyof LuxMeasurementExcelFormState>([
       ...LUX_MEASUREMENT_DETAIL_FIELDS.map((x) => x.key),
-      ...LUX_MEASUREMENT_CALC_FIELDS.map((x) => x.key),
     ]),
   );
 

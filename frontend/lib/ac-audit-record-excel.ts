@@ -122,30 +122,13 @@ export const AC_AUDIT_MEASUREMENT_FIELDS: {
 export const AC_AUDIT_CALC_FIELDS: {
   key: keyof ACAuditExcelFormState;
   label: string;
-}[] = [
-  { key: "airside_delta_T", label: "Air-side ΔT (°C)" },
-  { key: "loading_factor_percent", label: "Loading Factor (%)" },
-  { key: "connected_load_kW", label: "Connected Load (kW)" },
-  {
-    key: "annual_energy_consumption_kWh",
-    label: "Annual Energy Consumption (kWh)",
-  },
-  { key: "specific_power_kW_per_TR", label: "Specific Power (kW/TR)" },
-  { key: "age_years", label: "Age (years)" },
-  { key: "om_flag", label: "O&M Flag" },
-  { key: "replacement_flag", label: "Replacement Flag (yes / no)" },
-  { key: "control_flag", label: "Control Flag" },
-  { key: "overall_ecm_suggestion", label: "Overall ECM Suggestion" },
-  { key: "priority", label: "Priority (low / medium / high)" },
-  { key: "indicative_basis", label: "Indicative Basis" },
-];
+}[] = [];
 
 export const AC_AUDIT_ALL_EXCEL_KEYS: (keyof ACAuditExcelFormState)[] =
   Array.from(
     new Set<keyof ACAuditExcelFormState>([
       ...AC_AUDIT_BASIC_FIELDS.map((x) => x.key),
       ...AC_AUDIT_MEASUREMENT_FIELDS.map((x) => x.key),
-      ...AC_AUDIT_CALC_FIELDS.map((x) => x.key),
     ]),
   );
 

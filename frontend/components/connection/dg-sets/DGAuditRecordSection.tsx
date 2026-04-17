@@ -126,7 +126,7 @@ const editableInputClass =
   "border-input bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary";
 
 const autoInputClass =
-  "cursor-not-allowed border border-dashed border-border bg-muted/50 text-muted-foreground opacity-90";
+  "cursor-not-allowed border border-dashed border-sky-300 bg-sky-100 text-sky-900 opacity-100 dark:border-sky-700 dark:bg-sky-950/60 dark:text-sky-100";
 
 const getInputClass = (disabled: boolean) =>
   disabled ? autoInputClass : editableInputClass;
@@ -570,38 +570,26 @@ export function DGAuditRecordSection({
       measured_current_avg: form.measured_current_avg,
       measured_kW_output: form.measured_kW_output,
       measured_kVA_output: form.measured_kVA_output,
-      power_factor: form.power_factor,
       frequency_Hz: form.frequency_Hz,
       max_load_observed_kW: form.max_load_observed_kW,
       min_load_observed_kW: form.min_load_observed_kW,
       average_loading_percent: form.average_loading_percent,
-      load_factor_percent: form.load_factor_percent,
       idle_running_observed: form.idle_running_observed,
       parallel_operation: form.parallel_operation,
       annual_fuel_consumption_liters: form.annual_fuel_consumption_liters,
       units_generated_per_year_kWh: form.units_generated_per_year_kWh,
       total_working_hours_per_year: form.total_working_hours_per_year,
-      units_generated_per_hour_kWh: form.units_generated_per_hour_kWh,
-      fuel_consumption_per_hour_liters: form.fuel_consumption_per_hour_liters,
       fuel_consumption_during_test_lph: form.fuel_consumption_during_test_lph,
       units_generated_during_test_kWh: form.units_generated_during_test_kWh,
-      specific_fuel_consumption_l_per_kWh:
-        form.specific_fuel_consumption_l_per_kWh,
       manufacturer_sfc_l_per_kWh: form.manufacturer_sfc_l_per_kWh,
-      sfc_deviation_percent: form.sfc_deviation_percent,
       fuel_cost_rs_per_liter: form.fuel_cost_rs_per_liter,
-      annual_fuel_cost_rs: form.annual_fuel_cost_rs,
-      dg_cost_per_kWh_rs: form.dg_cost_per_kWh_rs,
       grid_cost_per_kWh_rs: form.grid_cost_per_kWh_rs,
-      calculated_efficiency_percent: form.calculated_efficiency_percent,
       manufacturer_efficiency_percent: form.manufacturer_efficiency_percent,
-      efficiency_deviation_percent: form.efficiency_deviation_percent,
       exhaust_temperature_C: form.exhaust_temperature_C,
       cooling_water_temperature_C: form.cooling_water_temperature_C,
       lube_oil_pressure_bar: form.lube_oil_pressure_bar,
       lube_oil_consumption_liters_per_year:
         form.lube_oil_consumption_liters_per_year,
-      total_operating_hours: form.total_operating_hours,
       hours_since_last_overhaul: form.hours_since_last_overhaul,
       air_fuel_filter_condition: form.air_fuel_filter_condition,
       visible_smoke_or_abnormal_vibration:
