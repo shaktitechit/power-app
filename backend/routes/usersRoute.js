@@ -21,7 +21,7 @@ const router = express.Router();
 router.post("/register", authRateLimiter, registerUser);
 router.post("/login", authRateLimiter, loginUser);
 router.post("/refresh", apiRateLimiter, refreshAccessToken);
-router.post("/logout", protect, userLogout);
+router.post("/logout", userLogout);
 
 // 👤 Profile
 router.get("/profile", protect, getUserProfile);
