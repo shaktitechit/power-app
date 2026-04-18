@@ -9,7 +9,13 @@ export interface UtilityDocument {
 
 export interface UtilityAuditStepSubmission {
   submitted_at?: string;
-  submitted_by?: string;
+  submitted_by?:
+    | string
+    | {
+        _id?: string;
+        name?: string;
+        email?: string;
+      };
 }
 
 export interface AuditStepNoDataEntry {

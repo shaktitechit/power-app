@@ -52,9 +52,21 @@ export interface Facility {
   closure_date?: string;
   audit_closure?: {
     closed_at?: string;
-    closed_by?: string;
+    closed_by?:
+      | string
+      | {
+          _id?: string;
+          name?: string;
+          email?: string;
+        };
     reopened_at?: string;
-    reopened_by?: string;
+    reopened_by?:
+      | string
+      | {
+          _id?: string;
+          name?: string;
+          email?: string;
+        };
   };
   created_by: string;
   documents: FacilityDocument[];

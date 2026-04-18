@@ -92,21 +92,30 @@ export default function FacilitiesPage() {
   const actionsColumn: Column<Facility> = {
     key: "actions",
     header: "Actions",
-    render: (row: Facility) => (
-      <div
-        className="flex items-center gap-2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => handleEditFacility(e, row)}
+    render: (row: Facility) => {
+      const facilityClosed = Boolean(row.audit_closure?.closed_at);
+      return (
+        <div
+          className="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
         >
-          <Pencil className="mr-1 h-4 w-4" />
-          Edit
-        </Button>
-      </div>
-    ),
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={facilityClosed}
+            title={
+              facilityClosed
+                ? "Facility audit is closed; editing is locked."
+                : undefined
+            }
+            onClick={(e) => handleEditFacility(e, row)}
+          >
+            <Pencil className="mr-1 h-4 w-4" />
+            Edit
+          </Button>
+        </div>
+      );
+    },
   };
 
   const columns: Column<Facility>[] = [

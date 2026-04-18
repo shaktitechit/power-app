@@ -65,6 +65,20 @@ type UtilityDocument = {
   uploadedAt?: string;
 };
 
+function formatUtilityAuditSubmittedBy(
+  ref:
+    | string
+    | { _id?: string; name?: string; email?: string }
+    | null
+    | undefined,
+): string {
+  if (ref == null || ref === "") return "-";
+  if (typeof ref === "object") {
+    return ref.name || ref.email || ref._id || "-";
+  }
+  return String(ref);
+}
+
 export default function ConnectionDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -287,6 +301,10 @@ export default function ConnectionDetailsPage() {
     const lock = (id: string) => Boolean(s?.[id]?.submitted_at);
     return lock(UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT);
   }, [utilityAccount?.audit_step_submissions]);
+  const finalAuditSubmission =
+    utilityAccount?.audit_step_submissions?.[
+      UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT
+    ];
   const facilityAuditLocked = Boolean(facility?.audit_closure?.closed_at);
   const auditStepLocked = finalAuditLocked || facilityAuditLocked;
   const auditStatusLabel = finalAuditLocked ? "Completed" : "Pending";
@@ -551,6 +569,33 @@ export default function ConnectionDetailsPage() {
                     </span>
                   </div>
 
+                  {finalAuditLocked ? (
+                    <>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          Audit completed at
+                        </span>
+                        <span className="text-right text-foreground">
+                          {finalAuditSubmission?.submitted_at
+                            ? new Date(
+                                finalAuditSubmission.submitted_at,
+                              ).toLocaleString()
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          Completed by
+                        </span>
+                        <span className="text-right text-foreground">
+                          {formatUtilityAuditSubmittedBy(
+                            finalAuditSubmission?.submitted_by,
+                          )}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
+
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">Audit Date</span>
                     <span className="text-right text-foreground">
@@ -706,6 +751,31 @@ export default function ConnectionDetailsPage() {
                     : "-"}
                 </p>
               </div>
+
+              {finalAuditLocked ? (
+                <>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Audit completed at
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-foreground">
+                      {finalAuditSubmission?.submitted_at
+                        ? new Date(
+                            finalAuditSubmission.submitted_at,
+                          ).toLocaleString()
+                        : "-"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <p className="text-xs text-muted-foreground">Completed by</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">
+                      {formatUtilityAuditSubmittedBy(
+                        finalAuditSubmission?.submitted_by,
+                      )}
+                    </p>
+                  </div>
+                </>
+              ) : null}
 
               <div className="rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-xs text-muted-foreground">Created At</p>

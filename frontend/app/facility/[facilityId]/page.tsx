@@ -14,6 +14,16 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AddUtilityAccountForm } from "@/components/connection/create-utility-form";
 import { EditUtilityAccountForm } from "@/components/connection/edit-utility-form";
 import { UtilityAccount } from "@/lib/dummy-types";
@@ -45,6 +55,20 @@ import {
 import { useAppSelector } from "@/store/hooks";
 import { toastHandler } from "@/lib/toast";
 
+function formatAuditClosureUser(
+  ref:
+    | string
+    | { _id?: string; name?: string; email?: string }
+    | null
+    | undefined,
+): string {
+  if (ref == null || ref === "") return "-";
+  if (typeof ref === "object") {
+    return ref.name || ref.email || ref._id || "-";
+  }
+  return String(ref);
+}
+
 export default function FacilityWorkspacePage() {
   const params = useParams();
   const router = useRouter();
@@ -56,6 +80,7 @@ export default function FacilityWorkspacePage() {
   const [selectedUtilityAccount, setSelectedUtilityAccount] =
     useState<UtilityAccount | null>(null);
   const [isConnectionWizardOpen, setIsConnectionWizardOpen] = useState(false);
+  const [closeAuditDialogOpen, setCloseAuditDialogOpen] = useState(false);
 
   const [deleteUtilityAccount] = useDeleteUtilityAccountMutation();
   const [closeFacilityAudit, { isLoading: closingFacilityAudit }] =
@@ -81,7 +106,7 @@ export default function FacilityWorkspacePage() {
     UtilityAccounts.length - utilityAuditCompletedCount,
     0,
   );
-  const allUtilityAuditsCompleted =
+  const canCloseFacilityAudit =
     UtilityAccounts.length > 0 &&
     utilityAuditCompletedCount === UtilityAccounts.length;
 
@@ -109,11 +134,9 @@ export default function FacilityWorkspacePage() {
         label: "Utility Accounts",
         count: UtilityAccounts?.length || 0,
       },
-      ...(allUtilityAuditsCompleted
-        ? [{ id: "preview_closure", label: "Preview and Closure" }]
-        : []),
+      { id: "preview_closure", label: "Preview and Closure" },
     ],
-    [UtilityAccounts?.length, allUtilityAuditsCompleted],
+    [UtilityAccounts?.length],
   );
 
   const validTabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
@@ -193,6 +216,12 @@ export default function FacilityWorkspacePage() {
     );
   }
 
+  const isUtilityAuditComplete = (ua: UtilityAccount) =>
+    Boolean(
+      ua.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
+        ?.submitted_at,
+    );
+
   const UtilityAccountColumn: Column<UtilityAccount>[] = [
     {
       key: "name",
@@ -238,10 +267,7 @@ export default function FacilityWorkspacePage() {
       key: "audit_status",
       header: "Audit Status",
       render: (row) => {
-        const isAuditCompleted = Boolean(
-          row.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
-            ?.submitted_at,
-        );
+        const isAuditCompleted = isUtilityAuditComplete(row);
         return (
           <span
             className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -258,21 +284,33 @@ export default function FacilityWorkspacePage() {
     {
       key: "actions",
       header: "Actions",
-      render: (row: UtilityAccount) => (
-        <div
-          className="flex items-center gap-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => handleEditUtilityAccount(e, row)}
+      render: (row: UtilityAccount) => {
+        const auditComplete = isUtilityAuditComplete(row);
+        const editDisabled = auditComplete || facilityAuditClosed;
+        return (
+          <div
+            className="flex items-center gap-2"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Pencil className="mr-1 h-4 w-4" />
-            Edit
-          </Button>
-        </div>
-      ),
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={editDisabled}
+              title={
+                auditComplete
+                  ? "Utility audit is completed; editing is disabled."
+                  : facilityAuditClosed
+                    ? "Facility audit is closed; editing is locked."
+                    : undefined
+              }
+              onClick={(e) => handleEditUtilityAccount(e, row)}
+            >
+              <Pencil className="mr-1 h-4 w-4" />
+              Edit
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -288,7 +326,8 @@ export default function FacilityWorkspacePage() {
   };
 
   const handleCloseFacilityAudit = async () => {
-    if (!facilityId) return;
+    if (!facilityId || !canCloseFacilityAudit) return;
+    setCloseAuditDialogOpen(false);
     await toastHandler({
       action: () => closeFacilityAudit(facilityId).unwrap(),
       loading: "Closing facility audit...",
@@ -454,6 +493,31 @@ export default function FacilityWorkspacePage() {
                       {facilityAuditClosed ? "Closed" : "Open"}
                     </span>
                   </div>
+
+                  {facilityAuditClosed ? (
+                    <>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">
+                          Audit closure date
+                        </span>
+                        <span className="text-right text-foreground">
+                          {facility?.audit_closure?.closed_at
+                            ? new Date(
+                                facility.audit_closure.closed_at,
+                              ).toLocaleString()
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span className="text-muted-foreground">Closed by</span>
+                        <span className="text-right text-foreground">
+                          {formatAuditClosureUser(
+                            facility?.audit_closure?.closed_by,
+                          )}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
@@ -665,7 +729,7 @@ export default function FacilityWorkspacePage() {
         </div>
       )}
 
-      {activeTab === "preview_closure" && allUtilityAuditsCompleted && (
+      {activeTab === "preview_closure" && (
         <div className="space-y-4">
           <Card className="border-border bg-card">
             <CardHeader className="p-4 sm:p-6">
@@ -702,15 +766,30 @@ export default function FacilityWorkspacePage() {
           <Card className="border-border bg-card">
             <CardContent className="flex min-w-0 flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div className="min-w-0 text-sm text-muted-foreground">
-                {facilityAuditClosed
-                  ? "Facility audit is currently closed."
-                  : "All utility audits are completed. You can close the facility audit now."}
+                {facilityAuditClosed ? (
+                  "Facility audit is currently closed."
+                ) : UtilityAccounts.length === 0 ? (
+                  "Add at least one utility account, then complete every utility audit before you can close the facility audit."
+                ) : !canCloseFacilityAudit ? (
+                  <>
+                    {utilityAuditPendingCount} utility audit
+                    {utilityAuditPendingCount === 1 ? "" : "s"} still pending.
+                    Complete all utility account audits to enable facility audit
+                    closure.
+                  </>
+                ) : (
+                  "All utility audits are completed. You can close the facility audit now."
+                )}
               </div>
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 {!facilityAuditClosed ? (
                   <Button
-                    onClick={handleCloseFacilityAudit}
-                    disabled={closingFacilityAudit || openingFacilityAudit}
+                    onClick={() => setCloseAuditDialogOpen(true)}
+                    disabled={
+                      !canCloseFacilityAudit ||
+                      closingFacilityAudit ||
+                      openingFacilityAudit
+                    }
                   >
                     {closingFacilityAudit ? "Closing..." : "Audit Close"}
                   </Button>
@@ -733,6 +812,42 @@ export default function FacilityWorkspacePage() {
               </div>
             </CardContent>
           </Card>
+
+          <AlertDialog
+            open={closeAuditDialogOpen}
+            onOpenChange={setCloseAuditDialogOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Close facility audit?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <span className="block">
+                    You are about to close the audit for{" "}
+                    <span className="font-medium text-foreground">
+                      {facility.name}
+                    </span>
+                    . Utility account data will be locked for editing until an
+                    administrator re-opens the facility audit.
+                  </span>
+                  <span className="block text-amber-800 dark:text-amber-200">
+                    Only continue if every utility account audit is finished and
+                    you are ready to finalize this facility.
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={closingFacilityAudit}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={closingFacilityAudit}
+                  onClick={() => void handleCloseFacilityAudit()}
+                >
+                  {closingFacilityAudit ? "Closing..." : "Yes, close audit"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
 

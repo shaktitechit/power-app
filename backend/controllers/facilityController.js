@@ -271,6 +271,11 @@ const getFacilityById = asyncHandler(async (req, res) => {
     throw new Error("Facility not found");
   }
 
+  await facility.populate([
+    { path: "audit_closure.closed_by", select: "name email" },
+    { path: "audit_closure.reopened_by", select: "name email" },
+  ]);
+
   const assignedAuditors = await FacilityAuditor.find({
     facility_id: facility._id,
   })

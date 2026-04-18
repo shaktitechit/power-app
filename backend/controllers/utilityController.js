@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
 import UtilityAccount from "../modals/utilityAccount.js";
+import User from "../modals/user.js";
 import HVACAudit from "../modals/hvacAudit.js";
 import ACAuditRecord from "../modals/acAuditRecord.js";
 import LightingAuditRecord from "../modals/lightingAuditRecord.js";
@@ -282,9 +283,25 @@ const getUtilityAccountById = asyncHandler(async (req, res) => {
     throw new Error("Access denied");
   }
 
+  const payload = utilityAccount.toObject();
+  const previewKey = "preview-and-submit";
+  const preview = payload.audit_step_submissions?.[previewKey];
+  if (preview?.submitted_by) {
+    const userDoc = await User.findById(preview.submitted_by)
+      .select("name email")
+      .lean();
+    payload.audit_step_submissions = {
+      ...(payload.audit_step_submissions || {}),
+      [previewKey]: {
+        ...preview,
+        submitted_by: userDoc || preview.submitted_by,
+      },
+    };
+  }
+
   res.status(200).json({
     success: true,
-    data: utilityAccount,
+    data: payload,
   });
 });
 
