@@ -14,6 +14,8 @@ import { buildActivityMessage } from "../../../helpers/buildActivityMessage.js";
 
 export const processReportJob = async ({ job }) => {
   const { reportId, requestedBy, action } = job.data;
+  const isRegenerate = action === "regenerate";
+  const activityAction = "generated";
 
   const baseMeta = buildWorkerLogMeta(job, {
     reportId,
@@ -169,7 +171,7 @@ export const processReportJob = async ({ job }) => {
 
     await createRecentActivity({
       actor: requestedBy ? { _id: requestedBy, name: "User" } : null,
-      action: action === "regenerate" ? "regenerated" : "generated",
+      action: activityAction,
       entity_type: "report",
       entity_id: report._id,
       entity_name: report.title || "Report",
@@ -177,11 +179,12 @@ export const processReportJob = async ({ job }) => {
       utility_account_id: report.utility_account_id,
       message: buildActivityMessage({
         actorName: "User",
-        action: action === "regenerate" ? "regenerated" : "generated",
+        action: activityAction,
         entityLabel: "report",
         entityName: report.title || "",
       }),
       meta: {
+        request_action: isRegenerate ? "regenerate" : "generate",
         report_scope: report.report_scope,
         report_type: report.report_type,
         status: report.status,

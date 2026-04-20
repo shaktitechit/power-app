@@ -141,6 +141,46 @@ const applySubTitleStyle = (row) => {
   row.alignment = { vertical: "middle", horizontal: "left" };
 };
 
+const ACCOUNT_HEADING_TINTS = [
+  "FFF3E5F5", // purple 50
+  "FFE3F2FD", // blue 50
+  "FFE8F5E9", // green 50
+  "FFFFF3E0", // orange 50
+  "FFE0F2F1", // teal 50
+  "FFFCE4EC", // pink 50
+];
+
+const getAccountPrefixFromHeading = (text) => {
+  const heading = String(text || "").trim();
+  const match = heading.match(/^(.+?)\s-\s(.+)$/);
+  if (!match) return "";
+  const prefix = String(match[1] || "").trim();
+  return prefix;
+};
+
+const getAccountHeadingTint = (text) => {
+  const prefix = getAccountPrefixFromHeading(text);
+  if (!prefix) return null;
+
+  let hash = 0;
+  for (let i = 0; i < prefix.length; i += 1) {
+    hash = (hash * 31 + prefix.charCodeAt(i)) >>> 0;
+  }
+
+  return ACCOUNT_HEADING_TINTS[hash % ACCOUNT_HEADING_TINTS.length];
+};
+
+const applyRowFill = (row, tint) => {
+  if (!tint) return;
+  row.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: tint },
+    };
+  });
+};
+
 const applyHeaderStyle = (row) => {
   row.font = { bold: true };
   row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
@@ -202,10 +242,19 @@ const addHeadingRow = (sheet, text, mergeTillCol = 6) => {
 const addSubHeadingRow = (sheet, text, mergeTillCol = 6) => {
   const row = sheet.addRow([sanitizeValue(text)]);
   applySubTitleStyle(row);
+  const tint = getAccountHeadingTint(text);
 
   const endCol = Math.max(mergeTillCol, 1);
   if (endCol > 1) {
     sheet.mergeCells(row.number, 1, row.number, endCol);
+  }
+
+  if (tint) {
+    row.getCell(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: tint },
+    };
   }
 
   return row;
@@ -228,6 +277,7 @@ const addEmptyStateRow = (
 };
 
 const addKeyValueBlock = (sheet, heading, rows = []) => {
+  const tint = getAccountHeadingTint(heading);
   if (heading) {
     addSubHeadingRow(sheet, heading, 4);
   }
@@ -246,6 +296,7 @@ const addKeyValueBlock = (sheet, heading, rows = []) => {
       ]);
       setDataCell(row.getCell(2), entry[1], {});
       applyBodyBorders(row);
+      applyRowFill(row, tint);
       return;
     }
 
@@ -256,6 +307,7 @@ const addKeyValueBlock = (sheet, heading, rows = []) => {
       ]);
       setDataCell(row.getCell(2), entry.value, {});
       applyBodyBorders(row);
+      applyRowFill(row, tint);
     }
   });
 
@@ -265,6 +317,7 @@ const addKeyValueBlock = (sheet, heading, rows = []) => {
 const addTableBlock = (sheet, heading, columns = [], items = []) => {
   const normalizedColumns = normalizeColumns(items, columns);
   const mergeTillCol = Math.max(normalizedColumns.length || 1, 4);
+  const tint = getAccountHeadingTint(heading);
 
   if (heading) {
     addSubHeadingRow(sheet, heading, mergeTillCol);
@@ -278,6 +331,7 @@ const addTableBlock = (sheet, heading, columns = [], items = []) => {
 
   const headerRow = sheet.addRow(normalizedColumns.map((col) => col.label));
   applyHeaderStyle(headerRow);
+  applyRowFill(headerRow, tint);
 
   if (!Array.isArray(items) || !items.length) {
     addEmptyStateRow(sheet, "No data available", mergeTillCol);
@@ -291,6 +345,7 @@ const addTableBlock = (sheet, heading, columns = [], items = []) => {
       setDataCell(row.getCell(idx + 1), item?.[col.key], col);
     });
     applyBodyBorders(row);
+    applyRowFill(row, tint);
   });
 
   sheet.addRow([]);

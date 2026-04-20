@@ -8,6 +8,34 @@ export const contentLeft = (doc) => doc.page.margins.left;
 
 export const pageBottom = (doc) => doc.page.height - doc.page.margins.bottom;
 
+const ACCOUNT_HEADING_TINTS = [
+  "#F3E5F5",
+  "#E3F2FD",
+  "#E8F5E9",
+  "#FFF3E0",
+  "#E0F2F1",
+  "#FCE4EC",
+];
+
+const getAccountPrefixFromHeading = (text) => {
+  const heading = String(text || "").trim();
+  const match = heading.match(/^(.+?)\s-\s(.+)$/);
+  if (!match) return "";
+  return String(match[1] || "").trim();
+};
+
+const getAccountHeadingTint = (text) => {
+  const prefix = getAccountPrefixFromHeading(text);
+  if (!prefix) return null;
+
+  let hash = 0;
+  for (let i = 0; i < prefix.length; i += 1) {
+    hash = (hash * 31 + prefix.charCodeAt(i)) >>> 0;
+  }
+
+  return ACCOUNT_HEADING_TINTS[hash % ACCOUNT_HEADING_TINTS.length];
+};
+
 /**
  * @returns {number} y position after ensuring space (may add page)
  */
@@ -49,7 +77,15 @@ export const drawSubsectionHeading = (doc, heading, theme = PDF_THEME, y) => {
   const x = contentLeft(doc);
   const w = contentWidth(doc);
   y = ensureSpace(doc, y, 22);
+  const tint = getAccountHeadingTint(heading);
   doc.save();
+  if (tint) {
+    const boxHeight = theme.font.subsection + 8;
+    doc
+      .roundedRect(x, y - 2, w, boxHeight, 3)
+      .fillColor(tint)
+      .fill();
+  }
   doc
     .fillColor(theme.colors.text)
     .font(theme.font.familyBold)

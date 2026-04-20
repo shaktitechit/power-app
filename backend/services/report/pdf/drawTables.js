@@ -15,6 +15,33 @@ import {
   ensureSpace,
 } from "./drawPrimitives.js";
 
+const ACCOUNT_DATA_TINTS = [
+  "#F3E5F5",
+  "#E3F2FD",
+  "#E8F5E9",
+  "#FFF3E0",
+  "#E0F2F1",
+  "#FCE4EC",
+];
+
+const getAccountPrefixFromHeading = (text) => {
+  const heading = String(text || "").trim();
+  const match = heading.match(/^(.+?)\s-\s(.+)$/);
+  if (!match) return "";
+  return String(match[1] || "").trim();
+};
+
+const getAccountDataTint = (heading) => {
+  const prefix = getAccountPrefixFromHeading(heading);
+  if (!prefix) return null;
+
+  let hash = 0;
+  for (let i = 0; i < prefix.length; i += 1) {
+    hash = (hash * 31 + prefix.charCodeAt(i)) >>> 0;
+  }
+  return ACCOUNT_DATA_TINTS[hash % ACCOUNT_DATA_TINTS.length];
+};
+
 const kvKeys = (sub) => {
   const cols = sub.columns || [];
   const keys = cols.map((c) => (typeof c === "string" ? c : c?.key));
@@ -33,6 +60,7 @@ export const drawKeyValueBlock = (
   const x = contentLeft(doc);
   const w = contentWidth(doc);
   let cursor = y;
+  const blockTint = getAccountDataTint(heading);
 
   if (heading) {
     cursor = drawSubsectionHeading(doc, heading, theme, cursor);
@@ -68,9 +96,11 @@ export const drawKeyValueBlock = (
     const rowH = Math.max(lh, vh, 12) + 12;
     cursor = ensureSpace(doc, cursor, rowH);
 
-    if (i % 2 === 0) {
+    if (blockTint || i % 2 === 0) {
       doc.save();
-      doc.rect(x, cursor, w, rowH).fill(theme.colors.accentLight);
+      doc
+        .rect(x, cursor, w, rowH)
+        .fill(blockTint || theme.colors.accentLight);
       doc.restore();
     }
 
@@ -108,6 +138,7 @@ export const drawDataTable = (
   if (!cols.length) return y;
 
   let cursor = y;
+  const blockTint = getAccountDataTint(heading);
   if (heading) {
     cursor = drawSubsectionHeading(doc, heading, theme, cursor);
   }
@@ -176,9 +207,11 @@ export const drawDataTable = (
     rowH = Math.max(rowH, 16);
     cursor = ensureSpace(doc, cursor, rowH + 1);
 
-    if (ri % 2 === 1) {
+    if (blockTint || ri % 2 === 1) {
       doc.save();
-      doc.rect(x, cursor, totalWidth, rowH).fill(theme.colors.zebra);
+      doc
+        .rect(x, cursor, totalWidth, rowH)
+        .fill(blockTint || theme.colors.zebra);
       doc.restore();
     }
 

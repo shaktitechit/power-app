@@ -1,4 +1,9 @@
 import UtilityAccount from "../../../../modals/utilityAccount.js";
+import User from "../../../../modals/user.js";
+import {
+  FINAL_UTILITY_AUDIT_STEP,
+  LEGACY_FINAL_UTILITY_AUDIT_STEP,
+} from "../../../../helpers/auditState.js";
 
 const normalizeText = (value) => {
   if (value === null || value === undefined) return "";
@@ -43,6 +48,84 @@ const formatNumber = (value, decimals = 2) => {
   const num = normalizeNumber(value);
   if (num === null) return "";
   return num.toFixed(decimals);
+};
+
+const formatDate = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-GB");
+};
+
+const getUserDisplayName = (user) => {
+  if (!user) return "";
+  if (typeof user === "string") return "";
+  return normalizeText(user?.name) || normalizeText(user?.email);
+};
+
+const extractSubmissionEntries = (account) => {
+  const submissions = account?.audit_step_submissions;
+  return (
+    submissions && typeof submissions === "object"
+      ? Object.entries(submissions)
+          .map(([step, item]) => ({ step, ...(item || {}) }))
+          .filter((item) => item && typeof item === "object")
+      : []
+  );
+};
+
+const resolveAuditUserLabel = (userId, userMap) => {
+  const id = getId(userId);
+  if (!id) return "";
+  return userMap.get(id) || "Unknown User";
+};
+
+const getAuditDetails = (account, userMap) => {
+  const entries = extractSubmissionEntries(account)
+    .map((entry) => ({
+      ...entry,
+      submitted_at_date: entry?.submitted_at ? new Date(entry.submitted_at) : null,
+      submitted_by_id: getId(entry?.submitted_by),
+    }))
+    .filter(
+      (entry) =>
+        entry.submitted_at_date && !Number.isNaN(entry.submitted_at_date.getTime()),
+    );
+
+  const sortedByDateAsc = [...entries].sort(
+    (a, b) => a.submitted_at_date.getTime() - b.submitted_at_date.getTime(),
+  );
+  const startEntry = sortedByDateAsc[0] || null;
+
+  const completedEntry =
+    entries.find(
+      (entry) =>
+        entry.step === FINAL_UTILITY_AUDIT_STEP ||
+        entry.step === LEGACY_FINAL_UTILITY_AUDIT_STEP,
+    ) || null;
+
+  const auditStartedAt = account?.created_at || account?.createdAt || null;
+  const auditCompletedAt = completedEntry?.submitted_at || null;
+  const startedBy =
+    resolveAuditUserLabel(account?.auditor_id, userMap) ||
+    resolveAuditUserLabel(startEntry?.submitted_by_id, userMap);
+  const completedBy = resolveAuditUserLabel(completedEntry?.submitted_by_id, userMap);
+
+  return {
+    audit_start_date: auditStartedAt,
+    audit_start_date_label: formatDate(auditStartedAt),
+    started_by: startedBy,
+    audit_completed_date: auditCompletedAt,
+    audit_completed_date_label: formatDate(auditCompletedAt),
+    completed_by: completedBy,
+    submitted_steps: entries.length,
+    is_completed: Boolean(auditCompletedAt),
+    audit_status: auditCompletedAt
+      ? "Completed"
+      : entries.length > 0
+        ? "In Progress"
+        : "Not Started",
+  };
 };
 
 const normalizeUtilityAccount = (account, index = 0) => {
@@ -94,10 +177,31 @@ const normalizeUtilityAccount = (account, index = 0) => {
     documents: Array.isArray(account?.documents)
       ? account.documents.map(normalizeDocument).filter(Boolean)
       : [],
+    audit_step_submissions:
+      account?.audit_step_submissions &&
+      typeof account.audit_step_submissions === "object"
+        ? account.audit_step_submissions
+        : {},
+    audit_date: account?.audit_date || null,
+    audit_date_label: formatDate(account?.audit_date),
+    auditor_id: getId(account?.auditor_id),
 
     created_at: account?.createdAt || account?.created_at || null,
     updated_at: account?.updatedAt || account?.updated_at || null,
   };
+
+  const audit = {
+    audit_start_date: null,
+    audit_start_date_label: "",
+    started_by: "",
+    audit_completed_date: null,
+    audit_completed_date_label: "",
+    completed_by: "",
+    submitted_steps: 0,
+    is_completed: false,
+    audit_status: "Not Started",
+  };
+  normalized.audit = audit;
 
   normalized.display_rows = [
     {
@@ -181,6 +285,30 @@ const fetchFacilityUtilityAccounts = async (facilityId) => {
   return Array.isArray(accounts) ? accounts : [];
 };
 
+const buildUserMap = async (accounts = []) => {
+  const userIds = new Set();
+
+  accounts.forEach((account) => {
+    const auditorId = getId(account?.auditor_id);
+    if (auditorId) userIds.add(auditorId);
+
+    extractSubmissionEntries(account).forEach((entry) => {
+      const submittedById = getId(entry?.submitted_by);
+      if (submittedById) userIds.add(submittedById);
+    });
+  });
+
+  if (!userIds.size) return new Map();
+
+  const users = await User.find({ _id: { $in: [...userIds] } })
+    .select("name email")
+    .lean();
+
+  return new Map(
+    users.map((user) => [getId(user), getUserDisplayName(user)]).filter(([, v]) => v),
+  );
+};
+
 const buildSummary = (utilityAccounts = []) => {
   return {
     total_utility_accounts: utilityAccounts.length,
@@ -210,52 +338,9 @@ const buildSummary = (utilityAccounts = []) => {
 const buildGroupedSections = (accounts = []) => {
   const sections = [];
 
-  sections.push({
-    heading: "Utility Account Details",
-    columns: [
-      { key: "sr_no", label: "Sr No", type: "integer" },
-      "account_number",
-      "connection_type",
-      "category",
-      "sanctioned_demand_kVA",
-      "is_active",
-    ],
-    rows: accounts.map((item) => ({
-      sr_no: item.sr_no,
-      account_number: item.account_number,
-      connection_type: item.connection_type,
-      category: item.category,
-      sanctioned_demand_kVA: item.sanctioned_demand_kVA ?? null,
-      is_active: item.is_active ? "Active" : "Inactive",
-    })),
-  });
-
-  sections.push({
-    heading: "System Connectivity",
-    columns: [
-      { key: "sr_no", label: "Sr No", type: "integer" },
-      "account_number",
-      "is_solar_connected",
-      "is_dg_connected",
-      "is_transformer_connected",
-      "is_pump_connected",
-      "is_transformer_maintained_by_facility",
-    ],
-    rows: accounts.map((item) => ({
-      sr_no: item.sr_no,
-      account_number: item.account_number,
-      is_solar_connected: item.is_solar_connected ? "Yes" : "No",
-      is_dg_connected: item.is_dg_connected ? "Yes" : "No",
-      is_transformer_connected: item.is_transformer_connected ? "Yes" : "No",
-      is_pump_connected: item.is_pump_connected ? "Yes" : "No",
-      is_transformer_maintained_by_facility:
-        item.is_transformer_maintained_by_facility ? "Yes" : "No",
-    })),
-  });
-
   accounts.forEach((item) => {
     sections.push({
-      heading: `${item.account_number || "Utility Account"} - Details`,
+      heading: `${item.account_number || "Utility Account"} - Account Details`,
       columns: ["field", "value"],
       rows: [
         { field: "Account Number", value: item.account_number || "" },
@@ -283,6 +368,32 @@ const buildGroupedSections = (accounts = []) => {
           value: item.is_transformer_maintained_by_facility ? "Yes" : "No",
         },
         { field: "Status", value: item.is_active ? "Active" : "Inactive" },
+      ],
+    });
+
+    sections.push({
+      heading: `${item.account_number || "Utility Account"} - Audit Details`,
+      columns: ["field", "value"],
+      rows: [
+        {
+          field: "Audit Start Date",
+          value: item.audit?.audit_start_date_label || "",
+        },
+        { field: "Started By", value: item.audit?.started_by || "" },
+        { field: "Audit Status", value: item.audit?.audit_status || "" },
+        {
+          field: "Submitted Steps",
+          value:
+            item.audit?.submitted_steps !== null &&
+            item.audit?.submitted_steps !== undefined
+              ? String(item.audit.submitted_steps)
+              : "",
+        },
+        {
+          field: "Audit Completed Date",
+          value: item.audit?.audit_completed_date_label || "",
+        },
+        { field: "Completed By", value: item.audit?.completed_by || "" },
       ],
     });
   });
@@ -386,6 +497,11 @@ export const buildUtilityAccountsSection = async ({
   const normalizedAccounts = accounts
     .filter(Boolean)
     .map((account, index) => normalizeUtilityAccount(account, index));
+
+  const userMap = await buildUserMap(accounts);
+  normalizedAccounts.forEach((item, index) => {
+    item.audit = getAuditDetails(accounts[index], userMap);
+  });
 
   const summary = buildSummary(normalizedAccounts);
   const sections = buildGroupedSections(normalizedAccounts);

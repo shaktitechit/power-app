@@ -1,4 +1,5 @@
 import LuxMeasurement from "../../../../modals/luxMeasurement.js";
+import UtilityAccount from "../../../../modals/utilityAccount.js";
 
 const getMongoId = (value) => value?._id || value || null;
 const getId = (value) => (value?._id ? String(value._id) : String(value || ""));
@@ -75,6 +76,59 @@ const buildCompliancePercent = (items = []) => {
   return Number(((compliantCount / items.length) * 100).toFixed(2));
 };
 
+const buildSummary = (items = []) => {
+  const compliantCount = items.filter((item) => item.compliance === true).length;
+  const nonCompliantCount = items.filter((item) => item.compliance === false).length;
+
+  const totalRequiredLux = items.reduce(
+    (sum, item) => sum + (normalizeNumber(item.required_lux) || 0),
+    0,
+  );
+  const totalAverageLux = items.reduce(
+    (sum, item) => sum + (normalizeNumber(item.average_lux) || 0),
+    0,
+  );
+  const averageLuxGap =
+    items.length > 0
+      ? Number(
+          (
+            items.reduce(
+              (sum, item) => sum + (normalizeNumber(item.lux_gap) || 0),
+              0,
+            ) / items.length
+          ).toFixed(2),
+        )
+      : null;
+
+  return {
+    total_records: items.length,
+    compliant_count: compliantCount,
+    non_compliant_count: nonCompliantCount,
+    compliance_percent: buildCompliancePercent(items),
+    average_required_lux:
+      items.length > 0 ? Number((totalRequiredLux / items.length).toFixed(2)) : null,
+    average_measured_lux:
+      items.length > 0 ? Number((totalAverageLux / items.length).toFixed(2)) : null,
+    average_lux_gap: averageLuxGap,
+    latest_audit_date:
+      items
+        .map((item) => item.audit_date)
+        .filter(Boolean)
+        .sort((a, b) => new Date(b) - new Date(a))[0] || null,
+  };
+};
+
+const buildUtilityAccountNumberMap = async (ids = []) => {
+  const uniqueIds = [...new Set(ids.map((id) => getId(id)).filter(Boolean))];
+  if (!uniqueIds.length) return new Map();
+  const accounts = await UtilityAccount.find({ _id: { $in: uniqueIds } })
+    .select("account_number")
+    .lean();
+  return new Map(
+    (accounts || []).map((account) => [getId(account), normalizeText(account.account_number)]),
+  );
+};
+
 const normalizeLuxRecord = (row, index) => {
   const requiredLux = normalizeNumber(row?.required_lux);
   const measuredLuxPoint1 = normalizeNumber(row?.measured_lux_point_1);
@@ -88,6 +142,7 @@ const normalizeLuxRecord = (row, index) => {
   return {
     id: String(row?._id || ""),
     sr_no: index + 1,
+    utility_account_id: getId(row?.utility_account_id),
 
     audit_date: row?.audit_date || null,
     audit_date_label: formatDate(row?.audit_date),
@@ -142,65 +197,144 @@ export const buildLuxSection = async ({
   const rows = await LuxMeasurement.find(query)
     .sort({ audit_date: -1, created_at: -1, createdAt: -1 })
     .lean();
-
-  const items = (rows || []).map((row, index) =>
-    normalizeLuxRecord(row, index),
+  const utilityAccountMap = await buildUtilityAccountNumberMap(
+    rows.map((row) => row?.utility_account_id),
   );
 
-  const compliantCount = items.filter(
-    (item) => item.compliance === true,
-  ).length;
+  const items = (rows || []).map((row, index) => {
+    const item = normalizeLuxRecord(row, index);
+    const accountId = item.utility_account_id;
+    return {
+      ...item,
+      utility_account_number:
+        utilityAccountMap.get(accountId) ||
+        normalizeText(row?.utility_account_id?.account_number),
+    };
+  });
 
-  const nonCompliantCount = items.filter(
-    (item) => item.compliance === false,
-  ).length;
+  const summary = buildSummary(items);
+  const groupedByAccount = new Map();
+  items.forEach((item) => {
+    const key = item.utility_account_id || "unknown";
+    if (!groupedByAccount.has(key)) {
+      groupedByAccount.set(key, {
+        account_number: item.utility_account_number || "Unknown Account",
+        items: [],
+      });
+    }
+    groupedByAccount.get(key).items.push(item);
+  });
 
-  const totalRequiredLux = items.reduce(
-    (sum, item) => sum + (normalizeNumber(item.required_lux) || 0),
-    0,
-  );
+  const sections = [];
+  Array.from(groupedByAccount.values()).forEach((group) => {
+    const prefix = group.account_number;
+    const groupItems = group.items;
+    const groupSummary = buildSummary(groupItems);
 
-  const totalAverageLux = items.reduce(
-    (sum, item) => sum + (normalizeNumber(item.average_lux) || 0),
-    0,
-  );
+    sections.push({
+      heading: `${prefix} - Lux Measurement Details`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "audit_date_label",
+        "area_location",
+        "room_type",
+        "required_lux",
+        "measured_lux_point_1",
+        "measured_lux_point_2",
+        "measured_lux_point_3",
+        "average_lux",
+        "lux_gap",
+        "compliance_label",
+        "remarks",
+      ],
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
+        audit_date_label: item.audit_date_label,
+        area_location: item.area_location,
+        room_type: item.room_type,
+        required_lux: item.required_lux ?? null,
+        measured_lux_point_1: item.measured_lux_point_1 ?? null,
+        measured_lux_point_2: item.measured_lux_point_2 ?? null,
+        measured_lux_point_3: item.measured_lux_point_3 ?? null,
+        average_lux: item.average_lux ?? null,
+        lux_gap: item.lux_gap ?? null,
+        compliance_label: item.compliance_label,
+        remarks: item.remarks,
+      })),
+    });
 
-  const averageLuxGap =
-    items.length > 0
-      ? Number(
-          (
-            items.reduce(
-              (sum, item) => sum + (normalizeNumber(item.lux_gap) || 0),
-              0,
-            ) / items.length
-          ).toFixed(2),
-        )
-      : null;
+    sections.push({
+      heading: `${prefix} - Compliance Summary`,
+      columns: ["metric", "value"],
+      rows: [
+        {
+          metric: "Total Lux Measurement Records",
+          value: groupSummary.total_records ?? "",
+        },
+        { metric: "Compliant Count", value: groupSummary.compliant_count ?? "" },
+        {
+          metric: "Non-Compliant Count",
+          value: groupSummary.non_compliant_count ?? "",
+        },
+        {
+          metric: "Compliance Percentage (%)",
+          value: groupSummary.compliance_percent ?? "",
+        },
+        {
+          metric: "Average Required Lux",
+          value: groupSummary.average_required_lux ?? "",
+        },
+        {
+          metric: "Average Measured Lux",
+          value: groupSummary.average_measured_lux ?? "",
+        },
+        { metric: "Average Lux Gap", value: groupSummary.average_lux_gap ?? "" },
+        {
+          metric: "Latest Audit Date",
+          value: formatDate(groupSummary.latest_audit_date),
+        },
+      ],
+    });
+  });
 
-  const summary = {
-    total_records: items.length,
-    compliant_count: compliantCount,
-    non_compliant_count: nonCompliantCount,
-    compliance_percent: buildCompliancePercent(items),
-
-    average_required_lux:
-      items.length > 0
-        ? Number((totalRequiredLux / items.length).toFixed(2))
-        : null,
-
-    average_measured_lux:
-      items.length > 0
-        ? Number((totalAverageLux / items.length).toFixed(2))
-        : null,
-
-    average_lux_gap: averageLuxGap,
-
-    latest_audit_date:
-      items
-        .map((item) => item.audit_date)
-        .filter(Boolean)
-        .sort((a, b) => new Date(b) - new Date(a))[0] || null,
-  };
+  sections.push({
+    heading: "Compliance Summary",
+    columns: ["metric", "value"],
+    rows: [
+      {
+        metric: "Total Lux Measurement Records",
+        value: summary.total_records ?? "",
+      },
+      {
+        metric: "Compliant Count",
+        value: summary.compliant_count ?? "",
+      },
+      {
+        metric: "Non-Compliant Count",
+        value: summary.non_compliant_count ?? "",
+      },
+      {
+        metric: "Compliance Percentage (%)",
+        value: summary.compliance_percent ?? "",
+      },
+      {
+        metric: "Average Required Lux",
+        value: summary.average_required_lux ?? "",
+      },
+      {
+        metric: "Average Measured Lux",
+        value: summary.average_measured_lux ?? "",
+      },
+      {
+        metric: "Average Lux Gap",
+        value: summary.average_lux_gap ?? "",
+      },
+      {
+        metric: "Latest Audit Date",
+        value: summary.latest_audit_date_label || "",
+      },
+    ],
+  });
 
   return {
     title: "Lux Measurements",
@@ -216,78 +350,7 @@ export const buildLuxSection = async ({
       latest_audit_date_label: formatDate(summary.latest_audit_date),
     },
 
-    sections: [
-      {
-        heading: "Lux Measurement Details",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "audit_date_label",
-          "area_location",
-          "room_type",
-          "required_lux",
-          "measured_lux_point_1",
-          "measured_lux_point_2",
-          "measured_lux_point_3",
-          "average_lux",
-          "lux_gap",
-          "compliance_label",
-          "remarks",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          audit_date_label: item.audit_date_label,
-          area_location: item.area_location,
-          room_type: item.room_type,
-          required_lux: item.required_lux ?? null,
-          measured_lux_point_1: item.measured_lux_point_1 ?? null,
-          measured_lux_point_2: item.measured_lux_point_2 ?? null,
-          measured_lux_point_3: item.measured_lux_point_3 ?? null,
-          average_lux: item.average_lux ?? null,
-          lux_gap: item.lux_gap ?? null,
-          compliance_label: item.compliance_label,
-          remarks: item.remarks,
-        })),
-      },
-
-      {
-        heading: "Compliance Summary",
-        columns: ["metric", "value"],
-        rows: [
-          {
-            metric: "Total Lux Measurement Records",
-            value: summary.total_records ?? "",
-          },
-          {
-            metric: "Compliant Count",
-            value: summary.compliant_count ?? "",
-          },
-          {
-            metric: "Non-Compliant Count",
-            value: summary.non_compliant_count ?? "",
-          },
-          {
-            metric: "Compliance Percentage (%)",
-            value: summary.compliance_percent ?? "",
-          },
-          {
-            metric: "Average Required Lux",
-            value: summary.average_required_lux ?? "",
-          },
-          {
-            metric: "Average Measured Lux",
-            value: summary.average_measured_lux ?? "",
-          },
-          {
-            metric: "Average Lux Gap",
-            value: summary.average_lux_gap ?? "",
-          },
-          {
-            metric: "Latest Audit Date",
-            value: summary.latest_audit_date_label || "",
-          },
-        ],
-      },
-    ],
+    sections,
 
     table_columns: [
       { key: "sr_no", label: "Sr No", type: "integer" },

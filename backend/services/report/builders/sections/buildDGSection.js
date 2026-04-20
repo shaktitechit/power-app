@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import DGAuditRecord from "../../../../modals/dgAuditRecord.js";
 import DGSet from "../../../../modals/dgSet.js";
+import UtilityAccount from "../../../../modals/utilityAccount.js";
 
 const normalizeText = (value) => {
   if (value === null || value === undefined) return "";
@@ -60,8 +61,28 @@ const buildDGSetMap = (dgSets = []) =>
       .filter(([id]) => Boolean(id)),
   );
 
-const normalizeDGSetMini = (dgSet) => {
+const buildUtilityAccountNumberMap = async (ids = []) => {
+  const uniqueIds = [...new Set(ids.map((id) => getId(id)).filter(Boolean))];
+  const validIds = uniqueIds.filter((id) => isValidObjectId(id));
+  if (!validIds.length) return new Map();
+
+  const accounts = await UtilityAccount.find({
+    _id: { $in: validIds.map((id) => new mongoose.Types.ObjectId(id)) },
+  })
+    .select("account_number")
+    .lean();
+
+  return new Map(
+    (accounts || []).map((account) => [
+      getId(account),
+      normalizeText(account.account_number),
+    ]),
+  );
+};
+
+const normalizeDGSetMini = (dgSet, utilityAccountMap = new Map()) => {
   if (!dgSet) return null;
+  const utilityAccountId = getId(dgSet.utility_account_id);
 
   return {
     id: getId(dgSet),
@@ -74,7 +95,10 @@ const normalizeDGSetMini = (dgSet) => {
     rated_speed_RPM: normalizeNumber(dgSet.rated_speed_RPM),
     fuel_type: normalizeText(dgSet.fuel_type),
     year_of_installation: normalizeNumber(dgSet.year_of_installation),
-    utility_account_id: getId(dgSet.utility_account_id),
+    utility_account_id: utilityAccountId,
+    utility_account_number:
+      utilityAccountMap.get(utilityAccountId) ||
+      normalizeText(dgSet?.utility_account_id?.account_number),
     facility_id: getId(dgSet.facility_id),
     audit_date: dgSet.audit_date || null,
     auditor_id: getId(dgSet.auditor_id),
@@ -213,10 +237,10 @@ const calculateCostDifference = (record) => {
   return null;
 };
 
-const normalizeDGAuditRecord = (row, index, dgSetMap) => {
+const normalizeDGAuditRecord = (row, index, dgSetMap, utilityAccountMap) => {
   const linkedDGSetId = getId(row?.dg_set_id);
   const linkedDGSetRaw = dgSetMap.get(linkedDGSetId) || row?.dg_set_id || null;
-  const dgSet = normalizeDGSetMini(linkedDGSetRaw);
+  const dgSet = normalizeDGSetMini(linkedDGSetRaw, utilityAccountMap);
 
   const annualFuelCost = calculateAnnualFuelCost(row);
   const dgCostPerKWh = calculateDGCostPerKWh(row);
@@ -245,6 +269,7 @@ const normalizeDGAuditRecord = (row, index, dgSetMap) => {
     audit_date_label: formatDate(row?.audit_date),
 
     dg_name: dgSet?.dg_number || "",
+    utility_account_number: dgSet?.utility_account_number || "",
     dg_make_model: dgSet?.make_model || "",
     rated_capacity_kVA: dgSet?.rated_capacity_kVA ?? null,
     rated_active_power_kW: dgSet?.rated_active_power_kW ?? null,
@@ -366,6 +391,287 @@ const buildSummary = (items = []) => {
   };
 };
 
+const groupItemsByUtilityAccount = (items = []) => {
+  const groups = new Map();
+
+  items.forEach((item) => {
+    const accountId = getId(item?.dg_set?.utility_account_id) || "unknown";
+    const accountNumber =
+      normalizeText(item?.utility_account_number) || "Unknown Account";
+
+    if (!groups.has(accountId)) {
+      groups.set(accountId, {
+        utility_account_id: accountId,
+        utility_account_number: accountNumber,
+        items: [],
+      });
+    }
+
+    groups.get(accountId).items.push(item);
+  });
+
+  return Array.from(groups.values());
+};
+
+const buildAccountWiseSections = (items = [], overallSummary) => {
+  const accountGroups = groupItemsByUtilityAccount(items);
+  const sections = [];
+
+  accountGroups.forEach((group) => {
+    const groupSummary = buildSummary(group.items);
+    const titlePrefix = `${group.utility_account_number}`;
+
+    sections.push({
+      heading: `${titlePrefix} - DG Basic Details`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        "utility_account_number",
+        "dg_make_model",
+        "fuel_type",
+        "rated_capacity_kVA",
+        "rated_active_power_kW",
+        { key: "year_of_installation", label: "Year Of Installation", type: "integer" },
+        "audit_date_label",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        utility_account_number: item.utility_account_number || "",
+        dg_make_model: item.dg_make_model,
+        fuel_type: item.fuel_type,
+        rated_capacity_kVA: item.rated_capacity_kVA ?? null,
+        rated_active_power_kW: item.rated_active_power_kW ?? null,
+        year_of_installation: item.year_of_installation ?? null,
+        audit_date_label: item.audit_date_label,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Electrical Measurements`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        "measured_voltage_LL",
+        "measured_current_avg",
+        "frequency_Hz",
+        "measured_kW_output",
+        "measured_kVA_output",
+        { key: "power_factor", label: "Power Factor", decimals: 4 },
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        measured_voltage_LL: item.measured_voltage_LL ?? null,
+        measured_current_avg: item.measured_current_avg ?? null,
+        frequency_Hz: item.frequency_Hz ?? null,
+        measured_kW_output: item.measured_kW_output ?? null,
+        measured_kVA_output: item.measured_kVA_output ?? null,
+        power_factor: item.power_factor ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Load Analysis`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        "max_load_observed_kW",
+        "min_load_observed_kW",
+        "average_loading_percent",
+        "load_factor_percent",
+        "idle_running_observed",
+        "parallel_operation",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        max_load_observed_kW: item.max_load_observed_kW ?? null,
+        min_load_observed_kW: item.min_load_observed_kW ?? null,
+        average_loading_percent: item.average_loading_percent ?? null,
+        load_factor_percent: item.load_factor_percent ?? null,
+        idle_running_observed:
+          item.idle_running_observed === null
+            ? ""
+            : item.idle_running_observed
+              ? "Yes"
+              : "No",
+        parallel_operation:
+          item.parallel_operation === null
+            ? ""
+            : item.parallel_operation
+              ? "Yes"
+              : "No",
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Fuel & Generation`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        "annual_fuel_consumption_liters",
+        "units_generated_per_year_kWh",
+        "total_working_hours_per_year",
+        { key: "fuel_consumption_per_hour_liters", label: "Fuel Consumption Per Hour Liters", decimals: 4 },
+        { key: "units_generated_per_hour_kWh", label: "Units Generated Per Hour KWh", decimals: 4 },
+        { key: "specific_fuel_consumption_l_per_kWh", label: "Specific Fuel Consumption L Per KWh", decimals: 4 },
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        annual_fuel_consumption_liters: item.annual_fuel_consumption_liters ?? null,
+        units_generated_per_year_kWh: item.units_generated_per_year_kWh ?? null,
+        total_working_hours_per_year: item.total_working_hours_per_year ?? null,
+        fuel_consumption_per_hour_liters: item.fuel_consumption_per_hour_liters ?? null,
+        units_generated_per_hour_kWh: item.units_generated_per_hour_kWh ?? null,
+        specific_fuel_consumption_l_per_kWh:
+          item.specific_fuel_consumption_l_per_kWh ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Cost Analysis`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        "fuel_cost_rs_per_liter",
+        "annual_fuel_cost_rs",
+        { key: "dg_cost_per_kWh_rs", label: "DG Cost Per KWh Rs", decimals: 4 },
+        { key: "grid_cost_per_kWh_rs", label: "Grid Cost Per KWh Rs", decimals: 4 },
+        "cost_difference_rs_per_kWh",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        fuel_cost_rs_per_liter: item.fuel_cost_rs_per_liter ?? null,
+        annual_fuel_cost_rs: item.annual_fuel_cost_rs ?? null,
+        dg_cost_per_kWh_rs: item.dg_cost_per_kWh_rs ?? null,
+        grid_cost_per_kWh_rs: item.grid_cost_per_kWh_rs ?? null,
+        cost_difference_rs_per_kWh: item.cost_difference_rs_per_kWh ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Efficiency & Operating Conditions`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        "calculated_efficiency_percent",
+        "manufacturer_efficiency_percent",
+        "efficiency_deviation_percent",
+        "exhaust_temperature_C",
+        "cooling_water_temperature_C",
+        "lube_oil_pressure_bar",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        calculated_efficiency_percent: item.calculated_efficiency_percent ?? null,
+        manufacturer_efficiency_percent: item.manufacturer_efficiency_percent ?? null,
+        efficiency_deviation_percent: item.efficiency_deviation_percent ?? null,
+        exhaust_temperature_C: item.exhaust_temperature_C ?? null,
+        cooling_water_temperature_C: item.cooling_water_temperature_C ?? null,
+        lube_oil_pressure_bar: item.lube_oil_pressure_bar ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Maintenance & Condition`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        "total_operating_hours",
+        "hours_since_last_overhaul",
+        "air_fuel_filter_condition",
+        "visible_smoke_or_abnormal_vibration",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        total_operating_hours: item.total_operating_hours ?? null,
+        hours_since_last_overhaul: item.hours_since_last_overhaul ?? null,
+        air_fuel_filter_condition: item.air_fuel_filter_condition,
+        visible_smoke_or_abnormal_vibration:
+          item.visible_smoke_or_abnormal_vibration === null
+            ? ""
+            : item.visible_smoke_or_abnormal_vibration
+              ? "Yes"
+              : "No",
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - DG Audit Summary`,
+      columns: ["metric", "value"],
+      rows: [
+        { metric: "Total DG Audit Records", value: groupSummary.total_dg_audit_records ?? "" },
+        { metric: "Average Measured kW Output", value: groupSummary.average_measured_kW_output ?? "" },
+        { metric: "Average Measured kVA Output", value: groupSummary.average_measured_kVA_output ?? "" },
+        { metric: "Average Power Factor", value: groupSummary.average_power_factor ?? "" },
+        { metric: "Average DG Cost per kWh (Rs)", value: groupSummary.average_dg_cost_per_kWh_rs ?? "" },
+        { metric: "Average Grid Cost per kWh (Rs)", value: groupSummary.average_grid_cost_per_kWh_rs ?? "" },
+        { metric: "Average Loading (%)", value: groupSummary.average_loading_percent ?? "" },
+        {
+          metric: "Average Specific Fuel Consumption (L/kWh)",
+          value: groupSummary.average_specific_fuel_consumption_l_per_kWh ?? "",
+        },
+        { metric: "Average Calculated Efficiency (%)", value: groupSummary.average_efficiency_percent ?? "" },
+        { metric: "Latest Audit Date", value: groupSummary.latest_audit_date_label || "" },
+      ],
+    });
+  });
+
+  sections.push({
+    heading: "DG Audit Summary",
+    columns: ["metric", "value"],
+    rows: [
+      {
+        metric: "Total DG Audit Records",
+        value: overallSummary.total_dg_audit_records ?? "",
+      },
+      {
+        metric: "Average Measured kW Output",
+        value: overallSummary.average_measured_kW_output ?? "",
+      },
+      {
+        metric: "Average Measured kVA Output",
+        value: overallSummary.average_measured_kVA_output ?? "",
+      },
+      {
+        metric: "Average Power Factor",
+        value: overallSummary.average_power_factor ?? "",
+      },
+      {
+        metric: "Average DG Cost per kWh (Rs)",
+        value: overallSummary.average_dg_cost_per_kWh_rs ?? "",
+      },
+      {
+        metric: "Average Grid Cost per kWh (Rs)",
+        value: overallSummary.average_grid_cost_per_kWh_rs ?? "",
+      },
+      {
+        metric: "Average Loading (%)",
+        value: overallSummary.average_loading_percent ?? "",
+      },
+      {
+        metric: "Average Specific Fuel Consumption (L/kWh)",
+        value: overallSummary.average_specific_fuel_consumption_l_per_kWh ?? "",
+      },
+      {
+        metric: "Average Calculated Efficiency (%)",
+        value: overallSummary.average_efficiency_percent ?? "",
+      },
+      {
+        metric: "Latest Audit Date",
+        value: overallSummary.latest_audit_date_label || "",
+      },
+    ],
+  });
+
+  return sections;
+};
+
 export const buildDGSection = async ({
   facility,
   utilityAccount = null,
@@ -390,6 +696,9 @@ export const buildDGSection = async ({
   );
 
   const dgSetMap = buildDGSetMap(dgSets);
+  const utilityAccountMap = await buildUtilityAccountNumberMap(
+    dgSets.map((set) => set?.utility_account_id),
+  );
 
   const mergedRows = (rows || []).map((row) => {
     const dgSetId = getId(row?.dg_set_id);
@@ -406,10 +715,11 @@ export const buildDGSection = async ({
   });
 
   const items = mergedRows.map((row, index) =>
-    normalizeDGAuditRecord(row, index, dgSetMap),
+    normalizeDGAuditRecord(row, index, dgSetMap, utilityAccountMap),
   );
 
   const summary = buildSummary(items);
+  const sections = buildAccountWiseSections(items, summary);
 
   return {
     title: "DG Audit Records",
@@ -418,235 +728,7 @@ export const buildDGSection = async ({
     items,
     summary,
 
-    sections: [
-      {
-        heading: "DG Basic Details",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "dg_name",
-          "dg_make_model",
-          "fuel_type",
-          "rated_capacity_kVA",
-          "rated_active_power_kW",
-          { key: "year_of_installation", label: "Year Of Installation", type: "integer" },
-          "audit_date_label",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          dg_name: item.dg_name,
-          dg_make_model: item.dg_make_model,
-          fuel_type: item.fuel_type,
-          rated_capacity_kVA: item.rated_capacity_kVA ?? null,
-          rated_active_power_kW: item.rated_active_power_kW ?? null,
-          year_of_installation: item.year_of_installation ?? null,
-          audit_date_label: item.audit_date_label,
-        })),
-      },
-
-      {
-        heading: "Electrical Measurements",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "dg_name",
-          "measured_voltage_LL",
-          "measured_current_avg",
-          "frequency_Hz",
-          "measured_kW_output",
-          "measured_kVA_output",
-          { key: "power_factor", label: "Power Factor", decimals: 4 },
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          dg_name: item.dg_name,
-          measured_voltage_LL: item.measured_voltage_LL ?? null,
-          measured_current_avg: item.measured_current_avg ?? null,
-          frequency_Hz: item.frequency_Hz ?? null,
-          measured_kW_output: item.measured_kW_output ?? null,
-          measured_kVA_output: item.measured_kVA_output ?? null,
-          power_factor: item.power_factor ?? null,
-        })),
-      },
-
-      {
-        heading: "Load Analysis",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "dg_name",
-          "max_load_observed_kW",
-          "min_load_observed_kW",
-          "average_loading_percent",
-          "load_factor_percent",
-          "idle_running_observed",
-          "parallel_operation",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          dg_name: item.dg_name,
-          max_load_observed_kW: item.max_load_observed_kW ?? null,
-          min_load_observed_kW: item.min_load_observed_kW ?? null,
-          average_loading_percent: item.average_loading_percent ?? null,
-          load_factor_percent: item.load_factor_percent ?? null,
-          idle_running_observed:
-            item.idle_running_observed === null
-              ? ""
-              : item.idle_running_observed
-                ? "Yes"
-                : "No",
-          parallel_operation:
-            item.parallel_operation === null
-              ? ""
-              : item.parallel_operation
-                ? "Yes"
-                : "No",
-        })),
-      },
-
-      {
-        heading: "Fuel & Generation",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "dg_name",
-          "annual_fuel_consumption_liters",
-          "units_generated_per_year_kWh",
-          "total_working_hours_per_year",
-          { key: "fuel_consumption_per_hour_liters", label: "Fuel Consumption Per Hour Liters", decimals: 4 },
-          { key: "units_generated_per_hour_kWh", label: "Units Generated Per Hour KWh", decimals: 4 },
-          { key: "specific_fuel_consumption_l_per_kWh", label: "Specific Fuel Consumption L Per KWh", decimals: 4 },
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          dg_name: item.dg_name,
-          annual_fuel_consumption_liters:
-            item.annual_fuel_consumption_liters ?? null,
-          units_generated_per_year_kWh: item.units_generated_per_year_kWh ?? null,
-          total_working_hours_per_year: item.total_working_hours_per_year ?? null,
-          fuel_consumption_per_hour_liters:
-            item.fuel_consumption_per_hour_liters ?? null,
-          units_generated_per_hour_kWh: item.units_generated_per_hour_kWh ?? null,
-          specific_fuel_consumption_l_per_kWh:
-            item.specific_fuel_consumption_l_per_kWh ?? null,
-        })),
-      },
-
-      {
-        heading: "Cost Analysis",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "dg_name",
-          "fuel_cost_rs_per_liter",
-          "annual_fuel_cost_rs",
-          { key: "dg_cost_per_kWh_rs", label: "DG Cost Per KWh Rs", decimals: 4 },
-          { key: "grid_cost_per_kWh_rs", label: "Grid Cost Per KWh Rs", decimals: 4 },
-          "cost_difference_rs_per_kWh",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          dg_name: item.dg_name,
-          fuel_cost_rs_per_liter: item.fuel_cost_rs_per_liter ?? null,
-          annual_fuel_cost_rs: item.annual_fuel_cost_rs ?? null,
-          dg_cost_per_kWh_rs: item.dg_cost_per_kWh_rs ?? null,
-          grid_cost_per_kWh_rs: item.grid_cost_per_kWh_rs ?? null,
-          cost_difference_rs_per_kWh: item.cost_difference_rs_per_kWh ?? null,
-        })),
-      },
-
-      {
-        heading: "Efficiency & Operating Conditions",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "dg_name",
-          "calculated_efficiency_percent",
-          "manufacturer_efficiency_percent",
-          "efficiency_deviation_percent",
-          "exhaust_temperature_C",
-          "cooling_water_temperature_C",
-          "lube_oil_pressure_bar",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          dg_name: item.dg_name,
-          calculated_efficiency_percent: item.calculated_efficiency_percent ?? null,
-          manufacturer_efficiency_percent:
-            item.manufacturer_efficiency_percent ?? null,
-          efficiency_deviation_percent: item.efficiency_deviation_percent ?? null,
-          exhaust_temperature_C: item.exhaust_temperature_C ?? null,
-          cooling_water_temperature_C: item.cooling_water_temperature_C ?? null,
-          lube_oil_pressure_bar: item.lube_oil_pressure_bar ?? null,
-        })),
-      },
-
-      {
-        heading: "Maintenance & Condition",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "dg_name",
-          "total_operating_hours",
-          "hours_since_last_overhaul",
-          "air_fuel_filter_condition",
-          "visible_smoke_or_abnormal_vibration",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          dg_name: item.dg_name,
-          total_operating_hours: item.total_operating_hours ?? null,
-          hours_since_last_overhaul: item.hours_since_last_overhaul ?? null,
-          air_fuel_filter_condition: item.air_fuel_filter_condition,
-          visible_smoke_or_abnormal_vibration:
-            item.visible_smoke_or_abnormal_vibration === null
-              ? ""
-              : item.visible_smoke_or_abnormal_vibration
-                ? "Yes"
-                : "No",
-        })),
-      },
-
-      {
-        heading: "DG Audit Summary",
-        columns: ["metric", "value"],
-        rows: [
-          {
-            metric: "Total DG Audit Records",
-            value: summary.total_dg_audit_records ?? "",
-          },
-          {
-            metric: "Average Measured kW Output",
-            value: summary.average_measured_kW_output ?? "",
-          },
-          {
-            metric: "Average Measured kVA Output",
-            value: summary.average_measured_kVA_output ?? "",
-          },
-          {
-            metric: "Average Power Factor",
-            value: summary.average_power_factor ?? "",
-          },
-          {
-            metric: "Average DG Cost per kWh (Rs)",
-            value: summary.average_dg_cost_per_kWh_rs ?? "",
-          },
-          {
-            metric: "Average Grid Cost per kWh (Rs)",
-            value: summary.average_grid_cost_per_kWh_rs ?? "",
-          },
-          {
-            metric: "Average Loading (%)",
-            value: summary.average_loading_percent ?? "",
-          },
-          {
-            metric: "Average Specific Fuel Consumption (L/kWh)",
-            value: summary.average_specific_fuel_consumption_l_per_kWh ?? "",
-          },
-          {
-            metric: "Average Calculated Efficiency (%)",
-            value: summary.average_efficiency_percent ?? "",
-          },
-          {
-            metric: "Latest Audit Date",
-            value: summary.latest_audit_date_label || "",
-          },
-        ],
-      },
-    ],
+    sections,
 
     table_columns: [
       { key: "sr_no", label: "Sr No", type: "integer" },

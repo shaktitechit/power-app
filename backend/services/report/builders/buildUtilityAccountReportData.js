@@ -379,10 +379,8 @@ export const buildUtilityAccountReportData = async ({
       result.utility_accounts = [utilityAccount];
     }
 
-    pushSectionIfValid(result, {
-      ...utilityAccountsSection,
-      items: result.utility_accounts,
-    });
+    // Keep utility account data for downstream sections, but don't render
+    // it as a separate top-level report section.
   }
 
   if (shouldIncludeSection(reportType, "tariffs")) {

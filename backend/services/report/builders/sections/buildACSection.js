@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import ACAuditRecord from "../../../../modals/acAuditRecord.js";
+import UtilityAccount from "../../../../modals/utilityAccount.js";
 
 const normalizeText = (value) => {
   if (value === null || value === undefined) return "";
@@ -208,6 +209,48 @@ const normalizeACRecord = (row, index = 0) => {
   };
 };
 
+const buildUtilityAccountNumberMap = async (ids = []) => {
+  const uniqueIds = [...new Set(ids.map((id) => getId(id)).filter(Boolean))];
+  if (!uniqueIds.length) return new Map();
+
+  const accounts = await UtilityAccount.find({ _id: { $in: uniqueIds } })
+    .select("account_number")
+    .lean();
+
+  return new Map(
+    (accounts || []).map((account) => [getId(account), normalizeText(account.account_number)]),
+  );
+};
+
+const buildACSummary = (items = []) => {
+  const totalConnectedLoad = items.reduce(
+    (sum, item) => sum + (normalizeNumber(item.connected_load_kW) || 0),
+    0,
+  );
+  const totalAnnualEnergy = items.reduce(
+    (sum, item) => sum + (normalizeNumber(item.annual_energy_consumption_kWh) || 0),
+    0,
+  );
+  const avgSpecificPower =
+    items.length > 0
+      ? Number(
+          (
+            items.reduce(
+              (sum, item) => sum + (normalizeNumber(item.specific_power_kW_per_TR) || 0),
+              0,
+            ) / items.length
+          ).toFixed(3),
+        )
+      : null;
+
+  return {
+    total_records: items.length,
+    total_connected_load_kW: Number(totalConnectedLoad.toFixed(2)),
+    total_annual_energy_consumption_kWh: Number(totalAnnualEnergy.toFixed(2)),
+    average_specific_power_kW_per_TR: avgSpecificPower,
+  };
+};
+
 export const buildACSection = async ({
   report,
   meta,
@@ -273,11 +316,41 @@ export const buildACSection = async ({
     .sort({ createdAt: -1, created_at: -1 })
     .lean();
 
-  const items = (rows || []).map((row, index) => normalizeACRecord(row, index));
+  const utilityAccountMap = await buildUtilityAccountNumberMap(
+    rows.map((row) => row?.utility_account_id),
+  );
+  const items = (rows || []).map((row, index) => {
+    const item = normalizeACRecord(row, index);
+    const accountId = item.utility_account_id;
+    return {
+      ...item,
+      utility_account_number:
+        utilityAccountMap.get(accountId) ||
+        normalizeText(row?.utility_account_id?.account_number),
+    };
+  });
 
-  const sections = [
-    {
-      heading: "Basic Details",
+  const groupedByAccount = new Map();
+  items.forEach((item) => {
+    const key = item.utility_account_id || "unknown";
+    if (!groupedByAccount.has(key)) {
+      groupedByAccount.set(key, {
+        account_number: item.utility_account_number || "Unknown Account",
+        items: [],
+      });
+    }
+    groupedByAccount.get(key).items.push(item);
+  });
+  const overallSummary = buildACSummary(items);
+
+  const sections = [];
+  Array.from(groupedByAccount.values()).forEach((group) => {
+    const prefix = group.account_number;
+    const groupItems = group.items;
+    const groupSummary = buildACSummary(groupItems);
+
+    sections.push({
+      heading: `${prefix} - Basic Details`,
       columns: [
         { key: "sr_no", label: "Sr No", type: "integer" },
         "unit_id",
@@ -293,8 +366,8 @@ export const buildACSection = async ({
         { key: "quantity_nos", label: "Quantity Nos", type: "integer" },
         "condition",
       ],
-      rows: items.map((item) => ({
-        sr_no: item.sr_no,
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
         unit_id: item.unit_id,
         building_block: item.building_block,
         area_location: item.area_location,
@@ -308,9 +381,9 @@ export const buildACSection = async ({
         quantity_nos: item.quantity_nos ?? null,
         condition: item.condition,
       })),
-    },
-    {
-      heading: "Measurement Section",
+    });
+    sections.push({
+      heading: `${prefix} - Measurement Section`,
       columns: [
         { key: "sr_no", label: "Sr No", type: "integer" },
         "voltage_V",
@@ -324,8 +397,8 @@ export const buildACSection = async ({
         "operating_hours_per_day",
         { key: "operating_days_per_year", label: "Operating Days Per Year", type: "integer" },
       ],
-      rows: items.map((item) => ({
-        sr_no: item.sr_no,
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
         voltage_V: item.voltage_V ?? null,
         current_A: item.current_A ?? null,
         power_factor: item.power_factor ?? null,
@@ -337,9 +410,9 @@ export const buildACSection = async ({
         operating_hours_per_day: item.operating_hours_per_day ?? null,
         operating_days_per_year: item.operating_days_per_year ?? null,
       })),
-    },
-    {
-      heading: "Performance & Calculations",
+    });
+    sections.push({
+      heading: `${prefix} - Performance & Calculations`,
       columns: [
         { key: "sr_no", label: "Sr No", type: "integer" },
         "airside_delta_T",
@@ -352,17 +425,17 @@ export const buildACSection = async ({
           decimals: 3,
         },
       ],
-      rows: items.map((item) => ({
-        sr_no: item.sr_no,
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
         airside_delta_T: item.airside_delta_T ?? null,
         loading_factor_percent: item.loading_factor_percent ?? null,
         connected_load_kW: item.connected_load_kW ?? null,
         annual_energy_consumption_kWh: item.annual_energy_consumption_kWh ?? null,
         specific_power_kW_per_TR: item.specific_power_kW_per_TR ?? null,
       })),
-    },
-    {
-      heading: "Observations & Recommendations",
+    });
+    sections.push({
+      heading: `${prefix} - Observations & Recommendations`,
       columns: [
         { key: "sr_no", label: "Sr No", type: "integer" },
         "om_flag",
@@ -372,8 +445,8 @@ export const buildACSection = async ({
         "priority",
         "remarks",
       ],
-      rows: items.map((item) => ({
-        sr_no: item.sr_no,
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
         om_flag: item.om_flag,
         replacement_flag: item.replacement_flag,
         control_flag: item.control_flag,
@@ -381,8 +454,48 @@ export const buildACSection = async ({
         priority: item.priority,
         remarks: item.remarks,
       })),
-    },
-  ];
+    });
+
+    sections.push({
+      heading: `${prefix} - AC Audit Summary`,
+      columns: ["metric", "value"],
+      rows: [
+        { metric: "Total AC Audit Records", value: groupSummary.total_records ?? "" },
+        {
+          metric: "Total Connected Load (kW)",
+          value: groupSummary.total_connected_load_kW ?? "",
+        },
+        {
+          metric: "Total Annual Energy Consumption (kWh)",
+          value: groupSummary.total_annual_energy_consumption_kWh ?? "",
+        },
+        {
+          metric: "Average Specific Power (kW/TR)",
+          value: groupSummary.average_specific_power_kW_per_TR ?? "",
+        },
+      ],
+    });
+  });
+
+  sections.push({
+    heading: "AC Audit Summary",
+    columns: ["metric", "value"],
+    rows: [
+      { metric: "Total AC Audit Records", value: overallSummary.total_records ?? "" },
+      {
+        metric: "Total Connected Load (kW)",
+        value: overallSummary.total_connected_load_kW ?? "",
+      },
+      {
+        metric: "Total Annual Energy Consumption (kWh)",
+        value: overallSummary.total_annual_energy_consumption_kWh ?? "",
+      },
+      {
+        metric: "Average Specific Power (kW/TR)",
+        value: overallSummary.average_specific_power_kW_per_TR ?? "",
+      },
+    ],
+  });
 
   return {
     title: "AC Audit",

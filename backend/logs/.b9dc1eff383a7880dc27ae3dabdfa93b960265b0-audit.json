@@ -34,6 +34,16 @@
             "date": 1776510421774,
             "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\error-2026-04-18.log",
             "hash": "39195b7873d901a8c6456dcfb784258d2050bf1ef06310325cc7fd61e39f1510"
+        },
+        {
+            "date": 1776619708219,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\error-2026-04-19.log",
+            "hash": "e5c1df973411718ccfe786255e03088ada44309363778c4c2311851bf943a8d3"
+        },
+        {
+            "date": 1776665713664,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\error-2026-04-20.log",
+            "hash": "d9424bccc5beabe7f7b597ec1a000e0c0195de8bf307804423e468198131a27f"
         }
     ],
     "hashType": "sha256"

@@ -370,6 +370,8 @@ export const buildFacilityReportData = async ({ report, facility, meta }) => {
       null,
       "facility_info",
     );
+
+    pushSectionIfValid(result, result.facility_info);
   }
 
   if (shouldIncludeSection(reportType, "utility_accounts")) {

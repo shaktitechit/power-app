@@ -1,4 +1,5 @@
 import FanAuditRecord from "../../../../modals/fanAuditRecord.js";
+import UtilityAccount from "../../../../modals/utilityAccount.js";
 
 const getMongoId = (value) => value?._id || value || null;
 const getId = (value) => (value?._id ? String(value._id) : String(value || ""));
@@ -188,6 +189,19 @@ const buildSummary = (items = []) => {
   };
 };
 
+const buildUtilityAccountNumberMap = async (ids = []) => {
+  const uniqueIds = [...new Set(ids.map((id) => getId(id)).filter(Boolean))];
+  if (!uniqueIds.length) return new Map();
+
+  const accounts = await UtilityAccount.find({ _id: { $in: uniqueIds } })
+    .select("account_number")
+    .lean();
+
+  return new Map(
+    (accounts || []).map((account) => [getId(account), normalizeText(account.account_number)]),
+  );
+};
+
 export const buildFanSection = async ({
   facility,
   utilityAccount = null,
@@ -209,12 +223,189 @@ export const buildFanSection = async ({
   const rows = await FanAuditRecord.find(query)
     .sort({ audit_date: -1, created_at: -1, createdAt: -1 })
     .lean();
-
-  const items = (rows || []).map((row, index) =>
-    normalizeFanRecord(row, index),
+  const utilityAccountMap = await buildUtilityAccountNumberMap(
+    rows.map((row) => row?.utility_account_id),
   );
 
+  const items = (rows || []).map((row, index) => {
+    const item = normalizeFanRecord(row, index);
+    const accountId = item.utility_account_id;
+    return {
+      ...item,
+      utility_account_number:
+        utilityAccountMap.get(accountId) ||
+        normalizeText(row?.utility_account_id?.account_number),
+    };
+  });
+
   const summary = buildSummary(items);
+  const groupedByAccount = new Map();
+  items.forEach((item) => {
+    const key = item.utility_account_id || "unknown";
+    if (!groupedByAccount.has(key)) {
+      groupedByAccount.set(key, {
+        account_number: item.utility_account_number || "Unknown Account",
+        items: [],
+      });
+    }
+    groupedByAccount.get(key).items.push(item);
+  });
+
+  const sections = [];
+  Array.from(groupedByAccount.values()).forEach((group) => {
+    const prefix = group.account_number;
+    const groupItems = group.items;
+    const groupSummary = buildSummary(groupItems);
+
+    sections.push({
+      heading: `${prefix} - Fan Basic Details`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "audit_date_label",
+        "building_block",
+        "area_location",
+        "fan_type",
+        "make_model",
+        "condition",
+        "remarks",
+      ],
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
+        audit_date_label: item.audit_date_label,
+        building_block: item.building_block,
+        area_location: item.area_location,
+        fan_type: item.fan_type,
+        make_model: item.make_model,
+        condition: item.condition,
+        remarks: item.remarks,
+      })),
+    });
+
+    sections.push({
+      heading: `${prefix} - Electrical Details`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "fan_type",
+        "rated_power_W",
+        "measured_power_W",
+        { key: "quantity_nos", label: "Quantity Nos", type: "integer" },
+        "speed_control_type",
+      ],
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
+        fan_type: item.fan_type,
+        rated_power_W: item.rated_power_W ?? null,
+        measured_power_W: item.measured_power_W ?? null,
+        quantity_nos: item.quantity_nos ?? null,
+        speed_control_type: item.speed_control_type,
+      })),
+    });
+
+    sections.push({
+      heading: `${prefix} - Operating Pattern`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "fan_type",
+        "operating_hours_per_day",
+        "operating_days_per_year",
+      ],
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
+        fan_type: item.fan_type,
+        operating_hours_per_day: item.operating_hours_per_day ?? null,
+        operating_days_per_year: item.operating_days_per_year ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${prefix} - Performance & Calculations`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "fan_type",
+        "loading_factor_percent",
+        "connected_load_kW",
+        "annual_energy_consumption_kWh",
+      ],
+      rows: groupItems.map((item, idx) => ({
+        sr_no: idx + 1,
+        fan_type: item.fan_type,
+        loading_factor_percent: item.loading_factor_percent ?? null,
+        connected_load_kW: item.connected_load_kW ?? null,
+        annual_energy_consumption_kWh:
+          item.annual_energy_consumption_kWh ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${prefix} - Fan Audit Summary`,
+      columns: ["metric", "value"],
+      rows: [
+        {
+          metric: "Total Fan Audit Records",
+          value: groupSummary.total_fan_audit_records ?? "",
+        },
+        {
+          metric: "Total Quantity (Nos)",
+          value: groupSummary.total_quantity_nos ?? "",
+        },
+        {
+          metric: "Total Connected Load (kW)",
+          value: groupSummary.total_connected_load_kW ?? "",
+        },
+        {
+          metric: "Total Annual Energy Consumption (kWh)",
+          value: groupSummary.total_annual_energy_consumption_kWh ?? "",
+        },
+        {
+          metric: "Average Rated Power (W)",
+          value: groupSummary.average_rated_power_W ?? "",
+        },
+        {
+          metric: "Average Measured Power (W)",
+          value: groupSummary.average_measured_power_W ?? "",
+        },
+        {
+          metric: "Average Loading Factor (%)",
+          value: groupSummary.average_loading_factor_percent ?? "",
+        },
+      ],
+    });
+  });
+
+  sections.push({
+    heading: "Fan Audit Summary",
+    columns: ["metric", "value"],
+    rows: [
+      {
+        metric: "Total Fan Audit Records",
+        value: summary.total_fan_audit_records ?? "",
+      },
+      {
+        metric: "Total Quantity (Nos)",
+        value: summary.total_quantity_nos ?? "",
+      },
+      {
+        metric: "Total Connected Load (kW)",
+        value: summary.total_connected_load_kW ?? "",
+      },
+      {
+        metric: "Total Annual Energy Consumption (kWh)",
+        value: summary.total_annual_energy_consumption_kWh ?? "",
+      },
+      {
+        metric: "Average Rated Power (W)",
+        value: summary.average_rated_power_W ?? "",
+      },
+      {
+        metric: "Average Measured Power (W)",
+        value: summary.average_measured_power_W ?? "",
+      },
+      {
+        metric: "Average Loading Factor (%)",
+        value: summary.average_loading_factor_percent ?? "",
+      },
+    ],
+  });
 
   return {
     title: "Fan Audit Records",
@@ -224,122 +415,7 @@ export const buildFanSection = async ({
     total_records: items.length,
     items,
     summary,
-
-    sections: [
-      {
-        heading: "Fan Basic Details",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "audit_date_label",
-          "building_block",
-          "area_location",
-          "fan_type",
-          "make_model",
-          "condition",
-          "remarks",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          audit_date_label: item.audit_date_label,
-          building_block: item.building_block,
-          area_location: item.area_location,
-          fan_type: item.fan_type,
-          make_model: item.make_model,
-          condition: item.condition,
-          remarks: item.remarks,
-        })),
-      },
-
-      {
-        heading: "Electrical Details",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "fan_type",
-          "rated_power_W",
-          "measured_power_W",
-          { key: "quantity_nos", label: "Quantity Nos", type: "integer" },
-          "speed_control_type",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          fan_type: item.fan_type,
-          rated_power_W: item.rated_power_W ?? null,
-          measured_power_W: item.measured_power_W ?? null,
-          quantity_nos: item.quantity_nos ?? null,
-          speed_control_type: item.speed_control_type,
-        })),
-      },
-
-      {
-        heading: "Operating Pattern",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "fan_type",
-          "operating_hours_per_day",
-          "operating_days_per_year",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          fan_type: item.fan_type,
-          operating_hours_per_day: item.operating_hours_per_day ?? null,
-          operating_days_per_year: item.operating_days_per_year ?? null,
-        })),
-      },
-
-      {
-        heading: "Performance & Calculations",
-        columns: [
-          { key: "sr_no", label: "Sr No", type: "integer" },
-          "fan_type",
-          "loading_factor_percent",
-          "connected_load_kW",
-          "annual_energy_consumption_kWh",
-        ],
-        rows: items.map((item) => ({
-          sr_no: item.sr_no,
-          fan_type: item.fan_type,
-          loading_factor_percent: item.loading_factor_percent ?? null,
-          connected_load_kW: item.connected_load_kW ?? null,
-          annual_energy_consumption_kWh:
-            item.annual_energy_consumption_kWh ?? null,
-        })),
-      },
-
-      {
-        heading: "Fan Audit Summary",
-        columns: ["metric", "value"],
-        rows: [
-          {
-            metric: "Total Fan Audit Records",
-            value: summary.total_fan_audit_records ?? "",
-          },
-          {
-            metric: "Total Quantity (Nos)",
-            value: summary.total_quantity_nos ?? "",
-          },
-          {
-            metric: "Total Connected Load (kW)",
-            value: summary.total_connected_load_kW ?? "",
-          },
-          {
-            metric: "Total Annual Energy Consumption (kWh)",
-            value: summary.total_annual_energy_consumption_kWh ?? "",
-          },
-          {
-            metric: "Average Rated Power (W)",
-            value: summary.average_rated_power_W ?? "",
-          },
-          {
-            metric: "Average Measured Power (W)",
-            value: summary.average_measured_power_W ?? "",
-          },
-          {
-            metric: "Average Loading Factor (%)",
-            value: summary.average_loading_factor_percent ?? "",
-          },
-        ],
-      },
-    ],
+    sections,
 
     table_columns: [
       { key: "sr_no", label: "Sr No", type: "integer" },

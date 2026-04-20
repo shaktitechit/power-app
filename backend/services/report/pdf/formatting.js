@@ -5,29 +5,18 @@ export const toLabel = (key) =>
     .replaceAll("_", " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-// Strip bidi/control marks that can trigger mirrored/reordered text in PDFs.
-const BIDI_AND_CONTROL_RE = /[\u200E\u200F\u202A-\u202E\u2066-\u2069\u0000-\u001F\u007F]/g;
-
-const shouldDebugPdfText = process.env.PDF_DEBUG_TEXT === "true";
-
-const codePoints = (value) =>
-  Array.from(String(value ?? ""))
-    .map((ch) => `U+${ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}`)
-    .join(" ");
+// Strip bidi marks that can trigger mirrored/reordered text in PDFs.
+const BIDI_MARKS_RE = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+// Convert control chars (incl. CR/LF/TAB) to spaces so words don't get merged.
+const CONTROL_CHARS_RE = /[\u0000-\u001F\u007F]/g;
 
 export const sanitizePdfText = (input, context = "unknown") => {
   const original = String(input ?? "");
-  const cleaned = original.replace(BIDI_AND_CONTROL_RE, "").replace(/\s+/g, " ").trim();
-
-  if (shouldDebugPdfText && cleaned !== original) {
-    console.warn("[pdf-text-debug] sanitized text", {
-      context,
-      original,
-      cleaned,
-      originalCodePoints: codePoints(original),
-      cleanedCodePoints: codePoints(cleaned),
-    });
-  }
+  const cleaned = original
+    .replace(BIDI_MARKS_RE, "")
+    .replace(CONTROL_CHARS_RE, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   return cleaned;
 };

@@ -1,5 +1,6 @@
 import SolarGenerationRecord from "../../../../modals/solarGenerationRecord.js";
 import SolarPlant from "../../../../modals/solarPlant.js";
+import UtilityAccount from "../../../../modals/utilityAccount.js";
 
 const getId = (value) => {
   if (!value) return "";
@@ -67,6 +68,19 @@ const fetchSolarPlants = async ({ facility, utilityAccount, scope }) => {
   return SolarPlant.find(query)
     .sort({ plant_name: 1, created_at: 1, createdAt: 1 })
     .lean();
+};
+
+const buildUtilityAccountNumberMap = async (ids = []) => {
+  const uniqueIds = [...new Set(ids.map((id) => getId(id)).filter(Boolean))];
+  if (!uniqueIds.length) return new Map();
+
+  const accounts = await UtilityAccount.find({ _id: { $in: uniqueIds } })
+    .select("account_number")
+    .lean();
+
+  return new Map(
+    (accounts || []).map((account) => [getId(account), normalizeText(account.account_number)]),
+  );
 };
 
 const calculateBillingDays = (row) => {
@@ -150,22 +164,28 @@ const calculateImportOffsetPercent = (importKwh, generationKwh) => {
   return null;
 };
 
-const normalizePlant = (plant, index = 0) => ({
-  id: getId(plant),
-  sr_no: index + 1,
-  plant_name: normalizeText(plant?.plant_name),
-  rating_kWp: normalizeNumber(plant?.rating_kWp),
-  panel_rating_watt: normalizeNumber(plant?.panel_rating_watt),
-  no_of_panels: normalizeNumber(plant?.no_of_panels),
-  inverter_make: normalizeText(plant?.inverter_make),
-  inverter_rating_kW: normalizeNumber(plant?.inverter_rating_kW),
-  audit_date: plant?.audit_date || null,
-  audit_date_label: formatDate(plant?.audit_date),
-  utility_account_id: getId(plant?.utility_account_id),
-  facility_id: getId(plant?.facility_id),
-});
+const normalizePlant = (plant, index = 0, utilityAccountMap = new Map()) => {
+  const utilityAccountId = getId(plant?.utility_account_id);
+  return {
+    id: getId(plant),
+    sr_no: index + 1,
+    plant_name: normalizeText(plant?.plant_name),
+    rating_kWp: normalizeNumber(plant?.rating_kWp),
+    panel_rating_watt: normalizeNumber(plant?.panel_rating_watt),
+    no_of_panels: normalizeNumber(plant?.no_of_panels),
+    inverter_make: normalizeText(plant?.inverter_make),
+    inverter_rating_kW: normalizeNumber(plant?.inverter_rating_kW),
+    audit_date: plant?.audit_date || null,
+    audit_date_label: formatDate(plant?.audit_date),
+    utility_account_id: utilityAccountId,
+    utility_account_number:
+      utilityAccountMap.get(utilityAccountId) ||
+      normalizeText(plant?.utility_account_id?.account_number),
+    facility_id: getId(plant?.facility_id),
+  };
+};
 
-const normalizeRecord = (record, plant, index = 0) => {
+const normalizeRecord = (record, plant, index = 0, utilityAccountMap = new Map()) => {
   const billing_days = calculateBillingDays(record);
 
   const import_kWh = normalizeNumber(record?.import_kWh);
@@ -215,6 +235,7 @@ const normalizeRecord = (record, plant, index = 0) => {
     solar_generation_kWh,
   );
 
+  const utilityAccountId = getId(record?.utility_account_id);
   return {
     id: getId(record),
     sr_no: index + 1,
@@ -227,7 +248,11 @@ const normalizeRecord = (record, plant, index = 0) => {
     inverter_make: plant?.inverter_make || "",
     inverter_rating_kW: plant?.inverter_rating_kW ?? null,
 
-    utility_account_id: getId(record?.utility_account_id),
+    utility_account_id: utilityAccountId,
+    utility_account_number:
+      utilityAccountMap.get(utilityAccountId) ||
+      plant?.utility_account_number ||
+      normalizeText(record?.utility_account_id?.account_number),
     facility_id: getId(record?.facility_id),
 
     bill_no: normalizeText(record?.bill_no),
@@ -269,11 +294,11 @@ const normalizeRecord = (record, plant, index = 0) => {
   };
 };
 
-const buildPlantGroups = ({ plants = [], records = [] }) => {
+const buildPlantGroups = ({ plants = [], records = [], utilityAccountMap = new Map() }) => {
   const groups = new Map();
 
   plants.forEach((plant, index) => {
-    const normalizedPlant = normalizePlant(plant, index);
+    const normalizedPlant = normalizePlant(plant, index, utilityAccountMap);
     groups.set(normalizedPlant.id, {
       plant: normalizedPlant,
       records: [],
@@ -303,6 +328,10 @@ const buildPlantGroups = ({ plants = [], records = [] }) => {
           ),
           audit_date: null,
           audit_date_label: "",
+          utility_account_id: getId(record?.utility_account_id),
+          utility_account_number:
+            utilityAccountMap.get(getId(record?.utility_account_id)) ||
+            normalizeText(record?.utility_account_id?.account_number),
         },
         records: [],
         summary: null,
@@ -314,6 +343,7 @@ const buildPlantGroups = ({ plants = [], records = [] }) => {
       record,
       bucket.plant,
       bucket.records.length,
+      utilityAccountMap,
     );
     bucket.records.push(normalizedRecord);
   });
@@ -415,7 +445,12 @@ export const buildSolarSection = async ({
     fetchRecords({ facility, utilityAccount, scope }),
   ]);
 
-  const plantGroups = buildPlantGroups({ plants, records });
+  const utilityAccountMap = await buildUtilityAccountNumberMap([
+    ...plants.map((plant) => plant?.utility_account_id),
+    ...records.map((record) => record?.utility_account_id),
+  ]);
+
+  const plantGroups = buildPlantGroups({ plants, records, utilityAccountMap });
   const overallSummary = buildOverallSummary(plantGroups);
 
   // backward-compatible flat rows for existing renderers
@@ -428,6 +463,7 @@ export const buildSolarSection = async ({
     columns: [
       { key: "sr_no", label: "Sr No", type: "integer" },
       "plant_name",
+      "utility_account_number",
       "rating_kWp",
       { key: "panel_rating_watt", label: "Panel Rating Watt", type: "integer" },
       { key: "no_of_panels", label: "No Of Panels", type: "integer" },
@@ -440,6 +476,7 @@ export const buildSolarSection = async ({
     rows: plantGroups.map((group) => ({
       sr_no: group.plant.sr_no,
       plant_name: group.plant.plant_name,
+      utility_account_number: group.plant.utility_account_number || "",
       rating_kWp: group.plant.rating_kWp ?? null,
       panel_rating_watt: group.plant.panel_rating_watt ?? null,
       no_of_panels: group.plant.no_of_panels ?? null,
@@ -459,6 +496,10 @@ export const buildSolarSection = async ({
       columns: ["field", "value"],
       rows: [
         { field: "Plant Name", value: group.plant.plant_name || "" },
+        {
+          field: "Account Number",
+          value: group.plant.utility_account_number || "",
+        },
         {
           field: "Rating (kWp)",
           value: group.plant.rating_kWp ?? "",

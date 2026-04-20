@@ -1,8 +1,21 @@
+import FacilityAuditor from "../../../../modals/facilityAuditor.js";
+import User from "../../../../modals/user.js";
+
 const formatDate = (value) => {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString("en-GB");
+};
+
+const calculateDaysTaken = (from, to) => {
+  if (!from || !to) return null;
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) return null;
+  if (toDate < fromDate) return null;
+  const diffMs = toDate.getTime() - fromDate.getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
 };
 
 const normalizeText = (value) => {
@@ -22,6 +35,16 @@ const getId = (value) => {
   if (value?._id) return String(value._id);
   if (value?.toString) return String(value.toString());
   return "";
+};
+
+const getUserDisplayName = (user) => {
+  if (!user) return "";
+  if (typeof user === "string") {
+    // Avoid displaying raw ObjectId-like strings as user names.
+    const isObjectIdLike = /^[a-fA-F0-9]{24}$/.test(user);
+    return isObjectIdLike ? "" : user;
+  }
+  return normalizeText(user?.name) || normalizeText(user?.email);
 };
 
 const buildFullAddress = (facility) => {
@@ -83,6 +106,41 @@ const buildUtilityAccountMini = (utilityAccount) => {
   };
 };
 
+const fetchAssignedAuditors = async (facilityId) => {
+  if (!facilityId) return [];
+
+  const assignments = await FacilityAuditor.find({
+    facility_id: facilityId,
+  })
+    .populate("user_id", "name email")
+    .select("user_id assigned_role assigned_at")
+    .lean();
+
+  return assignments
+    .map((assignment) => ({
+      id: getId(assignment?.user_id),
+      name: getUserDisplayName(assignment?.user_id),
+      role: normalizeText(assignment?.assigned_role),
+      assigned_at: assignment?.assigned_at || null,
+      assigned_at_label: formatDate(assignment?.assigned_at),
+    }))
+    .filter((auditor) => Boolean(auditor.name));
+};
+
+const resolveClosedByLabel = async (facility) => {
+  const rawClosedBy = facility?.audit_closure?.closed_by;
+  if (rawClosedBy && typeof rawClosedBy === "object") {
+    const directLabel = getUserDisplayName(rawClosedBy);
+    if (directLabel) return directLabel;
+  }
+
+  const closedById = getId(rawClosedBy);
+  if (!closedById) return "";
+
+  const user = await User.findById(closedById).select("name email").lean();
+  return getUserDisplayName(user) || "Unknown User";
+};
+
 export const buildFacilityInfoSection = async ({
   report,
   meta,
@@ -105,6 +163,15 @@ export const buildFacilityInfoSection = async ({
   const snapshot = buildMetaSnapshot({ meta, facility, utilityAccount });
   const primaryContact = buildPrimaryContact(facility);
   const utilityAccountMini = buildUtilityAccountMini(utilityAccount);
+  const auditors = await fetchAssignedAuditors(getId(facility));
+  const auditorsLabel = auditors.map((auditor) => auditor.name).join(", ");
+  const auditStartDateLabel = formatDate(facility?.audit_date);
+  const auditClosedAtLabel = formatDate(facility?.audit_closure?.closed_at);
+  const auditClosedByLabel = await resolveClosedByLabel(facility);
+  const isAuditClosed = Boolean(facility?.audit_closure?.closed_at);
+  const periodFrom = facility?.audit_date || null;
+  const periodTo = facility?.audit_closure?.closed_at || null;
+  const periodDaysTaken = calculateDaysTaken(periodFrom, periodTo);
 
   const baseData = {
     facility_name: normalizeText(facility?.name),
@@ -123,12 +190,14 @@ export const buildFacilityInfoSection = async ({
     category: utilityAccountMini?.category || "",
     sanctioned_demand_kVA: utilityAccountMini?.sanctioned_demand_kVA ?? null,
 
-    report_period_from: snapshot.report_period_from
-      ? formatDate(snapshot.report_period_from)
-      : "",
-    report_period_to: snapshot.report_period_to
-      ? formatDate(snapshot.report_period_to)
-      : "",
+    report_period_from: periodFrom ? formatDate(periodFrom) : "",
+    report_period_to: periodTo ? formatDate(periodTo) : "",
+    report_period_days_taken:
+      periodDaysTaken !== null ? String(periodDaysTaken) : "",
+    auditors: auditorsLabel,
+    audit_start_date: auditStartDateLabel,
+    audit_closed_at: auditClosedAtLabel,
+    audit_closed_by: auditClosedByLabel,
   };
 
   return {
@@ -154,6 +223,26 @@ export const buildFacilityInfoSection = async ({
       created_at_label: formatDate(facility?.createdAt),
       updated_at_label: formatDate(facility?.updatedAt),
     },
+
+    audit: {
+      is_closed: isAuditClosed,
+      start_date: facility?.audit_date || null,
+      start_date_label: auditStartDateLabel,
+      closed_at: facility?.audit_closure?.closed_at || null,
+      closed_at_label: auditClosedAtLabel,
+      closed_by: auditClosedByLabel,
+    },
+
+    report_period: {
+      from: periodFrom,
+      from_label: baseData.report_period_from,
+      to: periodTo,
+      to_label: baseData.report_period_to,
+      days_taken: periodDaysTaken,
+      days_taken_label: baseData.report_period_days_taken,
+    },
+
+    auditors,
 
     contact: {
       representative: baseData.representative,
@@ -240,6 +329,22 @@ export const buildFacilityInfoSection = async ({
         rows: [
           { label: "From", value: baseData.report_period_from },
           { label: "To", value: baseData.report_period_to },
+          { label: "Days Taken", value: baseData.report_period_days_taken },
+        ].filter((r) => r.value !== ""),
+      },
+      {
+        heading: "Audit Details",
+        columns: ["label", "value"],
+        rows: [
+          { label: "Auditors", value: baseData.auditors },
+          { label: "Audit Start Date", value: baseData.audit_start_date },
+          { label: "Audit Status", value: isAuditClosed ? "Closed" : "Open" },
+          ...(isAuditClosed
+            ? [
+                { label: "Audit Close Date", value: baseData.audit_closed_at },
+                { label: "Audit Closed By", value: baseData.audit_closed_by },
+              ]
+            : []),
         ].filter((r) => r.value !== ""),
       },
     ],
@@ -253,6 +358,15 @@ export const buildFacilityInfoSection = async ({
       { label: "Client Representative", value: baseData.representative },
       { label: "Client Contact Number", value: baseData.phone },
       { label: "Client Email", value: baseData.email },
+      { label: "Auditors", value: baseData.auditors },
+      { label: "Audit Start Date", value: baseData.audit_start_date },
+      { label: "Audit Status", value: isAuditClosed ? "Closed" : "Open" },
+      ...(isAuditClosed
+        ? [
+            { label: "Audit Close Date", value: baseData.audit_closed_at },
+            { label: "Audit Closed By", value: baseData.audit_closed_by },
+          ]
+        : []),
       ...(scope === "utility_account" && utilityAccountMini
         ? [
             {

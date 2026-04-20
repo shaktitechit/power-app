@@ -121,6 +121,14 @@ const normalizeUtilityAccountMini = (account, index = 0) => {
     sanctioned_demand_kVA: sanctionedDemand,
     sanctioned_demand_kVA_label:
       sanctionedDemand !== null ? formatNumber(sanctionedDemand) : "",
+    is_solar_connected: Boolean(account?.is_solar_connected),
+    is_dg_connected: Boolean(account?.is_dg_connected),
+    is_transformer_connected: Boolean(account?.is_transformer_connected),
+    is_pump_connected: Boolean(account?.is_pump_connected),
+    is_transformer_maintained_by_facility: Boolean(
+      account?.is_transformer_maintained_by_facility,
+    ),
+    is_active: account?.is_active === undefined ? true : Boolean(account?.is_active),
   };
 };
 
@@ -524,42 +532,9 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
     (group) => Array.isArray(group?.records) && group.records.length > 0,
   );
 
-  sections.push({
-    heading: "Billing Accounts Summary",
-    columns: [
-      { key: "sr_no", label: "Sr No", type: "integer" },
-      "account_number",
-      "connection_type",
-      "category",
-      "provider",
-      "billing_cycle",
-      "sanctioned_demand_kVA",
-      { key: "total_records", label: "Total Records", type: "integer" },
-      "total_units_kWh",
-      "total_units_kVAh",
-      "total_monthly_electricity_bill_rs",
-      "grid_cost_per_kWh_rs",
-    ],
-    rows: groupsWithRecords.map((group) => ({
-      sr_no: group.account.sr_no,
-      account_number: group.account.account_number,
-      connection_type: group.account.connection_type,
-      category: group.account.category,
-      provider: group.account.provider,
-      billing_cycle: group.account.billing_cycle,
-      sanctioned_demand_kVA: group.account.sanctioned_demand_kVA ?? null,
-      total_records: group.summary.total_records,
-      total_units_kWh: group.summary.total_units_kWh ?? null,
-      total_units_kVAh: group.summary.total_units_kVAh ?? null,
-      total_monthly_electricity_bill_rs:
-        group.summary.total_monthly_electricity_bill_rs ?? null,
-      grid_cost_per_kWh_rs: group.summary.grid_cost_per_kWh_rs ?? null,
-    })),
-  });
-
   groupsWithRecords.forEach((group) => {
     sections.push({
-      heading: `${group.account.account_number || "Utility Account"} - Details`,
+      heading: `${group.account.account_number || "Utility Account"} - Utility Account Details`,
       columns: ["field", "value"],
       rows: [
         { field: "Account Number", value: group.account.account_number || "" },
@@ -577,6 +552,52 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
             group.account.sanctioned_demand_kVA !== undefined
               ? group.account.sanctioned_demand_kVA
               : "",
+        },
+      ],
+    });
+
+    const latestRecord = group.records[0] || null;
+    sections.push({
+      heading: `${group.account.account_number || "Utility Account"} - Connected Devices`,
+      columns: ["field", "value"],
+      rows: [
+        {
+          field: "Solar Connected",
+          value:
+            latestRecord?.utility_account?.is_solar_connected === true
+              ? "Yes"
+              : "No",
+        },
+        {
+          field: "DG Connected",
+          value:
+            latestRecord?.utility_account?.is_dg_connected === true ? "Yes" : "No",
+        },
+        {
+          field: "Transformer Connected",
+          value:
+            latestRecord?.utility_account?.is_transformer_connected === true
+              ? "Yes"
+              : "No",
+        },
+        {
+          field: "Pump Connected",
+          value:
+            latestRecord?.utility_account?.is_pump_connected === true
+              ? "Yes"
+              : "No",
+        },
+        {
+          field: "Transformer Maintained By Facility",
+          value:
+            latestRecord?.utility_account
+              ?.is_transformer_maintained_by_facility === true
+              ? "Yes"
+              : "No",
+        },
+        {
+          field: "Utility Account Status",
+          value: latestRecord?.utility_account?.is_active === false ? "Inactive" : "Active",
         },
       ],
     });
@@ -835,7 +856,7 @@ export const buildBillingSection = async ({
   const sections = buildGroupedSections(billingGroups, overallSummary);
 
   return {
-    title: "Utility Billing Records",
+    title: "Utility Account Details & Billing Records",
     key: "billing_records",
     scope,
     facility_id: getId(facility),
