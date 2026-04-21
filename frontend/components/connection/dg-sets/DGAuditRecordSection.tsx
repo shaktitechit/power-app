@@ -266,7 +266,7 @@ const calculateCalculatedDgEfficiency = (
     return "";
   }
 
-  return String(Number((unitsNum / (fuelNum * 10) / 100).toFixed(4)));
+  return String(Number(((unitsNum / (fuelNum * 10) )* 100).toFixed(4)));
 };
 
 const calculateEfficiencyDeviation = (
@@ -1077,7 +1077,7 @@ export function DGAuditRecordSection({
                   type="number"
                   value={form.units_generated_per_hour_kWh}
                   disabled
-                  className={getInputClass(!form.isEditing)}
+                  className={getInputClass(true)}
                 />
               </div>
 
@@ -1087,7 +1087,7 @@ export function DGAuditRecordSection({
                   type="number"
                   value={form.fuel_consumption_per_hour_liters}
                   disabled
-                  className={getInputClass(!form.isEditing)}
+                  className={getInputClass(true)}
                 />
               </div>
 
@@ -1129,7 +1129,7 @@ export function DGAuditRecordSection({
                   type="number"
                   value={form.specific_fuel_consumption_l_per_kWh}
                   disabled
-                  className={getInputClass(!form.isEditing)}
+                  className={getInputClass(true)}
                 />
               </div>
 
@@ -1152,7 +1152,7 @@ export function DGAuditRecordSection({
                   type="number"
                   value={form.sfc_deviation_percent}
                   disabled
-                  className={getInputClass(!form.isEditing)}
+                  className={getInputClass(true)}
                 />
               </div>
             </div>
@@ -1183,7 +1183,7 @@ export function DGAuditRecordSection({
                   type="number"
                   value={form.annual_fuel_cost_rs}
                   disabled
-                  className={getInputClass(!form.isEditing)}
+                  className={getInputClass(true)}
                 />
               </div>
 
@@ -1193,7 +1193,7 @@ export function DGAuditRecordSection({
                   type="number"
                   value={form.dg_cost_per_kWh_rs}
                   disabled
-                  className={getInputClass(!form.isEditing)}
+                  className={getInputClass(true)}
                 />
               </div>
 
@@ -1206,7 +1206,7 @@ export function DGAuditRecordSection({
                     updateForm("grid_cost_per_kWh_rs", e.target.value)
                   }
                   disabled
-                  className={getInputClass(!form.isEditing)}
+                  className={getInputClass(true)}
                 />
                 <span className="flex justify-center text-xs text-muted-foreground">
                   From {fromDate} - To {toDate}
