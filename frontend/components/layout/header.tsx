@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef } from "react";
 import { User, ChevronDown, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ import { socket } from "@/lib/socket";
 import { toastHandler } from "@/lib/toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FontSizeControl } from "@/components/font-size-control";
+import { toast } from "sonner";
 
 interface HeaderProps {
   title?: string;
@@ -44,6 +46,53 @@ export function Header({
   const dispatch = useAppDispatch();
 
   const [userLogout, { isLoading }] = useLogoutMutation();
+  const isForceLoggingOutRef = useRef(false);
+
+  const clearClientStorage = () => {
+    if (typeof window === "undefined") return;
+    localStorage.clear();
+    sessionStorage.clear();
+  };
+
+  const runLogoutFlow = useCallback(async ({
+    isForced = false,
+    showSuccessToast = true,
+  }: {
+    isForced?: boolean;
+    showSuccessToast?: boolean;
+  } = {}) => {
+    if (isForceLoggingOutRef.current) return;
+    isForceLoggingOutRef.current = true;
+
+    try {
+      if (!isForced) {
+        socket.emit("user-offline");
+      }
+      socket.disconnect();
+
+      // Server logout clears auth cookies. Proceed with client cleanup even if it fails.
+      try {
+        await userLogout().unwrap();
+      } catch (apiError) {
+        console.error("Logout API failed", apiError);
+      }
+
+      dispatch(logout());
+      clearClientStorage();
+
+      if (showSuccessToast) {
+        toast.success(
+          isForced
+            ? "Logged out due to inactivity."
+            : "Signed out successfully",
+        );
+      }
+
+      router.push("/login");
+    } finally {
+      isForceLoggingOutRef.current = false;
+    }
+  }, [dispatch, router, userLogout]);
 
   const handleProfile = () => {
     if (user?._id) {
@@ -54,21 +103,26 @@ export function Header({
   const handleSignOut = async () => {
     try {
       await toastHandler({
-        action: async () => {
-          socket.emit("user-offline");
-          socket.disconnect();
-          await userLogout().unwrap();
-          dispatch(logout());
-        },
+        action: async () => runLogoutFlow({ showSuccessToast: false }),
         loading: "Signing out...",
         success: "Signed out successfully",
       });
-
-      router.push("/login");
     } catch (error) {
       console.error("Logout failed", error);
     }
   };
+
+  useEffect(() => {
+    const handleForceLogout = async () => {
+      toast.error("Session expired due to inactivity (10 minutes).");
+      await runLogoutFlow({ isForced: true, showSuccessToast: false });
+    };
+
+    socket.on("force-logout", handleForceLogout);
+    return () => {
+      socket.off("force-logout", handleForceLogout);
+    };
+  }, [runLogoutFlow]);
 
   function getInitials(name?: string | null) {
     if (!name) return "U";

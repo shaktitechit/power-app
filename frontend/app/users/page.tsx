@@ -38,8 +38,8 @@ import {
   Trash2,
   Shield,
   UserCheck,
+  BarChart3,
 } from "lucide-react";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +49,7 @@ import {
 import { PresenceStatusCell } from "@/components/presenceCellStatus";
 import { usePresenceMap } from "@/hooks/presenceMap";
 import { toastHandler } from "@/lib/toast";
+import { useRouter } from "next/navigation";
 
 type User = {
   _id: string;
@@ -85,6 +86,7 @@ const formatLastSeen = (value?: string | null) => {
 };
 
 export default function UsersPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -205,30 +207,66 @@ export default function UsersPage() {
     },
     {
       key: "actions",
-      header: "",
+      header: "Actions",
       render: (row) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
+        <>
+          <div className="hidden items-center gap-2 lg:flex">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push(`/users/${row._id}`)}
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Performance
             </Button>
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleOpenEdit(row)}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => handleOpenEdit(row)}
+            >
               <Edit className="mr-2 h-4 w-4" />
               Edit
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
               onClick={() => handleOpenDelete(row)}
-              className="text-destructive"
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </Button>
+          </div>
+
+          <div className="flex lg:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => router.push(`/users/${row._id}`)}>
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  Performance
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleOpenEdit(row)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleOpenDelete(row)}
+                  className="text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </>
       ),
     },
   ];

@@ -220,7 +220,7 @@ const createTransformerAuditRecord = asyncHandler(async (req, res) => {
       entityName: transformer.transformer_tag || "",
     }),
     meta: {
-      transformer_id: transformerAuditRecord.transformer_id,
+      transformer_tag: transformer.transformer_tag || "",
       total_losses_kW: transformerAuditRecord.total_losses_kW,
       average_load_kVA: transformerAuditRecord.average_load_kVA,
       percent_loading: transformerAuditRecord.percent_loading,
@@ -444,7 +444,7 @@ const updateTransformerAuditRecord = asyncHandler(async (req, res) => {
     }),
     meta: {
       updated_fields: [...new Set(updatedFields)],
-      transformer_id: updatedTransformerAuditRecord.transformer_id,
+      transformer_tag: transformer.transformer_tag || "",
       total_losses_kW: updatedTransformerAuditRecord.total_losses_kW,
       average_load_kVA: updatedTransformerAuditRecord.average_load_kVA,
       percent_loading: updatedTransformerAuditRecord.percent_loading,

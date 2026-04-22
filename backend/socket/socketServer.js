@@ -4,6 +4,12 @@ import User from "../modals/user.js";
 import logger from "../config/logger.js";
 
 const onlineUsers = new Map();
+const heartbeatTimeouts = new Map();
+const forcedHeartbeatLogoutSockets = new Set();
+
+const HEARTBEAT_TIMEOUT_SECONDS = 10 * 60;
+const HEARTBEAT_TIMEOUT_MS = HEARTBEAT_TIMEOUT_SECONDS * 1000;
+const PRESENCE_TTL_SECONDS = HEARTBEAT_TIMEOUT_SECONDS;
 
 const buildSocketLogMeta = (socket, extra = {}) => {
   const userId = socket?.handshake?.auth?.userId || null;
@@ -39,16 +45,80 @@ const setPresenceStatus = async ({ userId, status, ttl = null }) => {
   }
 };
 
-const createPresenceLog = async ({ userId, status }) => {
+const createPresenceLog = async ({ userId, status, sessionId = null, reason = null }) => {
   await PresenceLog.create({
     userId,
     status,
+    sessionId,
+    reason,
   });
 };
 
 const socketServer = (io) => {
   io.on("connection", async (socket) => {
     const userId = socket.handshake.auth.userId;
+    const sessionId = `${socket.id}:${Date.now()}`;
+
+    const clearHeartbeatTimeout = () => {
+      const timeoutId = heartbeatTimeouts.get(socket.id);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        heartbeatTimeouts.delete(socket.id);
+      }
+    };
+
+    const markOffline = async ({ reason, event }) => {
+      onlineUsers.delete(userId);
+      await setPresenceStatus({
+        userId,
+        status: "offline",
+      });
+      await createPresenceLog({
+        userId,
+        status: "offline",
+        sessionId,
+        reason,
+      });
+      io.emit("user-offline", { userId, reason });
+      logger.info(
+        "User status changed to offline",
+        buildSocketLogMeta(socket, {
+          event,
+          status: "offline",
+          reason,
+        }),
+      );
+    };
+
+    const scheduleHeartbeatTimeout = () => {
+      clearHeartbeatTimeout();
+      const timeoutId = setTimeout(async () => {
+        try {
+          forcedHeartbeatLogoutSockets.add(socket.id);
+          await markOffline({
+            reason: "heartbeat_timeout",
+            event: "heartbeat-timeout",
+          });
+          socket.emit("force-logout", {
+            reason: "heartbeat_timeout",
+            message: "Logged out due to no heartbeat for 10 minutes.",
+          });
+          socket.disconnect(true);
+        } catch (error) {
+          logger.error(
+            "Heartbeat timeout handling failed",
+            buildSocketLogMeta(socket, {
+              event: "heartbeat-timeout",
+              error: error?.message,
+              stack: error?.stack,
+            }),
+          );
+        } finally {
+          clearHeartbeatTimeout();
+        }
+      }, HEARTBEAT_TIMEOUT_MS);
+      heartbeatTimeouts.set(socket.id, timeoutId);
+    };
 
     if (!userId) {
       logger.logSecurity({
@@ -79,15 +149,18 @@ const socketServer = (io) => {
       await setPresenceStatus({
         userId,
         status: "online",
-        ttl: 30,
+        ttl: PRESENCE_TTL_SECONDS,
       });
 
       await createPresenceLog({
         userId,
         status: "online",
+        sessionId,
+        reason: "connection",
       });
 
       io.emit("user-online", { userId });
+      scheduleHeartbeatTimeout();
 
       logger.info(
         "User marked online",
@@ -136,8 +209,9 @@ const socketServer = (io) => {
         await setPresenceStatus({
           userId,
           status: statusToKeep,
-          ttl: 30,
+          ttl: PRESENCE_TTL_SECONDS,
         });
+        scheduleHeartbeatTimeout();
 
         logger.info(
           "Heartbeat received",
@@ -163,15 +237,18 @@ const socketServer = (io) => {
         await setPresenceStatus({
           userId,
           status: "online",
-          ttl: 30,
+          ttl: PRESENCE_TTL_SECONDS,
         });
 
         await createPresenceLog({
           userId,
           status: "online",
+          sessionId,
+          reason: "user-online",
         });
 
         io.emit("user-online", { userId });
+        scheduleHeartbeatTimeout();
 
         logger.info(
           "User status changed to online",
@@ -197,15 +274,18 @@ const socketServer = (io) => {
         await setPresenceStatus({
           userId,
           status: "away",
-          ttl: 30,
+          ttl: PRESENCE_TTL_SECONDS,
         });
 
         await createPresenceLog({
           userId,
           status: "away",
+          sessionId,
+          reason: "user-away",
         });
 
         io.emit("user-away", { userId });
+        scheduleHeartbeatTimeout();
 
         logger.info(
           "User status changed to away",
@@ -228,27 +308,11 @@ const socketServer = (io) => {
 
     socket.on("user-offline", async () => {
       try {
-        onlineUsers.delete(userId);
-
-        await setPresenceStatus({
-          userId,
-          status: "offline",
+        clearHeartbeatTimeout();
+        await markOffline({
+          reason: "user-offline",
+          event: "user-offline",
         });
-
-        await createPresenceLog({
-          userId,
-          status: "offline",
-        });
-
-        io.emit("user-offline", { userId });
-
-        logger.info(
-          "User status changed to offline",
-          buildSocketLogMeta(socket, {
-            event: "user-offline",
-            status: "offline",
-          }),
-        );
       } catch (error) {
         logger.error(
           "Failed to set user offline",
@@ -263,28 +327,17 @@ const socketServer = (io) => {
 
     socket.on("disconnect", async (reason) => {
       try {
-        onlineUsers.delete(userId);
+        clearHeartbeatTimeout();
 
-        await setPresenceStatus({
-          userId,
-          status: "offline",
+        if (forcedHeartbeatLogoutSockets.has(socket.id)) {
+          forcedHeartbeatLogoutSockets.delete(socket.id);
+          return;
+        }
+
+        await markOffline({
+          reason: "disconnect",
+          event: "disconnect",
         });
-
-        await createPresenceLog({
-          userId,
-          status: "offline",
-        });
-
-        io.emit("user-offline", { userId });
-
-        logger.info(
-          "Socket disconnected and user marked offline",
-          buildSocketLogMeta(socket, {
-            event: "disconnect",
-            status: "offline",
-            reason,
-          }),
-        );
       } catch (error) {
         logger.error(
           "Disconnect handling failed",

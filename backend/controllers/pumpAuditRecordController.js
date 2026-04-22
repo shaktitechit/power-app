@@ -204,7 +204,7 @@ const createPumpAuditRecord = asyncHandler(async (req, res) => {
       entityName: pump.pump_tag_number || "",
     }),
     meta: {
-      pump_id: pumpAuditRecord.pump_id,
+      pump_tag_number: pump.pump_tag_number || "",
       actual_flow_m3_per_hr: pumpAuditRecord.actual_flow_m3_per_hr,
       input_power_kW: pumpAuditRecord.input_power_kW,
       overall_pump_set_efficiency_percent:

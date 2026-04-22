@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
+// Keep backend date/time calculations aligned to IST globally.
+process.env.TZ = process.env.TZ || "Asia/Kolkata";
+
 import http from "http";
 import { Server } from "socket.io";
 
@@ -41,6 +44,7 @@ import reportRoutes from "./routes/reportRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import userProfileRoutes from "./routes/userProfileRoutes.js";
+import userPerformanceRoutes from "./routes/userPerformanceRoutes.js";
 
 import adminRoutes from "./routes/adminRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
@@ -115,6 +119,7 @@ app.use("/api/v1/reports", reportRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/user", userProfileRoutes);
+app.use("/api/v1/user-performance", userPerformanceRoutes);
 
 app.use("/api/v1/admin/users", adminRoutes);
 

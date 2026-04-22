@@ -226,20 +226,25 @@ const createDGAuditRecord = asyncHandler(async (req, res) => {
     auditor_id,
     documents: uploadedDocuments,
   });
+  const dgDisplayName =
+    dgSet.dg_number ||
+    dgSet.make_model ||
+    dgSet.dg_serial_number ||
+    "DG Audit";
   // ✅ Recent Activity
   await createRecentActivity({
     actor: req.user,
     action: "created",
     entity_type: "dg_set",
     entity_id: dgAuditRecord._id,
-    entity_name: dgAuditRecord.dg_set_id?.toString() || "DG Audit",
+    entity_name: dgDisplayName,
     facility_id: dgAuditRecord.facility_id,
     utility_account_id: dgAuditRecord.utility_account_id,
     message: buildActivityMessage({
       actorName: req.user?.name || "User",
       action: "created",
       entityLabel: "DG audit",
-      entityName: dgAuditRecord.dg_set_id?.toString() || "",
+      entityName: dgDisplayName,
     }),
     meta: {
       measured_kW_output: dgAuditRecord.measured_kW_output,
@@ -434,6 +439,12 @@ const updateDGAuditRecord = asyncHandler(async (req, res) => {
       throw new Error("dg_set_id does not belong to the given facility");
     }
   }
+  const dgSet = await DGSet.findById(targetDGSetId);
+  const dgDisplayName =
+    dgSet?.dg_number ||
+    dgSet?.make_model ||
+    dgSet?.dg_serial_number ||
+    "DG Audit";
 
   const uploadedDocuments = await uploadDGAuditDocuments(
     req.files,
@@ -459,14 +470,14 @@ const updateDGAuditRecord = asyncHandler(async (req, res) => {
     action: "updated",
     entity_type: "dg_set",
     entity_id: updated._id,
-    entity_name: updated.dg_set_id?.toString() || "DG Audit",
+    entity_name: dgDisplayName,
     facility_id: updated.facility_id,
     utility_account_id: updated.utility_account_id,
     message: buildActivityMessage({
       actorName: req.user?.name || "User",
       action: "updated",
       entityLabel: "DG audit",
-      entityName: updated.dg_set_id?.toString() || "",
+      entityName: dgDisplayName,
     }),
     meta: {
       updated_fields: Object.keys(req.body || {}),
@@ -502,7 +513,9 @@ const deleteDGAuditRecord = asyncHandler(async (req, res) => {
   }
 
   // store before delete
-  const name = dgAuditRecord.dg_set_id?.toString() || "DG Audit";
+  const dgSet = await DGSet.findById(dgAuditRecord.dg_set_id);
+  const name =
+    dgSet?.dg_number || dgSet?.make_model || dgSet?.dg_serial_number || "DG Audit";
   const facilityId = dgAuditRecord.facility_id;
   const utilityId = dgAuditRecord.utility_account_id;
 

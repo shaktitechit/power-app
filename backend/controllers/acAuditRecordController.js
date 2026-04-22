@@ -369,6 +369,11 @@ const deleteACAuditRecord = asyncHandler(async (req, res) => {
     throw new Error("Access denied");
   }
 
+  const name =
+    record.equipment_name || record.unit_id || record.area_location || "AC Audit";
+  const facilityId = record.facility_id;
+  const utilityId = record.utility_account_id;
+
   await record.deleteOne();
   // ✅ Recent Activity
   await createRecentActivity({
