@@ -7,6 +7,14 @@ import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 import { isUtilityAuditCompleted } from "../helpers/auditState.js";
+import {
+  isAdmin,
+  hasOrgWideFacilityAccess,
+  resolveAccessibleFacility,
+  can,
+} from "../services/authorization/index.js";
+import { RESOURCES } from "../constants/resources.js";
+import { ACTIONS } from "../constants/actions.js";
 
 // helper: parse auditor ids safely
 const parseAuditorIds = (auditor_ids) => {
@@ -75,29 +83,6 @@ const uploadFacilityDocuments = async (files = [], facilityId) => {
   return uploadedDocuments;
 };
 
-// helper: admin check
-const isAdmin = (user) => user?.role === "admin";
-
-const getAccessibleFacility = async (user, facilityId) => {
-  if (isAdmin(user)) {
-    return await Facility.findById(facilityId);
-  }
-
-  const ownedFacility = await Facility.findOne({
-    _id: facilityId,
-    owner_user_id: user._id,
-  });
-  if (ownedFacility) return ownedFacility;
-
-  const assignment = await FacilityAuditor.findOne({
-    facility_id: facilityId,
-    user_id: user._id,
-  });
-  if (assignment) return await Facility.findById(facilityId);
-
-  return null;
-};
-
 // @route POST /api/v1/facilities
 // @desc Create a Facility
 // @access Protected
@@ -110,6 +95,7 @@ const createFacility = asyncHandler(async (req, res) => {
     client_contact_number,
     client_email,
     facility_type,
+    audit_type,
     status,
     start_date,
     closure_date,
@@ -154,7 +140,10 @@ const createFacility = asyncHandler(async (req, res) => {
     client_contact_number,
     client_email,
     client_representatives: fallbackClientRepresentatives,
-    facility_type,
+    facility_type: facility_type !== undefined && facility_type !== null
+      ? String(facility_type).trim()
+      : "",
+    audit_type,
     status,
     start_date,
     closure_date,
@@ -217,19 +206,25 @@ const createFacility = asyncHandler(async (req, res) => {
 const getFacilities = asyncHandler(async (req, res) => {
   let facilities = [];
 
-  if (isAdmin(req.user)) {
+  if (hasOrgWideFacilityAccess(req.user)) {
     facilities = await Facility.find().sort({ createdAt: -1 });
   } else {
     const assignedFacilityIds = await FacilityAuditor.find({
       user_id: req.user._id,
     }).distinct("facility_id");
-
-    facilities = await Facility.find({
-      $or: [
-        { owner_user_id: req.user._id },
-        { _id: { $in: assignedFacilityIds } },
-      ],
-    }).sort({ createdAt: -1 });
+    // Manager visibility is strictly assignment-based from FacilityAuditor mappings.
+    if (req.user?.role === "manager") {
+      facilities = await Facility.find({
+        _id: { $in: assignedFacilityIds },
+      }).sort({ createdAt: -1 });
+    } else {
+      facilities = await Facility.find({
+        $or: [
+          { owner_user_id: req.user._id },
+          { _id: { $in: assignedFacilityIds } },
+        ],
+      }).sort({ createdAt: -1 });
+    }
   }
 
   res.status(200).json({
@@ -243,28 +238,7 @@ const getFacilities = asyncHandler(async (req, res) => {
 // @desc Get single Facility
 // @access Protected
 const getFacilityById = asyncHandler(async (req, res) => {
-  let facility = null;
-
-  if (isAdmin(req.user)) {
-    facility = await Facility.findById(req.params.id);
-  } else {
-    const isAssignedAuditor = await FacilityAuditor.exists({
-      facility_id: req.params.id,
-      user_id: req.user._id,
-    });
-
-    facility = await Facility.findOne({
-      _id: req.params.id,
-      $or: [
-        { owner_user_id: req.user._id },
-        ...(isAssignedAuditor ? [{}] : []),
-      ],
-    });
-
-    if (!facility && isAssignedAuditor) {
-      facility = await Facility.findById(req.params.id);
-    }
-  }
+  const facility = await resolveAccessibleFacility(req.user, req.params.id);
 
   if (!facility) {
     res.status(404);
@@ -303,6 +277,7 @@ const updateFacility = asyncHandler(async (req, res) => {
     client_contact_number,
     client_email,
     facility_type,
+    audit_type,
     status,
     start_date,
     closure_date,
@@ -312,27 +287,7 @@ const updateFacility = asyncHandler(async (req, res) => {
 
   let facility;
 
-  if (isAdmin(req.user)) {
-    facility = await Facility.findById(req.params.id);
-  } else {
-    const ownedFacility = await Facility.findOne({
-      _id: req.params.id,
-      owner_user_id: req.user._id,
-    });
-
-    if (ownedFacility) {
-      facility = ownedFacility;
-    } else {
-      const assignment = await FacilityAuditor.findOne({
-        facility_id: req.params.id,
-        user_id: req.user._id,
-      });
-
-      if (assignment) {
-        facility = await Facility.findById(req.params.id);
-      }
-    }
-  }
+  facility = await resolveAccessibleFacility(req.user, req.params.id);
 
   if (!facility) {
     res.status(404);
@@ -377,7 +332,12 @@ const updateFacility = asyncHandler(async (req, res) => {
       },
     ].filter((rep) => rep.name || rep.contact_number || rep.email);
   }
-  facility.facility_type = facility_type ?? facility.facility_type;
+  if (facility_type !== undefined) {
+    facility.facility_type = String(facility_type).trim();
+  }
+  if (audit_type !== undefined) {
+    facility.audit_type = audit_type;
+  }
   facility.status = status ?? facility.status;
   facility.start_date = start_date ?? facility.start_date;
   facility.closure_date = closure_date ?? facility.closure_date;
@@ -498,11 +458,19 @@ const deleteFacility = asyncHandler(async (req, res) => {
 // @desc Close facility audit (when all utility audits are completed)
 // @access Protected
 const closeFacilityAudit = asyncHandler(async (req, res) => {
-  const facility = await getAccessibleFacility(req.user, req.params.id);
+  const facility = await resolveAccessibleFacility(req.user, req.params.id);
 
   if (!facility) {
     res.status(404);
     throw new Error("Facility not found");
+  }
+
+  const mayClose = await can(req.user, RESOURCES.FACILITY, ACTIONS.CLOSE_FACILITY_AUDIT, {
+    facilityId: req.params.id,
+  });
+  if (!mayClose) {
+    res.status(403);
+    throw new Error("You do not have permission to close this facility audit");
   }
 
   const utilities = await UtilityAccount.find({ facility_id: facility._id });
@@ -555,19 +523,22 @@ const closeFacilityAudit = asyncHandler(async (req, res) => {
 });
 
 // @route POST /api/v1/facilities/:id/audit-open
-// @desc Re-open facility audit (admin only)
+// @desc Re-open facility audit (users with policy + facility access, e.g. admin or assigned manager)
 // @access Protected
 const openFacilityAudit = asyncHandler(async (req, res) => {
-  if (!isAdmin(req.user)) {
-    res.status(403);
-    throw new Error("Only administrators can re-open facility audit");
-  }
-
-  const facility = await Facility.findById(req.params.id);
+  const facility = await resolveAccessibleFacility(req.user, req.params.id);
 
   if (!facility) {
     res.status(404);
     throw new Error("Facility not found");
+  }
+
+  const mayReopen = await can(req.user, RESOURCES.FACILITY, ACTIONS.REOPEN_FACILITY_AUDIT, {
+    facilityId: req.params.id,
+  });
+  if (!mayReopen) {
+    res.status(403);
+    throw new Error("You do not have permission to re-open this facility audit");
   }
 
   facility.audit_closure = {

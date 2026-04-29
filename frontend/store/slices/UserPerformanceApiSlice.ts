@@ -1,4 +1,5 @@
 import { apiSlice } from "./apiSlice";
+import type { AppUserRole } from "@/lib/authRoles";
 
 export interface UserPerformanceFacility {
   _id: string;
@@ -42,7 +43,7 @@ export interface UserPerformanceResponse {
       _id: string;
       name: string;
       email: string;
-      role: "admin" | "auditor";
+      role: AppUserRole;
       status: "active" | "inactive";
     };
     widgets: {
@@ -88,7 +89,7 @@ export interface UserPerformanceSummaryResponse {
       _id: string;
       name: string;
       email: string;
-      role: "admin" | "auditor";
+      role: AppUserRole;
       status: "active" | "inactive";
     };
     widgets: {

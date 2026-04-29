@@ -2,13 +2,52 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import User from "../modals/user.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
+import { RESOURCES } from "../constants/resources.js";
+import { ACTIONS } from "../constants/actions.js";
+import {
+  getRequesterRole,
+  getAllowedRolesForRequester,
+} from "../services/authorization/userManagement.js";
+import { hasPolicyScopeAll, isAdmin } from "../services/authorization/index.js";
 
 //@route GET /api/admin/users
 //@desc Get all users(Admin only)
 //@access Private/Admin
 
 const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({});
+  const requesterRole = getRequesterRole(req);
+  const allowedRoles = getAllowedRolesForRequester(requesterRole);
+
+  if (!allowedRoles.length) {
+    return res.status(403).json({ message: "Not authorized" });
+  }
+
+  const query =
+    requesterRole === "super_admin" ? {} : { role: { $in: allowedRoles } };
+
+  const users = await User.find(query);
+  return res.json(users);
+});
+
+//@route GET /api/admin/users/assignable
+//@desc Get assignable users for facility team assignment
+//@access Private (permission-based)
+const getAssignableUsers = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const canAssignFacilityTeam =
+    isAdmin(user) ||
+    hasPolicyScopeAll(user, RESOURCES.FACILITY, ACTIONS.CREATE) ||
+    hasPolicyScopeAll(user, RESOURCES.FACILITY, ACTIONS.UPDATE) ||
+    hasPolicyScopeAll(user, RESOURCES.FACILITY, ACTIONS.ASSIGN);
+
+  if (!canAssignFacilityTeam) {
+    return res.status(403).json({ message: "Not authorized" });
+  }
+
+  const users = await User.find({
+    role: { $nin: ["super_admin", "admin"] },
+  }).select("-password");
+
   return res.json(users);
 });
 
@@ -18,6 +57,15 @@ const getUsers = asyncHandler(async (req, res) => {
 
 const createUser = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
+  const requesterRole = getRequesterRole(req);
+  const allowedRoles = getAllowedRolesForRequester(requesterRole);
+  const targetRole = role || "auditor";
+
+  if (!allowedRoles.includes(targetRole)) {
+    return res.status(403).json({
+      message: `You can create only: ${allowedRoles.join(", ")}`,
+    });
+  }
 
   let user = await User.findOne({ email });
   if (user) {
@@ -28,7 +76,7 @@ const createUser = asyncHandler(async (req, res) => {
     name,
     email,
     password,
-    role: role || "caller",
+    role: targetRole,
   });
 
   await user.save();
@@ -48,6 +96,9 @@ const createUser = asyncHandler(async (req, res) => {
     meta: {
       email: user.email,
       role: user.role,
+      permissions_count: Array.isArray(user.permissions)
+        ? user.permissions.length
+        : 0,
     },
   });
 
@@ -62,10 +113,18 @@ const createUser = asyncHandler(async (req, res) => {
 //@access Private/Admin
 
 const updateUser = asyncHandler(async (req, res) => {
+  const requesterRole = getRequesterRole(req);
+  const allowedRoles = getAllowedRolesForRequester(requesterRole);
   const user = await User.findById(req.params.id);
 
   if (!user) {
     return res.status(404).json({ message: "User not found" });
+  }
+
+  if (!allowedRoles.includes(user.role)) {
+    return res
+      .status(403)
+      .json({ message: "You are not allowed to update this user role" });
   }
 
   const updatedFields = [];
@@ -81,8 +140,18 @@ const updateUser = asyncHandler(async (req, res) => {
   }
 
   if (req.body.role && req.body.role !== user.role) {
+    if (!allowedRoles.includes(req.body.role)) {
+      return res.status(403).json({
+        message: `You can assign only: ${allowedRoles.join(", ")}`,
+      });
+    }
     user.role = req.body.role;
     updatedFields.push("role");
+  }
+
+  if (typeof req.body.password === "string" && req.body.password.trim()) {
+    user.password = req.body.password.trim();
+    updatedFields.push("password");
   }
 
   const updatedUser = await user.save();
@@ -103,6 +172,9 @@ const updateUser = asyncHandler(async (req, res) => {
       updated_fields: updatedFields,
       email: updatedUser.email,
       role: updatedUser.role,
+      permissions_count: Array.isArray(updatedUser.permissions)
+        ? updatedUser.permissions.length
+        : 0,
     },
   });
 
@@ -117,10 +189,18 @@ const updateUser = asyncHandler(async (req, res) => {
 //@access Private/Admin
 
 const deleteUser = asyncHandler(async (req, res) => {
+  const requesterRole = getRequesterRole(req);
+  const allowedRoles = getAllowedRolesForRequester(requesterRole);
   const user = await User.findById(req.params.id);
 
   if (!user) {
     return res.status(404).json({ message: "User not found" });
+  }
+
+  if (!allowedRoles.includes(user.role)) {
+    return res
+      .status(403)
+      .json({ message: "You are not allowed to delete this user role" });
   }
 
   const userName = user.name;
@@ -152,4 +232,4 @@ const deleteUser = asyncHandler(async (req, res) => {
   });
 });
 
-export { getUsers, createUser, updateUser, deleteUser };
+export { getUsers, getAssignableUsers, createUser, updateUser, deleteUser };

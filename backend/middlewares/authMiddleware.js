@@ -4,6 +4,7 @@ import logger from "../config/logger.js";
 import buildLogMeta from "../utils/buildLogMeta.js";
 import { getAccessSecret } from "../utils/authTokens.js";
 import asyncHandler from "./asyncHandler.js";
+import { isAdmin as isPlatformAdmin } from "../services/authorization/index.js";
 
 const unauthorized = (message) => {
   const err = new Error(message);
@@ -65,9 +66,9 @@ const protect = asyncHandler(async (req, res, next) => {
   next();
 });
 
-// 🔐 Admin check
+// 🔐 Admin routes: platform admins only (same as legacy `role === "admin"` + `super_admin`).
 const admin = (req, res, next) => {
-  if (req.user && req.user.role === "admin") {
+  if (req.user && isPlatformAdmin(req.user)) {
     return next();
   }
 

@@ -1,20 +1,32 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import type { AppUserRole } from "@/lib/authRoles";
 
-// Types
-interface User {
-  userId: string;
+type PermissionScope = "all" | "assigned" | "own" | "none";
+
+export interface UserPermission {
+  resource: string;
+  actions: string[];
+  scope: PermissionScope;
+}
+
+// Types (login returns `_id`; some paths use `userId`)
+export interface AuthUser {
+  userId?: string;
+  _id?: string;
   name: string;
-  role: "admin" | "auditor";
+  email?: string;
+  role: AppUserRole;
+  permissions?: UserPermission[];
 }
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   error: string | null;
 }
 
 // Safe localStorage access
-const getUserFromStorage = (): User | null => {
+const getUserFromStorage = (): AuthUser | null => {
   if (typeof window !== "undefined") {
     const user = localStorage.getItem("userInfo");
     return user ? JSON.parse(user) : null;
@@ -34,7 +46,7 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setCredentials: (state, action: PayloadAction<User>) => {
+    setCredentials: (state, action: PayloadAction<AuthUser>) => {
       state.user = action.payload;
 
       if (typeof window !== "undefined") {

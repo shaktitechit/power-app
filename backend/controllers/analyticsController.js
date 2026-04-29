@@ -2,16 +2,15 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
 import UtilityAccount from "../modals/utilityAccount.js";
-import SolarPlant from "../modals/solarPlant.js";
-import DGSet from "../modals/dgSet.js";
-import Transformer from "../modals/transformer.js";
-import Pump from "../modals/pump.js";
+import SolarPlant from "../modals/electrical-audit/solarPlant.js";
+import DGSet from "../modals/electrical-audit/dgSet.js";
+import Transformer from "../modals/electrical-audit/transformer.js";
+import Pump from "../modals/electrical-audit/pump.js";
 import {
   isFacilityAuditClosed,
   isUtilityAuditCompleted,
 } from "../helpers/auditState.js";
-
-const isAdmin = (user) => user?.role === "admin";
+import { isAdmin } from "../services/authorization/index.js";
 
 const getAccessibleFacilityIds = async (user) => {
   if (!user?._id) return [];
@@ -19,6 +18,15 @@ const getAccessibleFacilityIds = async (user) => {
   if (isAdmin(user)) {
     const facilities = await Facility.find({}, "_id").lean();
     return facilities.map((f) => String(f._id));
+  }
+
+  if (user?.role === "manager") {
+    const assignedFacilities = await FacilityAuditor.find(
+      { user_id: user._id },
+      "facility_id",
+    ).lean();
+
+    return [...new Set(assignedFacilities.map((a) => String(a.facility_id)))];
   }
 
   const ownedFacilities = await Facility.find(

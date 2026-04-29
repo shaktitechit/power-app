@@ -12,6 +12,7 @@ import {
   BarChart3,
   FileText,
   Users,
+  Activity,
   Mail,
   Phone,
   ChevronLeft,
@@ -20,28 +21,64 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  hasPermissionStrict,
+  type UserPermission,
+} from "@/lib/authRoles";
 
 interface SidebarProps {
   isCollapsed: boolean;
   isMobileOpen: boolean;
   onToggle: () => void;
   onMobileClose: () => void;
-  userRole?: "admin" | "auditor";
+  userRole?: string;
+  userPermissions?: UserPermission[];
 }
+
+type NavAccess =
+  | "all"
+  | "usersHub"
+  | "performanceHub"
+  | "reportsHub"
+  | "dashboardRead"
+  | "facilityRead"
+  | "analyticsRead";
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ElementType;
-  adminOnly?: boolean;
+  /** Default: visible to all logged-in users */
+  access?: NavAccess;
 }
 
 const navItems: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Facilities", href: "/facilities", icon: Building2 },
-  { title: "Analytics", href: "/analytics", icon: BarChart3 },
-  { title: "Reports", href: "/reports", icon: FileText, adminOnly: true },
-  { title: "Users", href: "/users", icon: Users, adminOnly: true },
+  {
+    title: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    access: "dashboardRead",
+  },
+  {
+    title: "Facilities",
+    href: "/facilities",
+    icon: Building2,
+    access: "facilityRead",
+  },
+  {
+    title: "Analytics",
+    href: "/analytics",
+    icon: BarChart3,
+    access: "analyticsRead",
+  },
+  { title: "Reports", href: "/reports", icon: FileText, access: "reportsHub" },
+  { title: "Users", href: "/users", icon: Users, access: "usersHub" },
+  {
+    title: "Performance",
+    href: "/performance",
+    icon: Activity,
+    access: "performanceHub",
+  },
   // { title: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -51,28 +88,67 @@ export function Sidebar({
   onToggle,
   onMobileClose,
   userRole,
+  userPermissions = [],
 }: SidebarProps) {
   const pathname = usePathname();
+  const isAdminHubRole = userRole === "super_admin" || userRole === "admin";
+  const isManagerRole = userRole === "manager";
+  const isAuditorRole = userRole === "auditor";
 
   /* -------------------------------- */
   /* Hydration Fix */
   /* -------------------------------- */
 
   const [mounted, setMounted] = useState(false);
+  const [canUsersHubFromCookie, setCanUsersHubFromCookie] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    if (typeof document !== "undefined") {
+      const hubCookie = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("usersHub="))
+        ?.split("=")[1];
+      setCanUsersHubFromCookie(hubCookie === "1");
+    }
   }, []);
 
   if (!mounted) return null;
 
   /* -------------------------------- */
-  /* Filter nav by role */
+  /* Filter nav by explicit permissions */
   /* -------------------------------- */
 
-  const filteredNavItems = navItems.filter(
-    (item) => !item.adminOnly || userRole === "admin",
-  );
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.access === "performanceHub") {
+      return userRole === "super_admin" || userRole === "admin";
+    }
+    if (isAdminHubRole) return true;
+    if (!item.access || item.access === "all") return true;
+    if (item.access === "usersHub")
+      return canUsersHubFromCookie;
+    if (item.access === "reportsHub")
+      return isManagerRole || isAuditorRole || canUsersHubFromCookie;
+    if (item.access === "dashboardRead")
+      return (
+        isManagerRole ||
+        isAuditorRole ||
+        hasPermissionStrict(userPermissions, "dashboard", "read", "all")
+      );
+    if (item.access === "facilityRead")
+      return (
+        isManagerRole ||
+        isAuditorRole ||
+        hasPermissionStrict(userPermissions, "facility", "read", "all")
+      );
+    if (item.access === "analyticsRead")
+      return (
+        isManagerRole ||
+        isAuditorRole ||
+        hasPermissionStrict(userPermissions, "analytics", "read", "all")
+      );
+    return true;
+  });
 
   const handleLinkClick = () => {
     onMobileClose();

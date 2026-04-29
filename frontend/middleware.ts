@@ -4,9 +4,10 @@ import type { NextRequest } from "next/server";
 export function middleware(req: NextRequest) {
   const accessToken = req.cookies.get("jwt")?.value;
   const refreshToken = req.cookies.get("refreshToken")?.value;
+  const role = req.cookies.get("role")?.value;
   /** Session: short-lived access and/or refresh cookie (client refreshes access via API) */
   const hasSession = Boolean(accessToken || refreshToken);
-  const role = req.cookies.get("role")?.value;
+  const usersHubFlag = req.cookies.get("usersHub")?.value;
   const { pathname } = req.nextUrl;
 
   // Prevent logged-in user from opening login page
@@ -22,11 +23,22 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Admin-only routes
-  if (
-    (pathname.startsWith("/users") || pathname.startsWith("/reports")) &&
-    role !== "admin"
-  ) {
+  // Users hub access: cookie or platform admins.
+  const canUsersHub =
+    usersHubFlag === "1" || role === "super_admin" || role === "admin";
+  // Reports: managers can access, even without users hub.
+  const canReportsHub = canUsersHub || role === "manager";
+  const canPerformanceHub = role === "super_admin" || role === "admin";
+
+  if (pathname.startsWith("/users") && !canUsersHub) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  if (pathname.startsWith("/performance") && !canPerformanceHub) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  if (pathname.startsWith("/reports") && !canReportsHub) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
@@ -42,6 +54,9 @@ export const config = {
     "/settings",
     "/reports",
     "/reports/:path*",
+    "/users",
     "/users/:path*",
+    "/performance",
+    "/performance/:path*",
   ],
 };

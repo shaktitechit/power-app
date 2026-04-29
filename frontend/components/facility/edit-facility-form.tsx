@@ -1,5 +1,6 @@
 "use client";
 
+import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
@@ -28,13 +29,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-import { useAuditorsQuery } from "@/store/slices/userApiSlice";
+import { useAssignableUsersQuery } from "@/store/slices/userApiSlice";
 import {
   useGetFacilityByIdQuery,
   useUpdateFacilityMutation,
 } from "@/store/slices/facilityApiSlice";
 import { toastHandler } from "@/lib/toast";
 import { useAppSelector } from "@/store/hooks";
+import { AUDIT_TYPE_OPTIONS } from "@/lib/facilityConstants";
 
 interface EditFacilityFormProps {
   open: boolean;
@@ -56,10 +58,11 @@ type ExistingFacilityDocument = {
   fileName?: string;
 };
 
-type Auditor = {
+type AssignableUser = {
   _id: string;
   name: string;
   email: string;
+  role?: string;
 };
 
 type ClientRepresentative = {
@@ -68,24 +71,15 @@ type ClientRepresentative = {
   email: string;
 };
 
-const facilityTypes = [
-  "hospital",
-  "hotel",
-  "factory",
-  "office",
-  "mall",
-  "other",
-] as const;
-
 const facilityStatuses = ["active", "inactive"] as const;
 
-function AuditorMultiSelect({
-  auditors,
+function TeamMemberMultiSelect({
+  users,
   selectedIds,
   onChange,
   disabled = false,
 }: {
-  auditors: Auditor[];
+  users: AssignableUser[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
@@ -105,20 +99,20 @@ function AuditorMultiSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const toggleAuditor = (auditorId: string) => {
+  const toggleMember = (userId: string) => {
     if (disabled) return;
 
-    const exists = selectedIds.includes(auditorId);
+    const exists = selectedIds.includes(userId);
 
     if (exists) {
-      onChange(selectedIds.filter((id) => id !== auditorId));
+      onChange(selectedIds.filter((id) => id !== userId));
     } else {
-      onChange([...selectedIds, auditorId]);
+      onChange([...selectedIds, userId]);
     }
   };
 
-  const selectedAuditors = auditors.filter((auditor) =>
-    selectedIds.includes(auditor._id),
+  const selectedUsers = users.filter((user) =>
+    selectedIds.includes(user._id),
   );
 
   return (
@@ -133,11 +127,11 @@ function AuditorMultiSelect({
           className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="truncate text-left">
-            {selectedAuditors.length > 0
-              ? `${selectedAuditors.length} auditor${
-                  selectedAuditors.length > 1 ? "s" : ""
+            {selectedUsers.length > 0
+              ? `${selectedUsers.length} member${
+                  selectedUsers.length > 1 ? "s" : ""
                 } selected`
-              : "Select auditors"}
+              : "Select team members"}
           </span>
           <ChevronDown className="h-4 w-4 opacity-60" />
         </button>
@@ -145,23 +139,24 @@ function AuditorMultiSelect({
         {open && !disabled && (
           <div className="absolute z-50 mt-2 max-h-72 w-full overflow-hidden rounded-md border bg-popover shadow-md">
             <div className="max-h-72 overflow-y-auto p-1">
-              {auditors.length > 0 ? (
-                auditors.map((auditor) => {
-                  const checked = selectedIds.includes(auditor._id);
+              {users.length > 0 ? (
+                users.map((user) => {
+                  const checked = selectedIds.includes(user._id);
 
                   return (
                     <button
-                      key={auditor._id}
+                      key={user._id}
                       type="button"
-                      onClick={() => toggleAuditor(auditor._id)}
+                      onClick={() => toggleMember(user._id)}
                       className="flex w-full items-start justify-between rounded-sm px-3 py-2 text-left hover:bg-accent"
                     >
                       <div className="min-w-0 pr-3">
                         <p className="truncate text-sm font-medium">
-                          {auditor.name}
+                          {user.name}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {auditor.email}
+                          {user.email}
+                          {user.role ? ` • ${user.role.replace("_", " ")}` : ""}
                         </p>
                       </div>
 
@@ -173,7 +168,7 @@ function AuditorMultiSelect({
                 })
               ) : (
                 <div className="px-3 py-2 text-sm text-muted-foreground">
-                  No auditors found
+                  No team members found
                 </div>
               )}
             </div>
@@ -181,17 +176,17 @@ function AuditorMultiSelect({
         )}
       </div>
 
-      {selectedAuditors.length > 0 && (
+      {selectedUsers.length > 0 && (
         <div className="flex flex-wrap gap-2 pt-1">
-          {selectedAuditors.map((auditor) => (
+          {selectedUsers.map((user) => (
             <div
-              key={auditor._id}
+              key={user._id}
               className="inline-flex items-center gap-2 rounded-full border bg-muted px-3 py-1 text-xs"
             >
-              <span>{auditor.name}</span>
+              <span>{user.name}</span>
               <button
                 type="button"
-                onClick={() => toggleAuditor(auditor._id)}
+                onClick={() => toggleMember(user._id)}
                 className="font-semibold text-muted-foreground hover:text-foreground"
                 disabled={disabled}
               >
@@ -213,10 +208,13 @@ export function EditFacilityForm({
 }: EditFacilityFormProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const user = useAppSelector((state) => state.auth.user);
-  const canViewDocuments = user?.role === "admin";
+  const canViewDocumentsFlag = canViewDocuments(
+    user?.role,
+    (user?.permissions as UserPermission[]) || [],
+  );
 
   const { data: auditorsResponse, isLoading: auditorsLoading } =
-    useAuditorsQuery();
+    useAssignableUsersQuery();
 
   const {
     data: facilityResponse,
@@ -229,7 +227,10 @@ export function EditFacilityForm({
   const [updateFacility, { isLoading: updatingFacility }] =
     useUpdateFacilityMutation();
 
-  const auditors: Auditor[] = auditorsResponse?.data || [];
+  const users: AssignableUser[] = auditorsResponse?.data || [];
+  const assignableUsers = users.filter(
+    (user) => user.role !== "super_admin" && user.role !== "admin",
+  );
   const facility = facilityResponse?.data?.facility;
   const assignedAuditors = facilityResponse?.data?.assignedAuditors || [];
 
@@ -241,7 +242,8 @@ export function EditFacilityForm({
     client_representatives: [
       { name: "", contact_number: "", email: "" },
     ] as ClientRepresentative[],
-    facility_type: "other",
+    facility_type: "",
+    audit_type: AUDIT_TYPE_OPTIONS[0],
     status: "active",
     closure_date: "",
     auditor_ids: [] as string[],
@@ -281,7 +283,10 @@ export function EditFacilityForm({
                 email: facility.client_email || "",
               },
             ],
-      facility_type: facility.facility_type || "other",
+      facility_type: facility.facility_type ?? "",
+      audit_type: AUDIT_TYPE_OPTIONS.some((x) => x === facility.audit_type)
+        ? (facility.audit_type as (typeof AUDIT_TYPE_OPTIONS)[number])
+        : AUDIT_TYPE_OPTIONS[0],
       status: facility.status || "active",
       closure_date: facility.closure_date
         ? new Date(facility.closure_date).toISOString().split("T")[0]
@@ -427,13 +432,8 @@ export function EditFacilityForm({
           client_representative: primaryRep?.name || undefined,
           client_contact_number: primaryRep?.contact_number || undefined,
           client_email: primaryRep?.email || undefined,
-          facility_type: formData.facility_type as
-            | "hospital"
-            | "hotel"
-            | "factory"
-            | "office"
-            | "mall"
-            | "other",
+          facility_type: formData.facility_type.trim(),
+          audit_type: formData.audit_type,
           status: formData.status as "active" | "inactive",
           closure_date:
             formData.status === "inactive"
@@ -510,19 +510,30 @@ export function EditFacilityForm({
             </div>
 
             <div className="space-y-2">
-              <Label>Facility Type</Label>
-              <Select
+              <Label htmlFor="facility_type">Facility Type</Label>
+              <Input
+                id="facility_type"
+                placeholder="e.g. hospital, factory, data center"
                 value={formData.facility_type}
-                onValueChange={(value) => updateField("facility_type", value)}
+                onChange={(e) => updateField("facility_type", e.target.value)}
+                disabled={isBusy}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Audit Type</Label>
+              <Select
+                value={formData.audit_type}
+                onValueChange={(value) => updateField("audit_type", value)}
                 disabled={isBusy}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select facility type" />
+                  <SelectValue placeholder="Select audit type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {facilityTypes.map((type) => (
+                  {AUDIT_TYPE_OPTIONS.map((type) => (
                     <SelectItem key={type} value={type}>
-                      <span className="capitalize">{type}</span>
+                      {type}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -574,11 +585,11 @@ export function EditFacilityForm({
             <div className="space-y-2 sm:col-span-2">
               {auditorsLoading ? (
                 <div className="text-sm text-muted-foreground">
-                  Loading auditors...
+                  Loading team members...
                 </div>
               ) : (
-                <AuditorMultiSelect
-                  auditors={auditors}
+                <TeamMemberMultiSelect
+                  users={assignableUsers}
                   selectedIds={formData.auditor_ids}
                   onChange={(ids) => updateField("auditor_ids", ids)}
                   disabled={isBusy}
@@ -740,7 +751,7 @@ export function EditFacilityForm({
               />
             </div>
 
-            {canViewDocuments && existingDocuments.length > 0 && (
+            {canViewDocumentsFlag && existingDocuments.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">Existing Documents</p>
 
@@ -779,9 +790,9 @@ export function EditFacilityForm({
                 ))}
               </div>
             )}
-            {!canViewDocuments && (
+            {!canViewDocumentsFlag && (
               <p className="text-sm text-muted-foreground">
-                Existing documents are visible to admin users only.
+                Only super admin, admin, and manager can view uploaded documents.
               </p>
             )}
 

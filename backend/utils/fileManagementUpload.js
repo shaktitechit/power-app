@@ -25,6 +25,7 @@ export const FOLDER_TO_RESOURCE_TYPE = {
   "solar-generation-records": "solar_generation_record",
   "reports/excel": "report",
   "reports/pdf": "report",
+  "safety-audits": "safety_audit",
 };
 
 export function buildProxyViewUrl(fileId) {

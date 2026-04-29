@@ -1,5 +1,5 @@
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
@@ -11,48 +11,14 @@ import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
 import { assertFileManagementConfig } from "./config/fileManagement.js";
-
-import {
-  apiRateLimiter,
-  authRateLimiter,
-} from "./middlewares/rateLimitLoggerMiddleware.js";
+import { registerV1ApiRoutes } from "./registerV1ApiRoutes.js";
 
 import requestContextMiddleware from "./middlewares/requestContextMiddleware.js";
 import requestLoggerMiddleware from "./middlewares/requestLoggerMiddleware.js";
 import { notFound, errorHandler } from "./middlewares/errorHandler.js";
 
-import usersRoute from "./routes/usersRoute.js";
-import facilityRoute from "./routes/facilityRoute.js";
-import utilityRoutes from "./routes/utilityRoutes.js";
-import utilityTarrifRoutes from "./routes/utilityTarrifRoutes.js";
-import utilityBillingRecordRoutes from "./routes/utilityBillingRecordRoutes.js";
-import solarPlantRoutes from "./routes/solarPlantRoutes.js";
-import dgSetRoutes from "./routes/dgSetRoutes.js";
-import transformerRoutes from "./routes/transformerRoutes.js";
-import pumpRoutes from "./routes/pumpRoutes.js";
-import hvacAuditRoutes from "./routes/hvacAuditRoutes.js";
-import lightingAuditRoutes from "./routes/lightingAuditRoutes.js";
-import luxMeasurementRoutes from "./routes/luxMeasurementRoutes.js";
-import miscLoadAuditRoutes from "./routes/miscLoadAuditRoutes.js";
-import solarGenerationRecordRoutes from "./routes/solarGenerationRecordRoutes.js";
-import dgAuditRecordRoutes from "./routes/dgAuditRecordRoutes.js";
-import transformerAuditRecordRoutes from "./routes/transformerAuditRecordRoutes.js";
-import pumpAuditRecordRoutes from "./routes/pumpAuditRecordRoutes.js";
-import acAuditRecordRoutes from "./routes/acAuditRecordRoutes.js";
-import fanAuditRecordRoutes from "./routes/fanAuditRecordRoutes.js";
-import reportRoutes from "./routes/reportRoutes.js";
-import dashboardRoutes from "./routes/dashboardRoutes.js";
-import analyticsRoutes from "./routes/analyticsRoutes.js";
-import userProfileRoutes from "./routes/userProfileRoutes.js";
-import userPerformanceRoutes from "./routes/userPerformanceRoutes.js";
-
-import adminRoutes from "./routes/adminRoutes.js";
-import emailRoutes from "./routes/emailRoutes.js";
-import fileManagementRoute from "./routes/fileManagementRoute.js";
-
 import socketServer from "./socket/socketServer.js";
 
-dotenv.config();
 assertFileManagementConfig();
 
 const frontendOrigins = (process.env.FRONTEND_URL ?? "https://power.spspl.com")
@@ -63,8 +29,6 @@ const frontendOrigins = (process.env.FRONTEND_URL ?? "https://power.spspl.com")
 connectDB();
 
 const app = express();
-
-/* ---------------- MIDDLEWARE ---------------- */
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -84,51 +48,14 @@ app.options(/.*/, cors());
 app.use(requestContextMiddleware);
 app.use(requestLoggerMiddleware);
 
-/* ---------------- ROUTES ---------------- */
-
 app.get("/", (req, res) => {
   res.send("Welcome to Power DB Server.");
 });
 
-// general limiter for all API routes
-app.use("/api", apiRateLimiter);
-
-app.use("/api/v1/email", emailRoutes);
-app.use("/api/v1/file-management", fileManagementRoute);
-
-app.use("/api/v1/users", usersRoute);
-app.use("/api/v1/facilities", facilityRoute);
-app.use("/api/v1/utilities", utilityRoutes);
-app.use("/api/v1/utility-tariffs", utilityTarrifRoutes);
-app.use("/api/v1/utility-billing-records", utilityBillingRecordRoutes);
-app.use("/api/v1/solar-plants", solarPlantRoutes);
-app.use("/api/v1/dg-sets", dgSetRoutes);
-app.use("/api/v1/transformers", transformerRoutes);
-app.use("/api/v1/pumps", pumpRoutes);
-app.use("/api/v1/hvac-audits", hvacAuditRoutes);
-app.use("/api/v1/lighting-audits", lightingAuditRoutes);
-app.use("/api/v1/lux-measurements", luxMeasurementRoutes);
-app.use("/api/v1/misc-load-audits", miscLoadAuditRoutes);
-app.use("/api/v1/solar-generation-records", solarGenerationRecordRoutes);
-app.use("/api/v1/dg-audit-records", dgAuditRecordRoutes);
-app.use("/api/v1/transformer-audit-records", transformerAuditRecordRoutes);
-app.use("/api/v1/pump-audit-records", pumpAuditRecordRoutes);
-app.use("/api/v1/ac-audit-records", acAuditRecordRoutes);
-app.use("/api/v1/fan-audit-records", fanAuditRecordRoutes);
-app.use("/api/v1/reports", reportRoutes);
-app.use("/api/v1/dashboard", dashboardRoutes);
-app.use("/api/v1/analytics", analyticsRoutes);
-app.use("/api/v1/user", userProfileRoutes);
-app.use("/api/v1/user-performance", userPerformanceRoutes);
-
-app.use("/api/v1/admin/users", adminRoutes);
-
-/* ---------------- ERROR HANDLER ---------------- */
+registerV1ApiRoutes(app);
 
 app.use(notFound);
 app.use(errorHandler);
-
-/* ---------------- SOCKET SERVER ---------------- */
 
 const server = http.createServer(app);
 
@@ -139,11 +66,7 @@ const io = new Server(server, {
   },
 });
 
-/* Initialize Socket Logic */
-
 socketServer(io);
-
-/* ---------------- START SERVER ---------------- */
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || "0.0.0.0";

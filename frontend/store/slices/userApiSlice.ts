@@ -1,4 +1,5 @@
 import { apiSlice } from "./apiSlice";
+import type { AppUserRole } from "@/lib/authRoles";
 
 // Request types
 interface LoginRequest {
@@ -10,15 +11,17 @@ interface RegisterRequest {
   name: string;
   email: string;
   password: string;
+  role?: AppUserRole;
 }
 
-// Auth response type
+// Auth response type (matches POST /users/login body)
 interface AuthResponse {
   _id?: string;
   userId?: string;
   name: string;
   email?: string;
-  role: "admin" | "auditor";
+  role: AppUserRole;
+  permissions?: UserPermission[];
   status?: string;
 }
 
@@ -35,8 +38,17 @@ interface Auditor {
   email: string;
   phone?: string;
   status?: string;
-  role: "admin" | "auditor";
+  role: AppUserRole;
+  permissions?: UserPermission[];
   appearance?: AuditorAppearance;
+}
+
+type PermissionScope = "all" | "assigned" | "own" | "none";
+
+interface UserPermission {
+  resource: string;
+  actions: string[];
+  scope: PermissionScope;
 }
 
 interface GetAuditorsResponse {
@@ -49,7 +61,7 @@ interface UpdateUserRequest {
   id: string;
   name?: string;
   email?: string;
-  role?: "admin" | "auditor";
+  role?: AppUserRole;
   password?: string;
   status?: string;
 }
@@ -65,7 +77,7 @@ interface UpdateUserResponse {
     _id: string;
     name: string;
     email: string;
-    role?: "admin" | "auditor";
+    role?: AppUserRole;
     status?: string;
   };
 }
@@ -82,7 +94,7 @@ export const userApiSlice = apiSlice.injectEndpoints({
 
     register: builder.mutation<AuthResponse, RegisterRequest>({
       query: (data) => ({
-        url: `/v1/users/register`,
+        url: `/v1/admin/users`,
         method: "POST",
         body: data,
       }),
@@ -97,15 +109,32 @@ export const userApiSlice = apiSlice.injectEndpoints({
 
     auditors: builder.query<GetAuditorsResponse, void>({
       query: () => ({
-        url: `/v1/users/auditors`,
+        url: `/v1/admin/users`,
         method: "GET",
+      }),
+      transformResponse: (response: Auditor[]) => ({
+        success: true,
+        count: response.length,
+        data: response,
+      }),
+      providesTags: ["User", "PresenceLog"],
+    }),
+    assignableUsers: builder.query<GetAuditorsResponse, void>({
+      query: () => ({
+        url: `/v1/admin/users/assignable`,
+        method: "GET",
+      }),
+      transformResponse: (response: Auditor[]) => ({
+        success: true,
+        count: response.length,
+        data: response,
       }),
       providesTags: ["User", "PresenceLog"],
     }),
 
     updateUser: builder.mutation<UpdateUserResponse, UpdateUserRequest>({
       query: ({ id, ...body }) => ({
-        url: `/v1/users/${id}`,
+        url: `/v1/admin/users/${id}`,
         method: "PUT",
         body,
       }),
@@ -114,7 +143,7 @@ export const userApiSlice = apiSlice.injectEndpoints({
 
     deleteUser: builder.mutation<DeleteUserResponse, string>({
       query: (id) => ({
-        url: `/v1/users/${id}`,
+        url: `/v1/admin/users/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["User", "PresenceLog", "RecentActivity", "Dashboard"],
@@ -127,6 +156,7 @@ export const {
   useRegisterMutation,
   useLogoutMutation,
   useAuditorsQuery,
+  useAssignableUsersQuery,
   useUpdateUserMutation,
   useDeleteUserMutation,
 } = userApiSlice;

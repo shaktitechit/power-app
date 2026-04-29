@@ -25,9 +25,22 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       required: true,
-      enum: ["admin", "auditor"],
+      enum: ["super_admin", "admin", "manager", "auditor"],
       default: "auditor",
     },
+
+    /** Optional per-user policy rows merged after rolePolicies[role]. */
+    permissions: [
+      {
+        resource: { type: String, trim: true },
+        actions: [{ type: String, trim: true }],
+        scope: {
+          type: String,
+          enum: ["all", "assigned", "own", "none"],
+          default: "none",
+        },
+      },
+    ],
 
     phone: {
       type: String,

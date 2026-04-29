@@ -67,8 +67,20 @@ const facilitySchema = new mongoose.Schema(
 
     facility_type: {
       type: String,
-      enum: ["hospital", "hotel", "factory", "office", "mall", "other"],
-      default: "other",
+      trim: true,
+      default: "",
+    },
+
+    audit_type: {
+      type: String,
+      trim: true,
+      enum: [
+        "Electrical Energy Audit",
+        "Electrical Safety Audit",
+        "Thermal Audit",
+        "Lightning Arrester Audit",
+      ],
+      default: "Electrical Energy Audit",
     },
 
     status: {

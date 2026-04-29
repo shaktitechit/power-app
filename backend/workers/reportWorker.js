@@ -1,12 +1,10 @@
-import dotenv from "dotenv";
+import "dotenv/config";
 import { Worker } from "bullmq";
 import connectDB from "../config/db.js";
 import { redisConnection } from "../config/redis.js";
 import logger from "../config/logger.js";
 import buildWorkerLogMeta from "../utils/buildWorkerLogMeta.js";
-import { processReportJob } from "../services/report/orchestrators/processReportJob.js";
-
-dotenv.config();
+import { processReportJob } from "../services/report/pipeline/processReportJob.js";
 
 const REPORT_QUEUE_NAME = "report-generation";
 

@@ -1,7 +1,9 @@
+import type { AppUserRole } from "@/lib/authRoles";
+
 export type ID = string;
 export type ISODateString = string | Date;
 
-export type UserRole = "admin" | "auditor";
+export type UserRole = AppUserRole;
 export type UserStatus = "active" | "inactive" | "suspended";
 export type ConnectionType = "LT" | "HT";
 
@@ -74,6 +76,7 @@ export interface UtilityAccount {
   account_number: string;
   connection_type: ConnectionType;
   category: string;
+  location: string;
   sanctioned_demand_kVA: number;
   is_solar_connected: boolean;
   is_dg_connected: boolean;
@@ -127,6 +130,7 @@ export interface UtilityBillingRecord {
   energy_charges_rs: number;
   taxes_and_rent_rs: number;
   other_charges_rs: number;
+  rebate_subsidy_rs?: number;
   monthly_electricity_bill_rs: number;
   unit_consumption_per_day_kVAh: number;
   average_per_unit_cost_rs: number;

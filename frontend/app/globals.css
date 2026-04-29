@@ -129,9 +129,12 @@
 }
 
 @layer base {
+  /* Reserve space for the vertical scrollbar so Radix scroll-lock (Select, Dialog, etc.)
+     does not remove the bar and shift the whole layout while a dropdown is open. */
   html {
     font-size: calc(16px * var(--app-font-scale));
     overflow-x: clip;
+    scrollbar-gutter: stable;
   }
   * {
     @apply border-border outline-ring/50;
@@ -139,5 +142,55 @@
   body {
     @apply bg-background text-foreground;
     overflow-x: clip;
+  }
+  /* Radix Select wraps content with react-remove-scroll, which can pad the body
+     to replace the scrollbar. With `scrollbar-gutter: stable` the track is
+     already reserved, so the extra padding would shift the layout only while
+     a dropdown is open. */
+  body[data-scroll-locked] {
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+
+/* User performance “Save as PDF” — browser print uses full CSS (oklch/lab); html2canvas does not. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .user-performance-print-area,
+  .user-performance-print-area * {
+    visibility: visible !important;
+  }
+
+  .user-performance-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    color: #0f172a;
+    background: #fff;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .user-performance-no-print {
+    display: none !important;
+  }
+
+  .user-performance-print-area [class*="max-h-"] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .toaster,
+  [data-sonner-toaster] {
+    display: none !important;
   }
 }

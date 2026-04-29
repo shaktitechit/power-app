@@ -64,7 +64,44 @@ export const signRefreshTokenForSession = (userId, sessionId) =>
     expiresIn: getRefreshExpiresIn(),
   });
 
-export const setAuthCookies = (res, { accessToken, refreshToken, role }) => {
+const hasPermission = (permissions = [], resource, action, scope = "all") => {
+  if (!Array.isArray(permissions)) return false;
+  const actionAliases = {
+    view_report: "read",
+    generate_report: "create",
+    view_document: "read",
+    edit: "update",
+  };
+  const actionsToCheck = [action, actionAliases[action]].filter(Boolean);
+
+  return permissions.some((permission) => {
+    const resourceMatch =
+      permission?.resource === "*" || permission?.resource === resource;
+    const actionMatch =
+      Array.isArray(permission?.actions) &&
+      (permission.actions.includes("*") ||
+        actionsToCheck.some((candidate) => permission.actions.includes(candidate)));
+    const scopeMatch = permission?.scope === scope;
+    return resourceMatch && actionMatch && scopeMatch;
+  });
+};
+
+export const deriveAccessFlags = ({ role, permissions = [] }) => {
+  const usersHub =
+    role === "super_admin" ||
+    role === "admin" ||
+    hasPermission(permissions, "user", "read", "all") ||
+    hasPermission(permissions, "report", "read", "all");
+
+  return {
+    usersHub: usersHub ? "1" : "0",
+  };
+};
+
+export const setAuthCookies = (
+  res,
+  { accessToken, refreshToken, role, accessFlags },
+) => {
   const opts = cookieDefaults();
   const accessMs = parseDurationToMs(getAccessExpiresIn());
   const refreshMs = parseDurationToMs(getRefreshExpiresIn());
@@ -85,6 +122,13 @@ export const setAuthCookies = (res, { accessToken, refreshToken, role }) => {
       maxAge: refreshMs,
     });
   }
+
+  if (accessFlags?.usersHub !== undefined) {
+    res.cookie("usersHub", String(accessFlags.usersHub), {
+      ...opts,
+      maxAge: refreshMs,
+    });
+  }
 };
 
 export const clearAuthCookies = (res) => {
@@ -92,4 +136,6 @@ export const clearAuthCookies = (res) => {
   res.cookie("jwt", "", expired);
   res.cookie("refreshToken", "", expired);
   res.cookie("role", "", expired);
+  res.cookie("reportsHub", "", expired);
+  res.cookie("usersHub", "", expired);
 };

@@ -1,6 +1,8 @@
 // modals/report.js
 import mongoose from "mongoose";
 
+import { SAFETY_GRANULAR_REPORT_TYPES } from "../services/report/builders/safety-audit/reportModelRegistry.js";
+
 const reportFileSchema = new mongoose.Schema(
   {
     fileUrl: String,
@@ -47,6 +49,7 @@ const reportSchema = new mongoose.Schema(
         "lighting_report",
         "lux_report",
         "misc_report",
+        ...SAFETY_GRANULAR_REPORT_TYPES,
       ],
       required: true,
     },

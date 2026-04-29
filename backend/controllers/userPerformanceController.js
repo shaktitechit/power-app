@@ -7,6 +7,7 @@ import UtilityAccount from "../modals/utilityAccount.js";
 import PresenceLog from "../modals/presenceLog.js";
 import RecentActivity from "../modals/recentActivity.js";
 import { isUtilityAuditCompleted } from "../helpers/auditState.js";
+import { isAdmin as isPlatformAdmin } from "../services/authorization/index.js";
 
 const IST_OFFSET_MINUTES = 330;
 const IST_OFFSET_MS = IST_OFFSET_MINUTES * 60 * 1000;
@@ -47,8 +48,8 @@ const assertAccessAndGetUser = async (requester, userId) => {
   }
 
   const requesterId = String(requester?._id || "");
-  const isAdmin = requester?.role === "admin";
-  if (!isAdmin && requesterId !== String(userId)) {
+  const adminUser = isPlatformAdmin(requester);
+  if (!adminUser && requesterId !== String(userId)) {
     const err = new Error("Access denied");
     err.statusCode = 403;
     throw err;

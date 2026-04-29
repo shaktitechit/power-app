@@ -163,15 +163,15 @@ export function Header({
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-3 md:gap-4">
+      <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-3 md:gap-4">
         <div className="hidden md:flex">
           <FontSizeControl />
         </div>
         <ThemeToggle />
 
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 px-2">
+            <Button variant="ghost" className="flex max-w-[14rem] items-center gap-2 px-2 sm:max-w-[18rem]">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-sm text-primary-foreground">
                   {getInitials(user?.name)}
@@ -179,9 +179,11 @@ export function Header({
               </Avatar>
 
               {user && (
-                <div className="hidden flex-col items-start text-left md:flex">
+                <div className="hidden min-w-0 flex-col items-start text-left md:flex">
                   <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    {user.name}
+                    <span className="max-w-[10rem] truncate lg:max-w-[12rem]">
+                      {user.name}
+                    </span>
 
                     <span
                       className={`h-2.5 w-2.5 rounded-full ${

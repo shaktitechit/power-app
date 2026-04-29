@@ -2,28 +2,27 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 
 import Facility from "../modals/facility.js";
 import UtilityAccount from "../modals/utilityAccount.js";
-import SolarPlant from "../modals/solarPlant.js";
-import DGSet from "../modals/dgSet.js";
-import Transformer from "../modals/transformer.js";
-import Pump from "../modals/pump.js";
+import SolarPlant from "../modals/electrical-audit/solarPlant.js";
+import DGSet from "../modals/electrical-audit/dgSet.js";
+import Transformer from "../modals/electrical-audit/transformer.js";
+import Pump from "../modals/electrical-audit/pump.js";
 
-import ACAuditRecord from "../modals/acAuditRecord.js";
-import HVACAudit from "../modals/hvacAudit.js";
-import FanAuditRecord from "../modals/fanAuditRecord.js";
-import LightingAuditRecord from "../modals/lightingAuditRecord.js";
-import LuxMeasurement from "../modals/luxMeasurement.js";
-import MiscLoadAuditRecord from "../modals/miscLoadAuditRecord.js";
-import DGAuditRecord from "../modals/dgAuditRecord.js";
-import PumpAuditRecord from "../modals/pumpAuditRecord.js";
-import TransformerAuditRecord from "../modals/transformerAuditRecord.js";
-import SolarGenerationRecord from "../modals/solarGenerationRecord.js";
+import ACAuditRecord from "../modals/electrical-audit/acAuditRecord.js";
+import HVACAudit from "../modals/electrical-audit/hvacAudit.js";
+import FanAuditRecord from "../modals/electrical-audit/fanAuditRecord.js";
+import LightingAuditRecord from "../modals/electrical-audit/lightingAuditRecord.js";
+import LuxMeasurement from "../modals/electrical-audit/luxMeasurement.js";
+import MiscLoadAuditRecord from "../modals/electrical-audit/miscLoadAuditRecord.js";
+import DGAuditRecord from "../modals/electrical-audit/dgAuditRecord.js";
+import PumpAuditRecord from "../modals/electrical-audit/pumpAuditRecord.js";
+import TransformerAuditRecord from "../modals/electrical-audit/transformerAuditRecord.js";
+import SolarGenerationRecord from "../modals/electrical-audit/solarGenerationRecord.js";
 
 import FacilityAuditor from "../modals/facilityAuditor.js";
 import RecentActivity from "../modals/recentActivity.js";
 import User from "../modals/user.js";
 import PresenceLog from "../modals/presenceLog.js";
-
-const isAdmin = (user) => user?.role === "admin";
+import { hasOrgWideFacilityAccess } from "../services/authorization/index.js";
 
 const getMonthRanges = () => {
   const now = new Date();
@@ -91,7 +90,7 @@ const getModelUpdatedField = (Model) => {
 const getAccessibleFacilityIds = async (user) => {
   if (!user?._id) return [];
 
-  if (isAdmin(user)) {
+  if (hasOrgWideFacilityAccess(user)) {
     const facilities = await Facility.find({}, "_id").lean();
     return facilities.map((item) => item._id);
   }
@@ -125,6 +124,24 @@ const getAccessibleUtilityIds = async (facilityIds = []) => {
   return utilityAccounts.map((item) => item._id);
 };
 
+const getTeamMemberIdsFromFacilityAssignments = async (userId) => {
+  if (!userId) return [];
+
+  const assignedFacilityIds = await FacilityAuditor.find(
+    { user_id: userId },
+    "facility_id",
+  ).distinct("facility_id");
+
+  if (!assignedFacilityIds.length) return [String(userId)];
+
+  const teamUserIds = await FacilityAuditor.find(
+    { facility_id: { $in: assignedFacilityIds } },
+    "user_id",
+  ).distinct("user_id");
+
+  return [...new Set([String(userId), ...teamUserIds.map(String)])];
+};
+
 const getCountComparison = async (Model, query = {}) => {
   const { lastMonthEnd } = getMonthRanges();
   const createdField = getModelCreatedField(Model);
@@ -146,12 +163,26 @@ const getCountComparison = async (Model, query = {}) => {
 const getRecentActivitiesData = async (user, facilityIds) => {
   const createdField = getModelCreatedField(RecentActivity) || "createdAt";
   const updatedField = getModelUpdatedField(RecentActivity) || "updatedAt";
+  const role = user?.role;
+  let query = {};
 
-  const query = isAdmin(user)
-    ? {}
-    : {
-        $or: [{ facility_id: { $in: facilityIds } }, { actor_id: user._id }],
-      };
+  if (role === "super_admin") {
+    query = {};
+  } else if (role === "admin") {
+    query = { actor_role: { $in: ["manager", "auditor"] } };
+  } else if (role === "manager" || role === "auditor") {
+    const teamUserIds = await getTeamMemberIdsFromFacilityAssignments(user?._id);
+    query = {
+      actor_id: { $in: teamUserIds },
+      ...(facilityIds?.length ? { facility_id: { $in: facilityIds } } : {}),
+    };
+  } else if (hasOrgWideFacilityAccess(user)) {
+    query = {};
+  } else {
+    query = {
+      $or: [{ facility_id: { $in: facilityIds } }, { actor_id: user._id }],
+    };
+  }
 
   const activities = await RecentActivity.find(query)
     .populate("actor_id", "name email role")
@@ -196,30 +227,46 @@ const getRecentActivitiesData = async (user, facilityIds) => {
 };
 
 const getVisibleUsers = async (user, facilityIds) => {
-  if (isAdmin(user)) {
+  const role = user?.role;
+
+  if (role === "super_admin") {
     const createdField = getModelCreatedField(User) || "createdAt";
     return await User.find({}, "name email role")
       .sort({ [createdField]: -1 })
       .lean();
   }
 
-  const ownedFacilities = await Facility.find(
-    { owner_user_id: user._id },
-    "_id",
-  ).lean();
+  let userIds = [];
+  if (role === "admin") {
+    const users = await User.find(
+      { role: { $in: ["manager", "auditor"] } },
+      "_id",
+    ).lean();
+    userIds = users.map((item) => String(item._id));
+  } else if (role === "manager" || role === "auditor") {
+    userIds = await getTeamMemberIdsFromFacilityAssignments(user?._id);
+  } else if (hasOrgWideFacilityAccess(user)) {
+    const users = await User.find({}, "_id").lean();
+    userIds = users.map((item) => String(item._id));
+  } else {
+    const ownedFacilities = await Facility.find(
+      { owner_user_id: user._id },
+      "_id",
+    ).lean();
 
-  const assignedRows = await FacilityAuditor.find(
-    {
-      $or: [
-        { facility_id: { $in: facilityIds } },
-        { facility_id: { $in: ownedFacilities.map((f) => f._id) } },
-      ],
-    },
-    "user_id",
-  ).lean();
+    const assignedRows = await FacilityAuditor.find(
+      {
+        $or: [
+          { facility_id: { $in: facilityIds } },
+          { facility_id: { $in: ownedFacilities.map((f) => f._id) } },
+        ],
+      },
+      "user_id",
+    ).lean();
 
-  const assignedUserIds = assignedRows.map((item) => String(item.user_id));
-  const userIds = [...new Set([String(user._id), ...assignedUserIds])];
+    const assignedUserIds = assignedRows.map((item) => String(item.user_id));
+    userIds = [...new Set([String(user._id), ...assignedUserIds])];
+  }
 
   return await User.find({ _id: { $in: userIds } }, "name email role").lean();
 };
@@ -285,11 +332,11 @@ const getUserAppearanceData = async (user, facilityIds) => {
 };
 
 const getDashboardStatQueries = (user, facilityIds, utilityIds) => {
-  const facilityQuery = isAdmin(user) ? {} : { _id: { $in: facilityIds } };
-  const utilityQuery = isAdmin(user)
+  const facilityQuery = hasOrgWideFacilityAccess(user) ? {} : { _id: { $in: facilityIds } };
+  const utilityQuery = hasOrgWideFacilityAccess(user)
     ? {}
     : { facility_id: { $in: facilityIds } };
-  const assetQuery = isAdmin(user)
+  const assetQuery = hasOrgWideFacilityAccess(user)
     ? {}
     : { utility_account_id: { $in: utilityIds } };
 
@@ -332,11 +379,11 @@ const getCoreStats = async (user, facilityIds, utilityIds) => {
 const getAuditStats = async (user, facilityIds, utilityIds) => {
   const { assetQuery } = getDashboardStatQueries(user, facilityIds, utilityIds);
 
-  const facilityScopedQuery = isAdmin(user)
+  const facilityScopedQuery = hasOrgWideFacilityAccess(user)
     ? {}
     : { facility_id: { $in: facilityIds } };
 
-  const utilityScopedQuery = isAdmin(user)
+  const utilityScopedQuery = hasOrgWideFacilityAccess(user)
     ? {}
     : { utility_account_id: { $in: utilityIds } };
 

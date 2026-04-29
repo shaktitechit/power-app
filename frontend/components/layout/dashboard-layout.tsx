@@ -32,6 +32,7 @@ export function DashboardLayout({
         onToggle={() => setIsCollapsed(!isCollapsed)}
         onMobileClose={() => setIsMobileOpen(false)}
         userRole={user?.role}
+        userPermissions={user?.permissions || []}
       />
       <div
         className={cn(

@@ -1,17 +1,18 @@
 import { apiSlice } from "./apiSlice";
+import type { AppUserRole } from "@/lib/authRoles";
 
 export interface UserProfile {
   _id: string;
   name: string;
   email: string;
-  role: "admin" | "auditor";
+  role: AppUserRole;
 }
 
 export interface GetUserProfileResponse {
   _id: string;
   name: string;
   email: string;
-  role: "admin" | "auditor";
+  role: AppUserRole;
 }
 
 export interface UpdateUserProfileRequest {

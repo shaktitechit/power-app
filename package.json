@@ -2,8 +2,8 @@
   "name": "spspl_api",
   "version": "1.0.0",
   "type": "module",
-  "description": "Api endpionts for leads generation and funnel management",
-  "main": "api/index.js",
+  "description": "Power audit API (Express, MongoDB)",
+  "main": "backend/index.js",
   "scripts": {
     "dev": "concurrently -k -n API,WEB,WORKER -c green,blue,magenta \"npm run server\" \"npm --prefix frontend run dev\" \"npm run worker:report\"",
     "server": "nodemon backend/index.js",
@@ -19,7 +19,6 @@
     "concurrently": "^9.2.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
-    "crypto": "^1.0.1",
     "dotenv": "^17.3.1",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",

@@ -1,10 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -22,6 +32,10 @@ import {
 } from "lucide-react";
 
 import {
+  canGenerateReports,
+  canManageResource,
+} from "@/lib/authRoles";
+import {
   useDeleteReportMutation,
   useGenerateReportMutation,
   useGetReportsQuery,
@@ -32,32 +46,39 @@ import {
 } from "@/store/slices/reportApiSlice";
 
 import { useGetFacilitiesQuery } from "@/store/slices/facilityApiSlice";
-import { useGetUtilityAccountsQuery } from "@/store/slices/utilityApiSlice";
+import {
+  useGetUtilityAccountsQuery,
+  type UtilityAccount,
+} from "@/store/slices/electrical-audit/utilityApiSlice";
 import { toastHandler } from "@/lib/toast";
 import { useAppSelector } from "@/store/hooks";
-import { UTILITY_AUDIT_STEP_IDS } from "@/lib/utility-audit-steps";
+import { UTILITY_AUDIT_STEP_IDS } from "@/lib/electrical-audit/utility-audit-steps";
+import {
+  AUDIT_TYPE_OPTIONS,
+  ELECTRICAL_SAFETY_AUDIT,
+  type AuditTypeOption,
+} from "@/lib/facilityConstants";
+import {
+  ELECTRICAL_ENERGY_REPORT_OPTIONS,
+  ELECTRICAL_ENERGY_REPORT_TYPES,
+  ELECTRICAL_ENERGY_REPORT_TYPE_LABELS,
+} from "@/lib/reports/electricalEnergyReportTypes";
+import {
+  ELECTRICAL_SAFETY_AUDIT_REPORT_OPTIONS,
+  ELECTRICAL_SAFETY_AUDIT_REPORT_TYPES,
+  ELECTRICAL_SAFETY_AUDIT_REPORT_TYPE_LABELS,
+  ELECTRICAL_SAFETY_GRANULAR_REPORT_TYPE_LABELS,
+  isElectricalSafetyAuditReportType,
+} from "@/lib/reports/electricalSafetyAuditReportTypes";
 
 type FacilityOption = {
   _id: string;
   name: string;
   city?: string;
+  audit_type?: string;
   audit_closure?: {
     closed_at?: string;
   };
-};
-
-type UtilityAccountOption = {
-  _id: string;
-  account_number?: string;
-  connection_type?: string;
-  category?: string;
-  facility_id?: string;
-  audit_step_submissions?: Record<
-    string,
-    {
-      submitted_at?: string;
-    }
-  >;
 };
 
 type ReportsSectionProps = {
@@ -65,39 +86,9 @@ type ReportsSectionProps = {
   defaultUtilityAccountId?: string;
 };
 
-const REPORT_TYPE_OPTIONS: { label: string; value: ReportType }[] = [
-  { label: "Full Audit Report", value: "full_audit_report" },
-  { label: "Executive Summary", value: "executive_summary" },
-  { label: "Solar Report", value: "solar_report" },
-  { label: "DG Report", value: "dg_report" },
-  { label: "Transformer Report", value: "transformer_report" },
-  { label: "Pump Report", value: "pump_report" },
-  { label: "HVAC Report", value: "hvac_report" },
-  { label: "Lighting Report", value: "lighting_report" },
-  { label: "AC Report", value: "ac_report" },
-  { label: "Fan Report", value: "fan_report" },
-  { label: "Lux Report", value: "lux_report" },
-  { label: "Misc Report", value: "misc_report" },
-];
-
-const REPORT_SCOPE_OPTIONS: { label: string; value: ReportScope }[] = [
-  { label: "Facility", value: "facility" },
-  { label: "Utility Account", value: "utility_account" },
-];
-
 const REPORT_TYPE_LABEL_MAP: Record<ReportType, string> = {
-  full_audit_report: "Full Audit Report",
-  executive_summary: "Executive Summary",
-  solar_report: "Solar Report",
-  dg_report: "DG Report",
-  transformer_report: "Transformer Report",
-  pump_report: "Pump Report",
-  hvac_report: "HVAC Report",
-  lighting_report: "Lighting Report",
-  ac_report: "AC Report",
-  fan_report: "Fan Report",
-  lux_report: "Lux Report",
-  misc_report: "Misc Report",
+  ...ELECTRICAL_ENERGY_REPORT_TYPE_LABELS,
+  ...ELECTRICAL_SAFETY_GRANULAR_REPORT_TYPE_LABELS,
 };
 
 const REPORT_SCOPE_LABEL_MAP: Record<ReportScope, string> = {
@@ -105,10 +96,21 @@ const REPORT_SCOPE_LABEL_MAP: Record<ReportScope, string> = {
   utility_account: "Utility Account",
 };
 
+const REPORT_SCOPE_OPTIONS: { label: string; value: ReportScope }[] = [
+  { label: "Facility", value: "facility" },
+  { label: "Utility Account", value: "utility_account" },
+];
+
+/** Report types offered per facility audit program (matches `facility.audit_type`). */
+const REPORT_TYPES_BY_AUDIT: Record<AuditTypeOption, ReportType[]> = {
+  "Electrical Energy Audit": [...ELECTRICAL_ENERGY_REPORT_TYPES],
+  "Electrical Safety Audit": [...ELECTRICAL_SAFETY_AUDIT_REPORT_TYPES],
+  "Thermal Audit": ["full_audit_report", "executive_summary"],
+  "Lightning Arrester Audit": ["full_audit_report", "executive_summary"],
+};
+
 const getStatusClasses = (status?: string) => {
   switch (status) {
-    case "queued":
-      return "border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-300";
     case "completed":
       return "border-green-200 bg-green-100 text-green-800 dark:border-green-500/40 dark:bg-green-500/15 dark:text-green-300";
     case "processing":
@@ -122,8 +124,6 @@ const getStatusClasses = (status?: string) => {
 
 const getStatusLabel = (status?: string) => {
   switch (status) {
-    case "queued":
-      return "Queued";
     case "processing":
       return "Processing";
     case "completed":
@@ -150,6 +150,28 @@ const formatDateTime = (value?: string) => {
   });
 };
 
+type FacilityLike = NonNullable<Report["facility_id"]>;
+type FacilityWithAudit = Extract<FacilityLike, { audit_type?: string }>;
+
+function getReportTypeRowLabel(report: Report): string {
+  const facility = report.facility_id;
+  const auditType =
+    typeof facility === "object" &&
+    facility !== null &&
+    "audit_type" in facility
+      ? (facility as FacilityWithAudit).audit_type
+      : undefined;
+
+  if (
+    auditType === ELECTRICAL_SAFETY_AUDIT &&
+    isElectricalSafetyAuditReportType(report.report_type)
+  ) {
+    return ELECTRICAL_SAFETY_AUDIT_REPORT_TYPE_LABELS[report.report_type];
+  }
+
+  return REPORT_TYPE_LABEL_MAP[report.report_type] ?? report.report_type;
+}
+
 const getFacilityName = (facility: Report["facility_id"]) => {
   if (!facility) return "-";
   if (typeof facility === "string") return facility;
@@ -164,11 +186,26 @@ const getUtilityAccountNumber = (
   return utilityAccount.account_number || "-";
 };
 
+const getCurrentUserId = (user: any): string => {
+  if (!user) return "";
+  if (typeof user._id === "string" && user._id) return user._id;
+  if (typeof user.id === "string" && user.id) return user.id;
+  return "";
+};
+
+const getReportCreatorId = (report: Report): string => {
+  if (typeof report.created_by === "string") return report.created_by;
+  if (report.created_by && typeof report.created_by._id === "string") {
+    return report.created_by._id;
+  }
+  return "";
+};
+
 const getFacilityClosureStatusLabel = (facility: FacilityOption) => {
   return facility.audit_closure?.closed_at ? "Closed" : "Open";
 };
 
-const getUtilityAuditStatusLabel = (account: UtilityAccountOption) => {
+const getUtilityAuditStatusLabel = (account: UtilityAccount) => {
   const isAuditCompleted = Boolean(
     account.audit_step_submissions?.[UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT]
       ?.submitted_at,
@@ -181,7 +218,38 @@ export default function ReportsSection({
   defaultUtilityAccountId = "",
 }: ReportsSectionProps) {
   const user = useAppSelector((state) => state.auth.user);
-  const canViewDocuments = user?.role === "admin";
+  const canViewReport = canManageResource(
+    user?.role,
+    user?.permissions || [],
+    "report",
+    "view_report",
+  );
+  const canGenerateReport = canGenerateReports(
+    user?.role,
+    user?.permissions || [],
+  );
+  const canExportReport = canManageResource(
+    user?.role,
+    user?.permissions || [],
+    "report",
+    "export",
+  );
+  const canDownloadReport = canManageResource(
+    user?.role,
+    user?.permissions || [],
+    "report",
+    "download",
+  );
+  const canDeleteReport = canManageResource(
+    user?.role,
+    user?.permissions || [],
+    "report",
+    "delete",
+  );
+  /** Report outputs are gated by report permissions; file-management URLs are not a separate “file” grant for non-admins. */
+  const canOpenReportFiles =
+    canViewReport || canExportReport || canDownloadReport;
+  const [auditType, setAuditType] = useState<AuditTypeOption | "">("");
   const [facilityId, setFacilityId] = useState(defaultFacilityId);
   const [utilityAccountId, setUtilityAccountId] = useState(
     defaultUtilityAccountId,
@@ -191,6 +259,8 @@ export default function ReportsSection({
   );
   const [reportType, setReportType] = useState<ReportType>("full_audit_report");
   const [customTitle, setCustomTitle] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteReportId, setDeleteReportId] = useState<string | null>(null);
 
   const { data: facilitiesResponse, isLoading: facilitiesLoading } =
     useGetFacilitiesQuery(undefined);
@@ -200,13 +270,34 @@ export default function ReportsSection({
     return Array.isArray(raw) ? raw : [];
   }, [facilitiesResponse]);
 
+  const facilitiesForAuditType = useMemo(() => {
+    if (!auditType) return [];
+    return facilities.filter((f) => {
+      const t = f.audit_type || "Electrical Energy Audit";
+      return t === auditType;
+    });
+  }, [facilities, auditType]);
+
+  const reportTypeOptionsForAudit = useMemo(() => {
+    if (!auditType) return [];
+    const allowed = REPORT_TYPES_BY_AUDIT[auditType];
+    if (auditType === ELECTRICAL_SAFETY_AUDIT) {
+      return ELECTRICAL_SAFETY_AUDIT_REPORT_OPTIONS.filter((opt) =>
+        allowed.includes(opt.value),
+      );
+    }
+    return ELECTRICAL_ENERGY_REPORT_OPTIONS.filter((opt) =>
+      allowed.includes(opt.value),
+    );
+  }, [auditType]);
+
   const { data: utilityAccountsResponse, isLoading: utilityAccountsLoading } =
     useGetUtilityAccountsQuery(
       facilityId ? { facility_id: facilityId } : undefined,
       { skip: !facilityId },
     );
 
-  const utilityAccounts: UtilityAccountOption[] = useMemo(() => {
+  const utilityAccounts: UtilityAccount[] = useMemo(() => {
     const raw = utilityAccountsResponse?.data ?? utilityAccountsResponse ?? [];
     return Array.isArray(raw) ? raw : [];
   }, [utilityAccountsResponse]);
@@ -227,6 +318,13 @@ export default function ReportsSection({
   const reports: Report[] = useMemo(() => {
     return reportsResponse?.data ?? [];
   }, [reportsResponse]);
+  const currentUserId = useMemo(() => getCurrentUserId(user), [user]);
+  const visibleReports: Report[] = useMemo(() => {
+    if (!currentUserId) return [];
+    return reports.filter(
+      (report) => getReportCreatorId(report) === currentUserId,
+    );
+  }, [reports, currentUserId]);
 
   const [generateReport, { isLoading: isGenerating }] =
     useGenerateReportMutation();
@@ -235,10 +333,18 @@ export default function ReportsSection({
   const [deleteReport, { isLoading: isDeleting }] = useDeleteReportMutation();
 
   useEffect(() => {
-    if (defaultFacilityId) {
-      setFacilityId(defaultFacilityId);
-    }
+    if (!defaultFacilityId) return;
+    setFacilityId(defaultFacilityId);
   }, [defaultFacilityId]);
+
+  useEffect(() => {
+    if (!defaultFacilityId || !facilities.length) return;
+    if (facilityId !== defaultFacilityId) return;
+    const match = facilities.find((f) => f._id === defaultFacilityId);
+    if (match?.audit_type) {
+      setAuditType(match.audit_type as AuditTypeOption);
+    }
+  }, [defaultFacilityId, facilities, facilityId]);
 
   useEffect(() => {
     if (defaultUtilityAccountId) {
@@ -247,11 +353,28 @@ export default function ReportsSection({
     }
   }, [defaultUtilityAccountId]);
 
+  useLayoutEffect(() => {
+    if (!auditType) return;
+    const allowed = REPORT_TYPES_BY_AUDIT[auditType];
+    setReportType((prev) =>
+      allowed.includes(prev) ? prev : (allowed[0] ?? "full_audit_report"),
+    );
+  }, [auditType]);
+
   useEffect(() => {
     if (reportScope === "facility") {
       setUtilityAccountId("");
     }
   }, [reportScope]);
+
+  useEffect(() => {
+    if (!facilityId || !auditType) return;
+    const stillValid = facilitiesForAuditType.some((f) => f._id === facilityId);
+    if (!stillValid) {
+      setFacilityId("");
+      setUtilityAccountId("");
+    }
+  }, [facilityId, auditType, facilitiesForAuditType]);
 
   const selectedFacility = useMemo(
     () => facilities.find((item) => item._id === facilityId),
@@ -265,11 +388,10 @@ export default function ReportsSection({
 
   const hasActiveReports = useMemo(
     () =>
-      reports.some(
-        (report) =>
-          report.status === "queued" || report.status === "processing",
+      visibleReports.some(
+        (report) => report.status === "processing",
       ),
-    [reports],
+    [visibleReports],
   );
 
   useEffect(() => {
@@ -283,6 +405,8 @@ export default function ReportsSection({
   }, [hasActiveReports, refetchReports]);
 
   const isSubmitDisabled =
+    !canGenerateReport ||
+    !auditType ||
     !facilityId ||
     (reportScope === "utility_account" && !utilityAccountId) ||
     isGenerating;
@@ -332,21 +456,23 @@ export default function ReportsSection({
     }
   };
 
-  const handleDeleteReport = async (reportId: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this report?",
-    );
+  const handleDeleteReport = (reportId: string) => {
+    setDeleteReportId(reportId);
+    setDeleteDialogOpen(true);
+  };
 
-    if (!confirmed) return;
-
+  const handleConfirmDeleteReport = async () => {
+    if (!deleteReportId) return;
     try {
       await toastHandler({
-        action: () => deleteReport(reportId).unwrap(),
+        action: () => deleteReport(deleteReportId).unwrap(),
         loading: "Deleting report...",
         success: "Report deleted successfully",
       });
 
       refetchReports();
+      setDeleteDialogOpen(false);
+      setDeleteReportId(null);
     } catch (error) {
       console.error(error);
     }
@@ -362,7 +488,31 @@ export default function ReportsSection({
         </CardHeader>
 
         <CardContent className="space-y-5">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="min-w-0 space-y-2">
+              <Label>Audit type</Label>
+              <Select
+                value={auditType || undefined}
+                onValueChange={(value: AuditTypeOption) => {
+                  setAuditType(value);
+                  setFacilityId("");
+                  setUtilityAccountId("");
+                  setReportScope("facility");
+                }}
+              >
+                <SelectTrigger className="h-9 w-full max-w-full min-w-0">
+                  <SelectValue placeholder="Select audit type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AUDIT_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="min-w-0 space-y-2">
               <Label>Facility</Label>
               <Select
@@ -371,18 +521,23 @@ export default function ReportsSection({
                   setFacilityId(value);
                   setUtilityAccountId("");
                 }}
+                disabled={!auditType || facilitiesLoading}
               >
                 <SelectTrigger className="h-9 w-full max-w-full min-w-0">
                   <SelectValue
                     placeholder={
-                      facilitiesLoading
-                        ? "Loading facilities..."
-                        : "Select facility"
+                      !auditType
+                        ? "Select audit type first"
+                        : facilitiesLoading
+                          ? "Loading facilities..."
+                          : facilitiesForAuditType.length === 0
+                            ? "No facilities for this audit type"
+                            : "Select facility"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {facilities.map((facility) => (
+                  {facilitiesForAuditType.map((facility) => (
                     <SelectItem key={facility._id} value={facility._id}>
                       {facility.name}
                       {facility.city ? ` - ${facility.city}` : ""}
@@ -394,13 +549,20 @@ export default function ReportsSection({
             </div>
 
             <div className="space-y-2">
-              <Label>Report Scope</Label>
+              <Label>Report scope</Label>
               <Select
                 value={reportScope}
                 onValueChange={(value: ReportScope) => setReportScope(value)}
+                disabled={!facilityId}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select report scope" />
+                <SelectTrigger className="h-9 w-full min-w-0">
+                  <SelectValue
+                    placeholder={
+                      !facilityId
+                        ? "Select facility first"
+                        : "Select report scope"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {REPORT_SCOPE_OPTIONS.map((option) => (
@@ -413,7 +575,7 @@ export default function ReportsSection({
             </div>
 
             <div className="min-w-0 space-y-2">
-              <Label>Utility Account</Label>
+              <Label>Utility account</Label>
               <Select
                 value={utilityAccountId || undefined}
                 onValueChange={setUtilityAccountId}
@@ -447,16 +609,25 @@ export default function ReportsSection({
             </div>
 
             <div className="min-w-0 space-y-2">
-              <Label>Report Type</Label>
+              <Label>Report type</Label>
               <Select
                 value={reportType}
                 onValueChange={(value: ReportType) => setReportType(value)}
+                disabled={!auditType || !facilityId}
               >
                 <SelectTrigger className="h-9 w-full max-w-full min-w-0">
-                  <SelectValue placeholder="Select report type" />
+                  <SelectValue
+                    placeholder={
+                      !auditType
+                        ? "Select audit type first"
+                        : !facilityId
+                          ? "Select facility first"
+                          : "Select report type"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {REPORT_TYPE_OPTIONS.map((option) => (
+                  {reportTypeOptionsForAudit.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -527,7 +698,7 @@ export default function ReportsSection({
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Loading reports...
             </div>
-          ) : reports.length === 0 ? (
+          ) : visibleReports.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
               No reports found.
             </div>
@@ -549,7 +720,7 @@ export default function ReportsSection({
                 </thead>
 
                 <tbody className="bg-card">
-                  {reports.map((report) => (
+                  {visibleReports.map((report) => (
                     <tr key={report._id} className="text-sm text-foreground">
                       <td className="border-b px-4 py-3 font-medium">
                         {report.title || "-"}
@@ -564,8 +735,7 @@ export default function ReportsSection({
                       </td>
 
                       <td className="border-b px-4 py-3">
-                        {REPORT_TYPE_LABEL_MAP[report.report_type] ||
-                          report.report_type}
+                        {getReportTypeRowLabel(report)}
                       </td>
 
                       <td className="border-b px-4 py-3">
@@ -594,7 +764,9 @@ export default function ReportsSection({
                             size="sm"
                             variant="outline"
                             className="border-green-200 text-green-800 hover:bg-green-50 dark:border-green-500/40 dark:text-green-300 dark:hover:bg-green-500/10"
-                            disabled={!canViewDocuments || !report.excel_file?.fileUrl}
+                            disabled={
+                              !canOpenReportFiles || !report.excel_file?.fileUrl
+                            }
                             onClick={() => {
                               if (report.excel_file?.fileUrl) {
                                 window.open(
@@ -613,7 +785,9 @@ export default function ReportsSection({
                             size="sm"
                             variant="outline"
                             className="border-blue-200 text-blue-800 hover:bg-blue-50 dark:border-blue-500/40 dark:text-blue-300 dark:hover:bg-blue-500/10"
-                            disabled={!canViewDocuments || !report.pdf_file?.fileUrl}
+                            disabled={
+                              !canOpenReportFiles || !report.pdf_file?.fileUrl
+                            }
                             onClick={() => {
                               if (report.pdf_file?.fileUrl) {
                                 window.open(report.pdf_file.fileUrl, "_blank");
@@ -630,9 +804,9 @@ export default function ReportsSection({
                             {report.error_message}
                           </p>
                         ) : null}
-                        {!canViewDocuments ? (
+                        {!canOpenReportFiles ? (
                           <p className="mt-2 text-xs text-muted-foreground">
-                            Report files are visible to admin users only.
+                            You do not have permission to open report files.
                           </p>
                         ) : null}
                       </td>
@@ -644,7 +818,7 @@ export default function ReportsSection({
                             size="sm"
                             variant="outline"
                             disabled={
-                              report.status === "queued" ||
+                              !canGenerateReport ||
                               report.status === "processing" ||
                               isRegenerating
                             }
@@ -659,7 +833,7 @@ export default function ReportsSection({
                             size="sm"
                             variant="outline"
                             className="border-red-200 text-red-800 hover:bg-red-50 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
-                            disabled={isDeleting}
+                            disabled={!canDeleteReport || isDeleting}
                             onClick={() => handleDeleteReport(report._id)}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -675,6 +849,35 @@ export default function ReportsSection({
           )}
         </CardContent>
       </Card>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setDeleteReportId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete report?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. It will permanently delete this report.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmDeleteReport();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

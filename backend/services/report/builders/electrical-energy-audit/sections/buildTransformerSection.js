@@ -1,0 +1,681 @@
+import TransformerAuditRecord from "../../../../../modals/electrical-audit/transformerAuditRecord.js";
+import Transformer from "../../../../../modals/electrical-audit/transformer.js";
+import UtilityAccount from "../../../../../modals/utilityAccount.js";
+
+const getId = (value) => (value?._id ? String(value._id) : String(value || ""));
+
+const normalizeText = (value) => {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+};
+
+const normalizeNumber = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return Number.isNaN(num) ? null : num;
+};
+
+const formatDate = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-GB");
+};
+
+const buildTransformerMap = (transformers = []) => {
+  return new Map(
+    transformers
+      .filter(Boolean)
+      .map((transformer) => [getId(transformer), transformer]),
+  );
+};
+
+const buildUtilityAccountNumberMap = async (ids = []) => {
+  const uniqueIds = [...new Set(ids.map((id) => getId(id)).filter(Boolean))];
+  if (!uniqueIds.length) return new Map();
+
+  const accounts = await UtilityAccount.find({ _id: { $in: uniqueIds } })
+    .select("account_number")
+    .lean();
+
+  return new Map(
+    (accounts || []).map((account) => [
+      getId(account),
+      normalizeText(account.account_number),
+    ]),
+  );
+};
+
+const normalizeTransformerMini = (transformer, utilityAccountMap = new Map()) => {
+  if (!transformer) return null;
+  const utilityAccountId = getId(transformer?.utility_account_id);
+
+  return {
+    id: getId(transformer),
+    transformer_tag: normalizeText(transformer?.transformer_tag),
+    rated_capacity_kVA: normalizeNumber(transformer?.rated_capacity_kVA),
+    type_of_cooling: normalizeText(transformer?.type_of_cooling),
+    rated_HV_kV: normalizeNumber(transformer?.rated_HV_kV),
+    rated_LV_V: normalizeNumber(transformer?.rated_LV_V),
+    rated_HV_current_A: normalizeNumber(transformer?.rated_HV_current_A),
+    rated_LV_current_A: normalizeNumber(transformer?.rated_LV_current_A),
+    no_load_loss_kW: normalizeNumber(transformer?.no_load_loss_kW),
+    full_load_loss_kW: normalizeNumber(transformer?.full_load_loss_kW),
+    nameplate_efficiency_percent: normalizeNumber(
+      transformer?.nameplate_efficiency_percent,
+    ),
+    utility_account_id: utilityAccountId,
+    utility_account_number:
+      utilityAccountMap.get(utilityAccountId) ||
+      normalizeText(transformer?.utility_account_id?.account_number),
+  };
+};
+
+const fetchFacilityTransformers = async (
+  facilityId,
+  utilityAccountId = null,
+) => {
+  if (!facilityId) return [];
+
+  const query = { facility_id: facilityId };
+  if (utilityAccountId) query.utility_account_id = utilityAccountId;
+
+  const transformers = await Transformer.find(query).lean();
+  return Array.isArray(transformers) ? transformers : [];
+};
+
+const calculatePercentLoading = (row, transformer) => {
+  const existing = normalizeNumber(row?.percent_loading);
+  if (existing !== null) return existing;
+
+  const avgLoad = normalizeNumber(row?.average_load_kVA);
+  const ratedCapacity =
+    normalizeNumber(row?.rated_capacity_kVA) ??
+    normalizeNumber(transformer?.rated_capacity_kVA);
+
+  if (avgLoad !== null && ratedCapacity !== null && ratedCapacity > 0) {
+    return Number(((avgLoad / ratedCapacity) * 100).toFixed(2));
+  }
+
+  return null;
+};
+
+const calculateTotalLossesKW = (row, transformer) => {
+  const existing = normalizeNumber(row?.total_losses_kW);
+  if (existing !== null) return existing;
+
+  const noLoadLoss =
+    normalizeNumber(row?.no_load_loss_kW) ??
+    normalizeNumber(transformer?.no_load_loss_kW);
+
+  const fullLoadLoss =
+    normalizeNumber(row?.full_load_loss_kW) ??
+    normalizeNumber(transformer?.full_load_loss_kW);
+
+  const percentLoading = calculatePercentLoading(row, transformer);
+
+  if (noLoadLoss !== null && fullLoadLoss !== null && percentLoading !== null) {
+    return Number(
+      (noLoadLoss + fullLoadLoss * (percentLoading / 100)).toFixed(2),
+    );
+  }
+
+  return null;
+};
+
+const calculateAnnualEnergyLosses = (row, transformer) => {
+  const existing = normalizeNumber(row?.annual_energy_losses_kWh);
+  if (existing !== null) return existing;
+
+  const totalLossesKW = calculateTotalLossesKW(row, transformer);
+  const operatingHoursPerYear = normalizeNumber(row?.operating_hours_per_year);
+
+  if (totalLossesKW !== null && operatingHoursPerYear !== null) {
+    return Number((totalLossesKW * operatingHoursPerYear).toFixed(2));
+  }
+
+  return null;
+};
+
+const calculateCostOfLosses = (row, transformer) => {
+  const existing = normalizeNumber(row?.cost_of_losses_rs);
+  if (existing !== null) return existing;
+
+  const annualLosses = calculateAnnualEnergyLosses(row, transformer);
+  const perUnitCost = normalizeNumber(row?.per_unit_cost_rs);
+
+  if (annualLosses !== null && perUnitCost !== null) {
+    return Number((annualLosses * perUnitCost).toFixed(2));
+  }
+
+  return null;
+};
+
+const calculateLoadFactor = (row) => {
+  const existing = normalizeNumber(row?.load_factor_percent);
+  if (existing !== null) return existing;
+
+  const averageLoad = normalizeNumber(row?.average_load_kVA);
+  const maximumLoad = normalizeNumber(row?.max_load_kVA);
+
+  if (averageLoad !== null && maximumLoad !== null && maximumLoad > 0) {
+    return Number(((averageLoad / maximumLoad) * 100).toFixed(2));
+  }
+
+  return null;
+};
+
+const normalizeTransformerAuditRecord = (
+  row,
+  index,
+  transformerMap,
+  utilityAccountMap,
+) => {
+  const linkedTransformer =
+    transformerMap.get(getId(row?.transformer_id)) ||
+    row?.transformer_id ||
+    null;
+
+  const transformer = normalizeTransformerMini(linkedTransformer, utilityAccountMap);
+
+  const percentLoading = calculatePercentLoading(row, transformer);
+  const totalLossesKW = calculateTotalLossesKW(row, transformer);
+  const annualEnergyLosses = calculateAnnualEnergyLosses(row, transformer);
+  const costOfLosses = calculateCostOfLosses(row, transformer);
+  const loadFactorPercent = calculateLoadFactor(row);
+
+  return {
+    id: getId(row),
+    sr_no: index + 1,
+
+    transformer_id: getId(row?.transformer_id),
+    transformer,
+
+    audit_date: row?.audit_date || null,
+    audit_date_label: formatDate(row?.audit_date),
+
+    transformer_tag: transformer?.transformer_tag || "",
+    utility_account_number: transformer?.utility_account_number || "",
+    rated_capacity_kVA: transformer?.rated_capacity_kVA ?? null,
+    type_of_cooling: transformer?.type_of_cooling || "",
+    rated_HV_kV: transformer?.rated_HV_kV ?? null,
+    rated_LV_V: transformer?.rated_LV_V ?? null,
+    rated_HV_current_A: transformer?.rated_HV_current_A ?? null,
+    rated_LV_current_A: transformer?.rated_LV_current_A ?? null,
+    no_load_loss_kW: transformer?.no_load_loss_kW ?? null,
+    full_load_loss_kW: transformer?.full_load_loss_kW ?? null,
+    nameplate_efficiency_percent:
+      transformer?.nameplate_efficiency_percent ?? null,
+
+    average_load_kVA: normalizeNumber(row?.average_load_kVA),
+    max_load_kVA: normalizeNumber(row?.max_load_kVA),
+    percent_loading: percentLoading,
+    load_factor_percent: loadFactorPercent,
+
+    operating_hours_per_year: normalizeNumber(row?.operating_hours_per_year),
+    annual_energy_supplied_kWh: normalizeNumber(
+      row?.annual_energy_supplied_kWh,
+    ),
+    annual_energy_losses_kWh: annualEnergyLosses,
+    total_losses_kW: totalLossesKW,
+
+    per_unit_cost_rs: normalizeNumber(row?.per_unit_cost_rs),
+    cost_of_losses_rs: costOfLosses,
+
+    power_factor_LT: normalizeNumber(row?.power_factor_LT),
+    harmonics_THD_percent: normalizeNumber(row?.harmonics_THD_percent),
+
+    neutral_earth_resistance_ohms: normalizeNumber(
+      row?.neutral_earth_resistance_ohms,
+    ),
+    body_to_earth_resistance_ohms: normalizeNumber(
+      row?.body_to_earth_resistance_ohms,
+    ),
+
+    silica_gel_cobalt_type: normalizeText(row?.silica_gel_cobalt_type),
+    silica_gel_non_cobalt_type: normalizeText(row?.silica_gel_non_cobalt_type),
+    oil_level: normalizeText(row?.oil_level),
+
+    line_voltage_Vr: normalizeNumber(row?.line_voltage_Vr),
+    line_voltage_Vy: normalizeNumber(row?.line_voltage_Vy),
+    line_voltage_Vb: normalizeNumber(row?.line_voltage_Vb),
+
+    phase_voltage_Vr_n: normalizeNumber(row?.phase_voltage_Vr_n),
+    phase_voltage_Vy_n: normalizeNumber(row?.phase_voltage_Vy_n),
+    phase_voltage_Vb_n: normalizeNumber(row?.phase_voltage_Vb_n),
+
+    line_current_Ir: normalizeNumber(row?.line_current_Ir),
+    line_current_Iy: normalizeNumber(row?.line_current_Iy),
+    line_current_Ib: normalizeNumber(row?.line_current_Ib),
+
+    // not present in current schema, keep safe fallbacks
+    observation: normalizeText(row?.observation),
+    recommendation: normalizeText(row?.recommendation),
+    remarks: normalizeText(row?.remarks),
+
+    created_at: row?.createdAt || row?.created_at || null,
+    updated_at: row?.updatedAt || row?.updated_at || null,
+  };
+};
+
+const buildSummary = (items = []) => {
+  const totalEnergyLosses = items.reduce(
+    (sum, item) => sum + (normalizeNumber(item.annual_energy_losses_kWh) || 0),
+    0,
+  );
+
+  const totalEnergySupplied = items.reduce(
+    (sum, item) =>
+      sum + (normalizeNumber(item.annual_energy_supplied_kWh) || 0),
+    0,
+  );
+
+  const totalCostOfLosses = items.reduce(
+    (sum, item) => sum + (normalizeNumber(item.cost_of_losses_rs) || 0),
+    0,
+  );
+
+  const validLoadingItems = items.filter(
+    (item) => normalizeNumber(item.percent_loading) !== null,
+  );
+
+  const validPfItems = items.filter(
+    (item) => normalizeNumber(item.power_factor_LT) !== null,
+  );
+
+  const validLoadFactorItems = items.filter(
+    (item) => normalizeNumber(item.load_factor_percent) !== null,
+  );
+
+  const latestAuditDate =
+    items
+      .map((item) => item.audit_date)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b) - new Date(a))[0] || null;
+
+  return {
+    total_transformer_audit_records: items.length,
+    total_annual_energy_supplied_kWh: Number(totalEnergySupplied.toFixed(2)),
+    total_annual_energy_losses_kWh: Number(totalEnergyLosses.toFixed(2)),
+    total_cost_of_losses_rs: Number(totalCostOfLosses.toFixed(2)),
+
+    average_percent_loading:
+      validLoadingItems.length > 0
+        ? Number(
+            (
+              validLoadingItems.reduce(
+                (sum, item) =>
+                  sum + (normalizeNumber(item.percent_loading) || 0),
+                0,
+              ) / validLoadingItems.length
+            ).toFixed(2),
+          )
+        : null,
+
+    average_power_factor_LT:
+      validPfItems.length > 0
+        ? Number(
+            (
+              validPfItems.reduce(
+                (sum, item) =>
+                  sum + (normalizeNumber(item.power_factor_LT) || 0),
+                0,
+              ) / validPfItems.length
+            ).toFixed(3),
+          )
+        : null,
+
+    average_load_factor_percent:
+      validLoadFactorItems.length > 0
+        ? Number(
+            (
+              validLoadFactorItems.reduce(
+                (sum, item) =>
+                  sum + (normalizeNumber(item.load_factor_percent) || 0),
+                0,
+              ) / validLoadFactorItems.length
+            ).toFixed(2),
+          )
+        : null,
+
+    latest_audit_date: latestAuditDate,
+    latest_audit_date_label: formatDate(latestAuditDate),
+  };
+};
+
+const groupItemsByUtilityAccount = (items = []) => {
+  const groups = new Map();
+
+  items.forEach((item) => {
+    const accountId = getId(item?.transformer?.utility_account_id) || "unknown";
+    const accountNumber =
+      normalizeText(item?.utility_account_number) || "Unknown Account";
+
+    if (!groups.has(accountId)) {
+      groups.set(accountId, {
+        utility_account_id: accountId,
+        utility_account_number: accountNumber,
+        items: [],
+      });
+    }
+    groups.get(accountId).items.push(item);
+  });
+
+  return Array.from(groups.values());
+};
+
+const buildAccountWiseSections = (items = [], overallSummary) => {
+  const accountGroups = groupItemsByUtilityAccount(items);
+  const sections = [];
+
+  accountGroups.forEach((group) => {
+    const titlePrefix = group.utility_account_number;
+    const groupSummary = buildSummary(group.items);
+
+    sections.push({
+      heading: `${titlePrefix} - Transformer Basic Details`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "transformer_tag",
+        "rated_capacity_kVA",
+        "type_of_cooling",
+        "rated_HV_kV",
+        "rated_LV_V",
+        "no_load_loss_kW",
+        "full_load_loss_kW",
+        "audit_date_label",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        transformer_tag: item.transformer_tag,
+        rated_capacity_kVA: item.rated_capacity_kVA ?? null,
+        type_of_cooling: item.type_of_cooling,
+        rated_HV_kV: item.rated_HV_kV ?? null,
+        rated_LV_V: item.rated_LV_V ?? null,
+        no_load_loss_kW: item.no_load_loss_kW ?? null,
+        full_load_loss_kW: item.full_load_loss_kW ?? null,
+        audit_date_label: item.audit_date_label,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Load & Electrical Measurements`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "transformer_tag",
+        "average_load_kVA",
+        "max_load_kVA",
+        "percent_loading",
+        "load_factor_percent",
+        { key: "power_factor_LT", label: "Power Factor LT", decimals: 3 },
+        "harmonics_THD_percent",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        transformer_tag: item.transformer_tag,
+        average_load_kVA: item.average_load_kVA ?? null,
+        max_load_kVA: item.max_load_kVA ?? null,
+        percent_loading: item.percent_loading ?? null,
+        load_factor_percent: item.load_factor_percent ?? null,
+        power_factor_LT: item.power_factor_LT ?? null,
+        harmonics_THD_percent: item.harmonics_THD_percent ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Voltage & Current Measurements`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "transformer_tag",
+        "line_voltage_Vr",
+        "line_voltage_Vy",
+        "line_voltage_Vb",
+        "phase_voltage_Vr_n",
+        "phase_voltage_Vy_n",
+        "phase_voltage_Vb_n",
+        "line_current_Ir",
+        "line_current_Iy",
+        "line_current_Ib",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        transformer_tag: item.transformer_tag,
+        line_voltage_Vr: item.line_voltage_Vr ?? null,
+        line_voltage_Vy: item.line_voltage_Vy ?? null,
+        line_voltage_Vb: item.line_voltage_Vb ?? null,
+        phase_voltage_Vr_n: item.phase_voltage_Vr_n ?? null,
+        phase_voltage_Vy_n: item.phase_voltage_Vy_n ?? null,
+        phase_voltage_Vb_n: item.phase_voltage_Vb_n ?? null,
+        line_current_Ir: item.line_current_Ir ?? null,
+        line_current_Iy: item.line_current_Iy ?? null,
+        line_current_Ib: item.line_current_Ib ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Losses & Energy Analysis`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "transformer_tag",
+        "annual_energy_supplied_kWh",
+        "total_losses_kW",
+        "annual_energy_losses_kWh",
+        { key: "per_unit_cost_rs", label: "Per Unit Cost Rs", decimals: 4 },
+        { key: "cost_of_losses_rs", label: "Cost Of Losses Rs", decimals: 4 },
+        {
+          key: "operating_hours_per_year",
+          label: "Operating Hours Per Year",
+          type: "integer",
+        },
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        transformer_tag: item.transformer_tag,
+        annual_energy_supplied_kWh: item.annual_energy_supplied_kWh ?? null,
+        total_losses_kW: item.total_losses_kW ?? null,
+        annual_energy_losses_kWh: item.annual_energy_losses_kWh ?? null,
+        per_unit_cost_rs: item.per_unit_cost_rs ?? null,
+        cost_of_losses_rs: item.cost_of_losses_rs ?? null,
+        operating_hours_per_year: item.operating_hours_per_year ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Maintenance & Safety`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "transformer_tag",
+        "silica_gel_cobalt_type",
+        "silica_gel_non_cobalt_type",
+        "oil_level",
+        "neutral_earth_resistance_ohms",
+        "body_to_earth_resistance_ohms",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        transformer_tag: item.transformer_tag,
+        silica_gel_cobalt_type: item.silica_gel_cobalt_type,
+        silica_gel_non_cobalt_type: item.silica_gel_non_cobalt_type,
+        oil_level: item.oil_level,
+        neutral_earth_resistance_ohms: item.neutral_earth_resistance_ohms ?? null,
+        body_to_earth_resistance_ohms: item.body_to_earth_resistance_ohms ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Observations & Recommendations`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "transformer_tag",
+        "observation",
+        "recommendation",
+        "remarks",
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        transformer_tag: item.transformer_tag,
+        observation: item.observation,
+        recommendation: item.recommendation,
+        remarks: item.remarks,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Transformer Audit Summary`,
+      columns: ["metric", "value"],
+      rows: [
+        {
+          metric: "Total Transformer Audit Records",
+          value: groupSummary.total_transformer_audit_records ?? "",
+        },
+        {
+          metric: "Total Annual Energy Supplied (kWh)",
+          value: groupSummary.total_annual_energy_supplied_kWh ?? "",
+        },
+        {
+          metric: "Total Annual Energy Losses (kWh)",
+          value: groupSummary.total_annual_energy_losses_kWh ?? "",
+        },
+        {
+          metric: "Total Cost of Losses (Rs)",
+          value: groupSummary.total_cost_of_losses_rs ?? "",
+        },
+        {
+          metric: "Average Percent Loading (%)",
+          value: groupSummary.average_percent_loading ?? "",
+        },
+        {
+          metric: "Average Power Factor LT",
+          value: groupSummary.average_power_factor_LT ?? "",
+        },
+        {
+          metric: "Average Load Factor (%)",
+          value: groupSummary.average_load_factor_percent ?? "",
+        },
+        {
+          metric: "Latest Audit Date",
+          value: groupSummary.latest_audit_date_label || "",
+        },
+      ],
+    });
+  });
+
+  sections.push({
+    heading: "Transformer Audit Summary",
+    columns: ["metric", "value"],
+    rows: [
+      {
+        metric: "Total Transformer Audit Records",
+        value: overallSummary.total_transformer_audit_records ?? "",
+      },
+      {
+        metric: "Total Annual Energy Supplied (kWh)",
+        value: overallSummary.total_annual_energy_supplied_kWh ?? "",
+      },
+      {
+        metric: "Total Annual Energy Losses (kWh)",
+        value: overallSummary.total_annual_energy_losses_kWh ?? "",
+      },
+      {
+        metric: "Total Cost of Losses (Rs)",
+        value: overallSummary.total_cost_of_losses_rs ?? "",
+      },
+      {
+        metric: "Average Percent Loading (%)",
+        value: overallSummary.average_percent_loading ?? "",
+      },
+      {
+        metric: "Average Power Factor LT",
+        value: overallSummary.average_power_factor_LT ?? "",
+      },
+      {
+        metric: "Average Load Factor (%)",
+        value: overallSummary.average_load_factor_percent ?? "",
+      },
+      {
+        metric: "Latest Audit Date",
+        value: overallSummary.latest_audit_date_label || "",
+      },
+    ],
+  });
+
+  return sections;
+};
+
+export const buildTransformerSection = async ({
+  facility,
+  utilityAccount = null,
+  scope = "facility",
+}) => {
+  const query =
+    scope === "utility_account"
+      ? { utility_account_id: getId(utilityAccount) }
+      : { facility_id: getId(facility) };
+
+  const rows = await TransformerAuditRecord.find(query)
+    .populate("transformer_id")
+    .sort({ audit_date: -1, created_at: -1, createdAt: -1 })
+    .lean();
+
+  const transformers = await fetchFacilityTransformers(
+    getId(facility),
+    scope === "utility_account" ? getId(utilityAccount) : null,
+  );
+
+  const transformerMap = buildTransformerMap(transformers);
+  const utilityAccountMap = await buildUtilityAccountNumberMap(
+    transformers.map((t) => t?.utility_account_id),
+  );
+
+  const items = (rows || []).map((row, index) =>
+    normalizeTransformerAuditRecord(row, index, transformerMap, utilityAccountMap),
+  );
+
+  const summary = buildSummary(items);
+  const sections = buildAccountWiseSections(items, summary);
+
+  return {
+    title: "Transformer Audit Records",
+    scope,
+    items,
+    summary,
+
+    sections,
+
+    table_columns: [
+      { key: "sr_no", label: "Sr No", type: "integer" },
+      { key: "transformer_tag", label: "Transformer Tag" },
+      { key: "audit_date_label", label: "Audit Date" },
+      { key: "average_load_kVA", label: "Average Load (kVA)" },
+      { key: "percent_loading", label: "% Loading" },
+      {
+        key: "annual_energy_supplied_kWh",
+        label: "Annual Energy Supplied (kWh)",
+      },
+      {
+        key: "annual_energy_losses_kWh",
+        label: "Annual Energy Losses (kWh)",
+      },
+      {
+        key: "cost_of_losses_rs",
+        label: "Cost of Losses (Rs)",
+        decimals: 4,
+      },
+      { key: "power_factor_LT", label: "PF LT", decimals: 3 },
+    ],
+
+    table_rows: items.map((item) => ({
+      sr_no: item.sr_no,
+      transformer_tag: item.transformer_tag,
+      audit_date_label: item.audit_date_label,
+      average_load_kVA: item.average_load_kVA ?? null,
+      percent_loading: item.percent_loading ?? null,
+      annual_energy_supplied_kWh: item.annual_energy_supplied_kWh ?? null,
+      annual_energy_losses_kWh: item.annual_energy_losses_kWh ?? null,
+      cost_of_losses_rs: item.cost_of_losses_rs ?? null,
+      power_factor_LT: item.power_factor_LT ?? null,
+    })),
+  };
+};
+
+export default buildTransformerSection;

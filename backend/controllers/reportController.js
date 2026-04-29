@@ -1,151 +1,28 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Report from "../modals/report.js";
 import Facility from "../modals/facility.js";
-import UtilityAccount from "../modals/utilityAccount.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
-
-import { buildReportData } from "../services/report/buildReportData.js";
-import { generateExcelReport } from "../services/report/excel/generateExcelReport.js";
 
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 import { addReportJob } from "../queues/addReportJob.js";
-
-const REPORT_SCOPES = ["facility", "utility_account"];
-
-const REPORT_TYPES = [
-  "full_audit_report",
-  "executive_summary",
-  "solar_report",
-  "dg_report",
-  "transformer_report",
-  "pump_report",
-  "hvac_report",
-  "ac_report",
-  "fan_report",
-  "lighting_report",
-  "lux_report",
-  "misc_report",
-];
-
-const isAdmin = (user) => user?.role === "admin";
-
-const throwError = (message, statusCode = 400) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  throw error;
-};
-
-const normalizeReportScope = (scope) => {
-  if (!scope) return "facility";
-
-  if (!REPORT_SCOPES.includes(scope)) {
-    throwError("Invalid report_scope", 400);
-  }
-
-  return scope;
-};
-
-const normalizeReportType = (type) => {
-  if (!type) return "full_audit_report";
-
-  if (!REPORT_TYPES.includes(type)) {
-    throwError("Invalid report_type", 400);
-  }
-
-  return type;
-};
-
-const buildDefaultTitle = ({ facility, utilityAccount, reportType }) => {
-  const safeType = reportType.replaceAll("_", " ");
-  const date = new Date().toLocaleDateString("en-GB");
-
-  if (utilityAccount?.account_number) {
-    return `${facility.name} - ${utilityAccount.account_number} - ${safeType} - ${date}`;
-  }
-
-  return `${facility.name} - ${safeType} - ${date}`;
-};
-
-const buildSnapshotMeta = ({
-  facility,
-  utilityAccount,
-  snapshot_meta = {},
-}) => ({
-  facility_name: snapshot_meta.facility_name || facility?.name || "",
-  facility_city: snapshot_meta.facility_city || facility?.city || "",
-  utility_account_number:
-    snapshot_meta.utility_account_number ||
-    utilityAccount?.account_number ||
-    "",
-  report_period_from: snapshot_meta.report_period_from || null,
-  report_period_to: snapshot_meta.report_period_to || null,
-});
-
-const validateGeneratePayload = ({
-  facility_id,
-  utility_account_id,
-  report_scope,
-  report_type,
-}) => {
-  if (!facility_id) {
-    throwError("facility_id is required", 400);
-  }
-
-  const normalizedScope = normalizeReportScope(report_scope);
-  const normalizedType = normalizeReportType(report_type);
-
-  if (normalizedScope === "utility_account" && !utility_account_id) {
-    throwError(
-      "utility_account_id is required when report_scope is utility_account",
-      400,
-    );
-  }
-
-  return {
-    report_scope: normalizedScope,
-    report_type: normalizedType,
-  };
-};
-
-const getAccessibleFacility = async (user, facilityId) => {
-  const facility = await Facility.findById(facilityId);
-
-  if (!facility) return null;
-  if (isAdmin(user)) return facility;
-
-  const assigned = await FacilityAuditor.exists({
-    facility_id: facility._id,
-    user_id: user._id,
-  });
-
-  if (facility.owner_user_id?.toString() === user._id?.toString() || assigned) {
-    return facility;
-  }
-
-  return null;
-};
-
-const getAccessibleUtilityAccount = async (user, utilityAccountId) => {
-  const utilityAccount = await UtilityAccount.findById(utilityAccountId);
-
-  if (!utilityAccount) return null;
-  if (isAdmin(user)) return utilityAccount;
-
-  const facility = await Facility.findById(utilityAccount.facility_id);
-  if (!facility) return null;
-
-  const assigned = await FacilityAuditor.exists({
-    facility_id: facility._id,
-    user_id: user._id,
-  });
-
-  if (facility.owner_user_id?.toString() === user._id?.toString() || assigned) {
-    return utilityAccount;
-  }
-
-  return null;
-};
+import {
+  can,
+  hasOrgWideReportListAccess,
+  isAdmin,
+  resolveAccessibleFacility,
+  resolveAccessibleUtilityAccount,
+} from "../services/authorization/index.js";
+import { RESOURCES } from "../constants/resources.js";
+import { ACTIONS } from "../constants/actions.js";
+import {
+  assertReportTypeMatchesFacilityAuditProgram,
+  buildDefaultTitle,
+  buildSnapshotMeta,
+  throwError,
+  validateGeneratePayload,
+} from "../services/report/pipeline/reportGenerateValidation.js";
+import { buildExcelBufferForReport } from "../services/report/pipeline/reportExcelExportOrchestrator.js";
 
 const resolveReportContext = async ({
   user,
@@ -153,7 +30,7 @@ const resolveReportContext = async ({
   utility_account_id,
   report_scope,
 }) => {
-  const facility = await getAccessibleFacility(user, facility_id);
+  const facility = await resolveAccessibleFacility(user, facility_id);
 
   if (!facility) {
     throwError("Access denied for facility", 403);
@@ -162,7 +39,7 @@ const resolveReportContext = async ({
   let utilityAccount = null;
 
   if (report_scope === "utility_account" || utility_account_id) {
-    utilityAccount = await getAccessibleUtilityAccount(
+    utilityAccount = await resolveAccessibleUtilityAccount(
       user,
       utility_account_id,
     );
@@ -182,9 +59,32 @@ const resolveReportContext = async ({
   return { facility, utilityAccount };
 };
 
+const assertReportPermission = async (user, action, facilityId) => {
+  const allowed = await can(user, RESOURCES.REPORT, action, {
+    facilityId: facilityId ? String(facilityId) : undefined,
+  });
+  if (!allowed) {
+    throwError("Access denied", 403);
+  }
+};
+
+const toIdString = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value._id) return String(value._id);
+  return String(value);
+};
+
+const assertOwnReportForNonAdmin = (user, report) => {
+  if (isAdmin(user)) return;
+  if (toIdString(report?.created_by) !== toIdString(user?._id)) {
+    throwError("Access denied", 403);
+  }
+};
+
 const populateReportById = async (reportId) => {
   return Report.findById(reportId)
-    .populate("facility_id", "name city address")
+    .populate("facility_id", "name city address audit_type")
     .populate("utility_account_id", "account_number connection_type category")
     .populate("created_by", "name email role");
 };
@@ -251,6 +151,17 @@ const generateReport = asyncHandler(async (req, res) => {
     report_scope: validated.report_scope,
   });
 
+  assertReportTypeMatchesFacilityAuditProgram(
+    facility,
+    validated.report_type,
+  );
+
+  await assertReportPermission(
+    req.user,
+    ACTIONS.GENERATE_REPORT,
+    facility?._id || facility_id,
+  );
+
   const report = await createProcessingReport({
     facility,
     utilityAccount,
@@ -287,13 +198,23 @@ const regenerateReport = asyncHandler(async (req, res) => {
   if (!report) {
     throwError("Report not found", 404);
   }
+  assertOwnReportForNonAdmin(req.user, report);
 
-  await resolveReportContext({
+  const { facility: regenFacility } = await resolveReportContext({
     user: req.user,
     facility_id: report.facility_id,
     utility_account_id: report.utility_account_id,
     report_scope: report.report_scope,
   });
+  assertReportTypeMatchesFacilityAuditProgram(
+    regenFacility,
+    report.report_type,
+  );
+  await assertReportPermission(
+    req.user,
+    ACTIONS.GENERATE_REPORT,
+    report.facility_id,
+  );
 
   report.status = "processing";
   report.error_message = "";
@@ -342,6 +263,17 @@ const createReport = asyncHandler(async (req, res) => {
     utility_account_id,
     report_scope: validated.report_scope,
   });
+
+  assertReportTypeMatchesFacilityAuditProgram(
+    facility,
+    validated.report_type,
+  );
+
+  await assertReportPermission(
+    req.user,
+    ACTIONS.CREATE,
+    facility?._id || facility_id,
+  );
 
   const report = await Report.create({
     facility_id: facility._id,
@@ -410,8 +342,13 @@ const getReports = asyncHandler(async (req, res) => {
   if (report_scope) query.report_scope = report_scope;
   if (report_type) query.report_type = report_type;
   if (status) query.status = status;
+  if (!isAdmin(req.user)) query.created_by = req.user._id;
 
-  if (!isAdmin(req.user)) {
+  if (query.facility_id) {
+    await assertReportPermission(req.user, ACTIONS.READ, query.facility_id);
+  }
+
+  if (!hasOrgWideReportListAccess(req.user)) {
     const assignedFacilities = await FacilityAuditor.find({
       user_id: req.user._id,
     }).select("facility_id");
@@ -449,7 +386,7 @@ const getReports = asyncHandler(async (req, res) => {
   }
 
   const reports = await Report.find(query)
-    .populate("facility_id", "name city")
+    .populate("facility_id", "name city audit_type")
     .populate("utility_account_id", "account_number connection_type category")
     .populate("created_by", "name email role")
     .sort({ createdAt: -1 });
@@ -472,8 +409,9 @@ const getReportById = asyncHandler(async (req, res) => {
   if (!report) {
     throwError("Report not found", 404);
   }
+  assertOwnReportForNonAdmin(req.user, report);
 
-  const facility = await getAccessibleFacility(
+  const facility = await resolveAccessibleFacility(
     req.user,
     report.facility_id?._id || report.facility_id,
   );
@@ -481,6 +419,7 @@ const getReportById = asyncHandler(async (req, res) => {
   if (!facility) {
     throwError("Access denied", 403);
   }
+  await assertReportPermission(req.user, ACTIONS.VIEW_REPORT, facility._id);
 
   res.status(200).json({
     success: true,
@@ -499,12 +438,14 @@ const updateReport = asyncHandler(async (req, res) => {
   if (!report) {
     throwError("Report not found", 404);
   }
+  assertOwnReportForNonAdmin(req.user, report);
 
-  const facility = await getAccessibleFacility(req.user, report.facility_id);
+  const facility = await resolveAccessibleFacility(req.user, report.facility_id);
 
   if (!facility) {
     throwError("Access denied", 403);
   }
+  await assertReportPermission(req.user, ACTIONS.UPDATE, facility._id);
 
   const allowedFields = ["title", "snapshot_meta"];
   const updatedFields = [];
@@ -560,12 +501,14 @@ const deleteReport = asyncHandler(async (req, res) => {
   if (!report) {
     throwError("Report not found", 404);
   }
+  assertOwnReportForNonAdmin(req.user, report);
 
-  const facility = await getAccessibleFacility(req.user, report.facility_id);
+  const facility = await resolveAccessibleFacility(req.user, report.facility_id);
 
   if (!facility) {
     throwError("Access denied", 403);
   }
+  await assertReportPermission(req.user, ACTIONS.DELETE, facility._id);
 
   const entityName = report.title || "Report";
   const facilityId = report.facility_id;
@@ -609,6 +552,7 @@ const downloadExcelReport = asyncHandler(async (req, res) => {
   if (!report) {
     throwError("Report not found", 404);
   }
+  assertOwnReportForNonAdmin(req.user, report);
 
   const { facility, utilityAccount } = await resolveReportContext({
     user: req.user,
@@ -616,14 +560,14 @@ const downloadExcelReport = asyncHandler(async (req, res) => {
     utility_account_id: report.utility_account_id,
     report_scope: report.report_scope,
   });
+  assertReportTypeMatchesFacilityAuditProgram(facility, report.report_type);
+  await assertReportPermission(req.user, ACTIONS.DOWNLOAD, facility?._id);
 
-  const reportData = await buildReportData({
+  const buffer = await buildExcelBufferForReport({
     report,
     facility,
     utilityAccount,
   });
-
-  const buffer = await generateExcelReport({ reportData });
 
   res.setHeader(
     "Content-Type",

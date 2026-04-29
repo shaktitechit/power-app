@@ -16,6 +16,7 @@ import {
   setAuthCookies,
   signAccessToken,
   signRefreshTokenForSession,
+  deriveAccessFlags,
 } from "../utils/authTokens.js";
 
 const extractIp = (req) => {
@@ -45,6 +46,10 @@ const issueTokensForUser = async (req, res, user) => {
     accessToken,
     refreshToken,
     role: user.role,
+    accessFlags: deriveAccessFlags({
+      role: user.role,
+      permissions: user.permissions || [],
+    }),
   });
 };
 
@@ -83,6 +88,7 @@ const loginUser = asyncHandler(async (req, res) => {
     name: user.name,
     email: user.email,
     role: user.role,
+    permissions: user.permissions || [],
   });
 });
 
@@ -180,6 +186,10 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     accessToken,
     refreshToken: newRefreshToken,
     role: user.role,
+    accessFlags: deriveAccessFlags({
+      role: user.role,
+      permissions: user.permissions || [],
+    }),
   });
 
   res.json({ ok: true });

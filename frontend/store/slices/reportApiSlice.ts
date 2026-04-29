@@ -4,6 +4,26 @@ import { apiSlice } from "./apiSlice";
 
 export type ReportScope = "facility" | "utility_account";
 
+/** Per-area electrical safety reports (`{registryKey}_report`) — align with backend `SAFETY_GRANULAR_REPORT_TYPES`. */
+export type ElectricalSafetyGranularReportType =
+  | "safety_general_report"
+  | "safety_documents_report"
+  | "safety_earthing_report"
+  | "safety_panel_room_report"
+  | "safety_metering_room_report"
+  | "safety_ldb_report"
+  | "safety_transformer_report"
+  | "safety_dg_report"
+  | "safety_ups_report"
+  | "safety_wiring_report"
+  | "safety_load_analysis_report"
+  | "safety_leak_inspection_report"
+  | "safety_thermography_report"
+  | "safety_pump_compressor_report"
+  | "safety_elevator_report"
+  | "safety_pac_ventilation_report"
+  | "safety_additional_items_report";
+
 export type ReportType =
   | "full_audit_report"
   | "executive_summary"
@@ -16,9 +36,10 @@ export type ReportType =
   | "ac_report"
   | "fan_report"
   | "lux_report"
-  | "misc_report";
+  | "misc_report"
+  | ElectricalSafetyGranularReportType;
 
-export type ReportStatus = "queued" | "processing" | "completed" | "failed";
+export type ReportStatus = "processing" | "completed" | "failed";
 
 export interface ReportFile {
   fileUrl?: string;
@@ -42,6 +63,8 @@ export interface ReportFacility {
   name: string;
   city?: string;
   address?: string;
+  /** Present when populated from API (e.g. list/detail). Matches `facility.audit_type`. */
+  audit_type?: string;
 }
 
 export interface ReportUtilityAccount {
@@ -67,7 +90,7 @@ export interface Report {
   report_type: ReportType;
   title: string;
 
-  version: number;
+  version?: number;
   status: ReportStatus;
 
   excel_file?: ReportFile;
@@ -133,8 +156,8 @@ export interface GetReportsResponse {
 
 /* ================= HELPERS ================= */
 
-const buildQuery = (params?: Record<string, any>) => {
-  if (!params) return "";
+const buildQuery = (params?: GetReportsParams | void) => {
+  if (params == null) return "";
 
   const searchParams = new URLSearchParams();
 
@@ -238,10 +261,10 @@ export const reportApiSlice = apiSlice.injectEndpoints({
       ],
     }),
 
-    /* -------- DOWNLOAD EXCEL -------- */
+    /* -------- DOWNLOAD EXCEL (regenerated on demand; matches GET /v1/reports/:id/excel/download) -------- */
     downloadExcelReport: builder.mutation<Blob, string>({
       query: (id) => ({
-        url: `/v1/reports/${id}/download-excel`,
+        url: `/v1/reports/${id}/excel/download`,
         method: "GET",
         responseHandler: async (response) => response.blob(),
       }),

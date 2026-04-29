@@ -35,13 +35,8 @@ export interface Facility {
     contact_number?: string;
     email?: string;
   }[];
-  facility_type:
-    | "hospital"
-    | "hotel"
-    | "factory"
-    | "office"
-    | "mall"
-    | "other";
+  facility_type?: string;
+  audit_type?: string;
   status: "active" | "inactive";
   audit_date?: string;
   auditor_id?: {
@@ -89,9 +84,10 @@ export interface CreateFacilityRequest {
     contact_number?: string;
     email?: string;
   }[];
-  facility_type?: "hospital" | "hotel" | "factory" | "office" | "mall" | "other";
+  facility_type?: string;
+  audit_type?: string;
   status?: "active" | "inactive";
- closure_date?: string;
+  closure_date?: string;
   auditor_ids?: string[];
   documents?: File[];
 }
@@ -110,7 +106,8 @@ export interface UpdateFacilityRequest {
     contact_number?: string;
     email?: string;
   }[];
-  facility_type?: "hospital" | "hotel" | "factory" | "office" | "mall" | "other";
+  facility_type?: string;
+  audit_type?: string;
   status?: "active" | "inactive";
   closure_date?: string;
   auditor_ids?: string[];
@@ -187,6 +184,9 @@ const buildFacilityFormData = (
   }
   if (data.facility_type !== undefined) {
     formData.append("facility_type", data.facility_type);
+  }
+  if (data.audit_type !== undefined) {
+    formData.append("audit_type", data.audit_type);
   }
   if (data.status !== undefined) {
     formData.append("status", data.status);

@@ -14,6 +14,7 @@ import {
   useGetFacilitiesQuery,
 } from "@/store/slices/facilityApiSlice";
 import { usePresenceMap } from "@/hooks/presenceMap";
+import { facilityPath } from "@/lib/facilityRoutes";
 
 const formatRelativeTime = (dateString?: string | null) => {
   if (!dateString) return "No activity";
@@ -165,7 +166,7 @@ export default function DashboardPage() {
                 return (
                   <Link
                     key={facility._id}
-                    href={`/facility/${facility._id}`}
+                    href={facilityPath(facility.audit_type, facility._id)}
                     className="group flex min-h-[8.5rem] min-w-0 flex-col rounded-xl border border-border bg-muted/20 p-3 transition-colors hover:border-primary/40 hover:bg-muted/40 sm:min-h-0 sm:p-4"
                   >
                     <div className="min-w-0 flex-1 space-y-2">

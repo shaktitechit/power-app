@@ -4,20 +4,38 @@ import Facility from "../modals/facility.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import User from "../modals/user.js";
-import HVACAudit from "../modals/hvacAudit.js";
-import ACAuditRecord from "../modals/acAuditRecord.js";
-import LightingAuditRecord from "../modals/lightingAuditRecord.js";
-import FanAuditRecord from "../modals/fanAuditRecord.js";
-import LuxMeasurement from "../modals/luxMeasurement.js";
-import MiscLoadAuditRecord from "../modals/miscLoadAuditRecord.js";
+import HVACAudit from "../modals/electrical-audit/hvacAudit.js";
+import ACAuditRecord from "../modals/electrical-audit/acAuditRecord.js";
+import LightingAuditRecord from "../modals/electrical-audit/lightingAuditRecord.js";
+import FanAuditRecord from "../modals/electrical-audit/fanAuditRecord.js";
+import LuxMeasurement from "../modals/electrical-audit/luxMeasurement.js";
+import MiscLoadAuditRecord from "../modals/electrical-audit/miscLoadAuditRecord.js";
+import SafetyTransformerAudit from "../modals/safety-audit/safetyTransformerAudit.js";
+import SafetyMeteringRoomAudit from "../modals/safety-audit/safetyMeteringRoomAudit.js";
+import SafetyPanelRoomAudit from "../modals/safety-audit/safetyPanelRoomAudit.js";
+import SafetyLdbAudit from "../modals/safety-audit/safetyLdbAudit.js";
+import SafetyDgAudit from "../modals/safety-audit/safetyDgAudit.js";
+import SafetyEarthingAudit from "../modals/safety-audit/safetyEarthingAudit.js";
+import SafetyUpsAudit from "../modals/safety-audit/safetyUpsAudit.js";
+import SafetyGeneralAudit from "../modals/safety-audit/safetyGeneralAudit.js";
+import SafetyWiringAudit from "../modals/safety-audit/safetyWiringAudit.js";
+import SafetyLoadAnalysisAudit from "../modals/safety-audit/safetyLoadAnalysisAudit.js";
+import SafetyLeakInspectionAudit from "../modals/safety-audit/safetyLeakInspectionAudit.js";
+import SafetyThermographyAudit from "../modals/safety-audit/safetyThermographyAudit.js";
+import SafetyElevatorAudit from "../modals/safety-audit/safetyElevatorAudit.js";
+import SafetyPacVentilationAudit from "../modals/safety-audit/safetyPacVentilationAudit.js";
+import SafetyPumpCompressorAudit from "../modals/safety-audit/safetyPumpCompressorAudit.js";
+import SafetyAdditionalItemsAudit from "../modals/safety-audit/safetyAdditionalItemsAudit.js";
+import SafetyDocumentsAudit from "../modals/safety-audit/safetyDocumentsAudit.js";
 import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 import { isFacilityAuditClosed } from "../helpers/auditState.js";
-
-// helper: admin check
-const isAdmin = (user) => user?.role === "admin";
+import {
+  hasOrgWideUtilityAccountRead,
+  resolveAccessibleFacility,
+} from "../services/authorization/index.js";
 
 // helper: upload documents
 const uploadUtilityDocuments = async (files = [], utilityAccountId) => {
@@ -56,10 +74,80 @@ const ALLOWED_AUDIT_STEPS = [
   "lux",
   "misc",
   "preview-and-submit",
+  /** Legacy: older clients stored safety final here; allow unlock of old records. */
+  "safety-preview-and-submit",
 ];
 
 /** Steps that may be explicitly marked as "no data" (load audits only). */
 const NO_DATA_AUDIT_STEPS = ["hvac", "ac", "lighting", "fan", "lux", "misc"];
+
+/** Electrical safety checklist tabs — same keys as frontend `safety-audit-workflow`. */
+const SAFETY_NO_DATA_AUDIT_STEPS = [
+  "transformers",
+  "metering-room",
+  "panel-room",
+  "light-db",
+  "dg-set",
+  "earthing-system",
+  "ups-battery",
+  "general-safety",
+  "wiring-inspection",
+  "load-analysis",
+  "leak-inspection",
+  "thermography",
+  "elevator-safety",
+  "pac-ventilation",
+  "pump-compressor",
+  "additional-items",
+  "documents-review",
+];
+
+const ALL_NO_DATA_AUDIT_STEPS = [
+  ...NO_DATA_AUDIT_STEPS,
+  ...SAFETY_NO_DATA_AUDIT_STEPS,
+];
+
+const countSafetyNoDataStepRecords = async (step, utilityAccountId) => {
+  const q = { utility_account_id: utilityAccountId };
+  switch (step) {
+    case "transformers":
+      return SafetyTransformerAudit.countDocuments(q);
+    case "metering-room":
+      return SafetyMeteringRoomAudit.countDocuments(q);
+    case "panel-room":
+      return SafetyPanelRoomAudit.countDocuments(q);
+    case "light-db":
+      return SafetyLdbAudit.countDocuments(q);
+    case "dg-set":
+      return SafetyDgAudit.countDocuments(q);
+    case "earthing-system":
+      return SafetyEarthingAudit.countDocuments(q);
+    case "ups-battery":
+      return SafetyUpsAudit.countDocuments(q);
+    case "general-safety":
+      return SafetyGeneralAudit.countDocuments(q);
+    case "wiring-inspection":
+      return SafetyWiringAudit.countDocuments(q);
+    case "load-analysis":
+      return SafetyLoadAnalysisAudit.countDocuments(q);
+    case "leak-inspection":
+      return SafetyLeakInspectionAudit.countDocuments(q);
+    case "thermography":
+      return SafetyThermographyAudit.countDocuments(q);
+    case "elevator-safety":
+      return SafetyElevatorAudit.countDocuments(q);
+    case "pac-ventilation":
+      return SafetyPacVentilationAudit.countDocuments(q);
+    case "pump-compressor":
+      return SafetyPumpCompressorAudit.countDocuments(q);
+    case "additional-items":
+      return SafetyAdditionalItemsAudit.countDocuments(q);
+    case "documents-review":
+      return SafetyDocumentsAudit.countDocuments(q);
+    default:
+      return -1;
+  }
+};
 
 const countNoDataStepRecords = async (step, utilityAccountId) => {
   const q = { utility_account_id: utilityAccountId };
@@ -77,6 +165,9 @@ const countNoDataStepRecords = async (step, utilityAccountId) => {
     case "misc":
       return MiscLoadAuditRecord.countDocuments(q);
     default:
+      if (SAFETY_NO_DATA_AUDIT_STEPS.includes(step)) {
+        return countSafetyNoDataStepRecords(step, utilityAccountId);
+      }
       return -1;
   }
 };
@@ -90,23 +181,6 @@ const parseBoolean = (value, defaultValue = false) => {
     return value.toLowerCase() === "true";
   }
   return Boolean(value);
-};
-
-// helper: check user access to facility
-const getAccessibleFacility = async (user, facilityId) => {
-  if (isAdmin(user)) {
-    return await Facility.findById(facilityId);
-  }
-
-  const isAssignedAuditor = await FacilityAuditor.exists({
-    facility_id: facilityId,
-    user_id: user._id,
-  });
-
-  return await Facility.findOne({
-    _id: facilityId,
-    $or: [{ owner_user_id: user._id }, ...(isAssignedAuditor ? [{}] : [])],
-  });
 };
 
 // @route POST
@@ -137,7 +211,7 @@ const createUtilityAccount = asyncHandler(async (req, res) => {
     );
   }
 
-  const facility = await getAccessibleFacility(req.user, facility_id);
+  const facility = await resolveAccessibleFacility(req.user, facility_id);
 
   if (!facility) {
     res.status(404);
@@ -220,9 +294,8 @@ const getUtilityAccounts = asyncHandler(async (req, res) => {
   const { facility_id } = req.query;
 
   let utilities = [];
-  console.log(facility_id);
 
-  if (isAdmin(req.user)) {
+  if (hasOrgWideUtilityAccountRead(req.user)) {
     const query = facility_id ? { facility_id } : {};
     utilities = await UtilityAccount.find(query)
       .populate("facility_id", "name city")
@@ -273,7 +346,7 @@ const getUtilityAccountById = asyncHandler(async (req, res) => {
     throw new Error("Utility account not found");
   }
 
-  const facility = await getAccessibleFacility(
+  const facility = await resolveAccessibleFacility(
     req.user,
     utilityAccount.facility_id._id,
   );
@@ -284,20 +357,20 @@ const getUtilityAccountById = asyncHandler(async (req, res) => {
   }
 
   const payload = utilityAccount.toObject();
-  const previewKey = "preview-and-submit";
-  const preview = payload.audit_step_submissions?.[previewKey];
-  if (preview?.submitted_by) {
-    const userDoc = await User.findById(preview.submitted_by)
-      .select("name email")
-      .lean();
-    payload.audit_step_submissions = {
-      ...(payload.audit_step_submissions || {}),
-      [previewKey]: {
+  const subsOut = { ...(payload.audit_step_submissions || {}) };
+  for (const previewKey of ["preview-and-submit", "safety-preview-and-submit"]) {
+    const preview = subsOut[previewKey];
+    if (preview?.submitted_by) {
+      const userDoc = await User.findById(preview.submitted_by)
+        .select("name email")
+        .lean();
+      subsOut[previewKey] = {
         ...preview,
         submitted_by: userDoc || preview.submitted_by,
-      },
-    };
+      };
+    }
   }
+  payload.audit_step_submissions = subsOut;
 
   res.status(200).json({
     success: true,
@@ -320,7 +393,7 @@ const submitUtilityAuditStep = asyncHandler(async (req, res) => {
     throw new Error("Utility account not found");
   }
 
-  const facility = await getAccessibleFacility(
+  const facility = await resolveAccessibleFacility(
     req.user,
     utilityAccount.facility_id,
   );
@@ -341,6 +414,9 @@ const submitUtilityAuditStep = asyncHandler(async (req, res) => {
     submitted_at: new Date(),
     submitted_by: req.user._id,
   };
+  if (step === "preview-and-submit") {
+    delete prev["safety-preview-and-submit"];
+  }
 
   utilityAccount.audit_step_submissions = prev;
   utilityAccount.markModified("audit_step_submissions");
@@ -373,13 +449,8 @@ const submitUtilityAuditStep = asyncHandler(async (req, res) => {
   });
 });
 
-// POST allow editing again for a submitted audit step (admin only — clears lock)
+// POST allow editing again for a submitted audit step (policy-controlled)
 const allowUtilityAuditStep = asyncHandler(async (req, res) => {
-  if (!isAdmin(req.user)) {
-    res.status(403);
-    throw new Error("Only administrators can allow editing for a submitted audit step");
-  }
-
   const step = req.body?.step;
   if (!step || typeof step !== "string" || !ALLOWED_AUDIT_STEPS.includes(step)) {
     res.status(400);
@@ -393,7 +464,7 @@ const allowUtilityAuditStep = asyncHandler(async (req, res) => {
     throw new Error("Utility account not found");
   }
 
-  const facility = await getAccessibleFacility(
+  const facility = await resolveAccessibleFacility(
     req.user,
     utilityAccount.facility_id,
   );
@@ -410,7 +481,12 @@ const allowUtilityAuditStep = asyncHandler(async (req, res) => {
       ? { ...utilityAccount.audit_step_submissions }
       : {};
 
-  delete prev[step];
+  if (step === "preview-and-submit" || step === "safety-preview-and-submit") {
+    delete prev["preview-and-submit"];
+    delete prev["safety-preview-and-submit"];
+  } else {
+    delete prev[step];
+  }
 
   utilityAccount.audit_step_submissions = prev;
   utilityAccount.markModified("audit_step_submissions");
@@ -447,7 +523,11 @@ const allowUtilityAuditStep = asyncHandler(async (req, res) => {
 // POST declare "no data" for a load-audit tab (only when zero records; facility must be open)
 const declareAuditStepNoData = asyncHandler(async (req, res) => {
   const step = req.body?.step;
-  if (!step || typeof step !== "string" || !NO_DATA_AUDIT_STEPS.includes(step)) {
+  if (
+    !step ||
+    typeof step !== "string" ||
+    !ALL_NO_DATA_AUDIT_STEPS.includes(step)
+  ) {
     res.status(400);
     throw new Error("Invalid audit step for no-data declaration");
   }
@@ -459,7 +539,7 @@ const declareAuditStepNoData = asyncHandler(async (req, res) => {
     throw new Error("Utility account not found");
   }
 
-  const facility = await getAccessibleFacility(
+  const facility = await resolveAccessibleFacility(
     req.user,
     utilityAccount.facility_id,
   );
@@ -528,15 +608,14 @@ const declareAuditStepNoData = asyncHandler(async (req, res) => {
   });
 });
 
-// POST clear "no data" declaration (admin only — re-enables adding records)
+// POST clear "no data" declaration (policy-controlled — re-enables adding records)
 const clearAuditStepNoData = asyncHandler(async (req, res) => {
-  if (!isAdmin(req.user)) {
-    res.status(403);
-    throw new Error("Only administrators can clear a no-data declaration");
-  }
-
   const step = req.body?.step;
-  if (!step || typeof step !== "string" || !NO_DATA_AUDIT_STEPS.includes(step)) {
+  if (
+    !step ||
+    typeof step !== "string" ||
+    !ALL_NO_DATA_AUDIT_STEPS.includes(step)
+  ) {
     res.status(400);
     throw new Error("Invalid audit step for no-data clear");
   }
@@ -548,7 +627,7 @@ const clearAuditStepNoData = asyncHandler(async (req, res) => {
     throw new Error("Utility account not found");
   }
 
-  const facility = await getAccessibleFacility(
+  const facility = await resolveAccessibleFacility(
     req.user,
     utilityAccount.facility_id,
   );
@@ -631,7 +710,7 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
     throw new Error("Utility account not found");
   }
 
-  const facility = await getAccessibleFacility(
+  const facility = await resolveAccessibleFacility(
     req.user,
     utilityAccount.facility_id,
   );
@@ -760,7 +839,7 @@ const deleteUtilityAccount = asyncHandler(async (req, res) => {
     throw new Error("Utility account not found");
   }
 
-  const facility = await getAccessibleFacility(
+  const facility = await resolveAccessibleFacility(
     req.user,
     utilityAccount.facility_id,
   );

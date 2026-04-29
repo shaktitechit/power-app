@@ -1,5 +1,7 @@
+import type { AppUserRole } from "@/lib/authRoles";
+
 // User Types
-export type UserRole = 'admin' | 'auditor';
+export type UserRole = AppUserRole;
 
 export interface User {
   id: string;

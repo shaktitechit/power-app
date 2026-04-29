@@ -8,7 +8,7 @@ import { fetchBaseQuery, createApi } from "@reduxjs/toolkit/query/react";
 function isHttpUnauthorized(error: FetchBaseQueryError | undefined) {
   if (!error) return false;
   const s = error.status;
-  return s === 401 || s === "401";
+  return s === 401 || String(s) === "401";
 }
 
 const rawBaseQuery = fetchBaseQuery({
@@ -21,14 +21,16 @@ const rawBaseQuery = fetchBaseQuery({
     fetch(input, { ...init, cache: init?.cache ?? "no-store" }),
 });
 
-let refreshPromise: Promise<unknown> | null = null;
+type RawQueryResult = Awaited<ReturnType<typeof rawBaseQuery>>;
+
+let refreshPromise: Promise<RawQueryResult> | null = null;
 
 const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
-  let result = await rawBaseQuery(args, api, extraOptions);
+  const result: RawQueryResult = await rawBaseQuery(args, api, extraOptions);
 
   if (!isHttpUnauthorized(result.error)) {
     return result;
@@ -40,13 +42,17 @@ const baseQueryWithReauth: BaseQueryFn<
   }
 
   if (!refreshPromise) {
-    refreshPromise = rawBaseQuery(
-      { url: "/v1/users/refresh", method: "POST", body: {} },
-      api,
-      extraOptions,
-    ).finally(() => {
-      refreshPromise = null;
-    });
+    refreshPromise = (async () => {
+      try {
+        return await rawBaseQuery(
+          { url: "/v1/users/refresh", method: "POST", body: {} },
+          api,
+          extraOptions,
+        );
+      } finally {
+        refreshPromise = null;
+      }
+    })();
   }
 
   const refreshResult = await refreshPromise;
@@ -87,6 +93,28 @@ export const apiSlice = createApi({
     "RecentActivity",
     "PresenceLog",
     "Analytics",
+    "SafetyGeneralAudit",
+    "SafetyDocumentsAudit",
+    "SafetyTransformerAudit",
+    "SafetyMeteringRoomAudit",
+    "SafetyPanelRoomAudit",
+    "SafetyLdbAudit",
+    "SafetyDgAudit",
+    "SafetyEarthingAudit",
+    "SafetyUpsAudit",
+    "SafetyThermographyAudit",
+    "SafetyElevatorAudit",
+    "SafetyLoadAnalysisAudit",
+    "SafetyLeakInspectionAudit",
+    "SafetyPacVentilationAudit",
+    "SafetyWiringAudit",
+    "SafetyPumpCompressorAudit",
+    "SafetyAdditionalItemsAudit",
   ],
   endpoints: () => ({}),
 });
+
+/** RTK `builder` in `apiSlice.injectEndpoints({ endpoints: (builder) => ... })` */
+export type AppEndpointBuilder = Parameters<
+  NonNullable<Parameters<typeof apiSlice.injectEndpoints>[0]["endpoints"]>
+>[0];

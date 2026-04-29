@@ -50,6 +50,13 @@ import { PresenceStatusCell } from "@/components/presenceCellStatus";
 import { usePresenceMap } from "@/hooks/presenceMap";
 import { toastHandler } from "@/lib/toast";
 import { useRouter } from "next/navigation";
+import { useAppSelector } from "@/store/hooks";
+import {
+  ASSIGNABLE_USER_ROLES,
+  formatRoleLabel,
+  isPlatformAdmin,
+  type AppUserRole,
+} from "@/lib/authRoles";
 
 type User = {
   _id: string;
@@ -57,12 +64,14 @@ type User = {
   email: string;
   phone?: string;
   status?: string;
-  role?: "admin" | "auditor";
+  role?: AppUserRole;
   appearance?: {
     status?: "online" | "away" | "offline" | string;
     lastSeen?: string | null;
   };
 };
+
+const ADMIN_MANAGEABLE_ROLES: AppUserRole[] = ["manager", "auditor"];
 
 const formatLastSeen = (value?: string | null) => {
   if (!value) return "No activity";
@@ -87,6 +96,8 @@ const formatLastSeen = (value?: string | null) => {
 
 export default function UsersPage() {
   const router = useRouter();
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const currentRole = currentUser?.role;
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -94,19 +105,30 @@ export default function UsersPage() {
 
   const presenceMap = usePresenceMap();
 
-  const [newUser, setNewUser] = useState({
+  const [newUser, setNewUser] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    role: AppUserRole;
+  }>({
     name: "",
     email: "",
     password: "",
-    role: "auditor" as "admin" | "auditor",
+    role: "auditor",
   });
 
-  const [editUser, setEditUser] = useState({
+  const [editUser, setEditUser] = useState<{
+    _id: string;
+    name: string;
+    email: string;
+    password: string;
+    role: AppUserRole;
+  }>({
     _id: "",
     name: "",
     email: "",
     password: "",
-    role: "auditor" as "admin" | "auditor",
+    role: "auditor",
   });
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -117,14 +139,42 @@ export default function UsersPage() {
   const [deleteUser, { isLoading: isDeleting }] = useDeleteUserMutation();
 
   const users: User[] = data?.data || [];
+  const canManageUsers = isPlatformAdmin(currentRole);
+  const assignableRoles = useMemo(() => {
+    if (currentRole === "super_admin") return ASSIGNABLE_USER_ROLES;
+    if (currentRole === "admin") return ADMIN_MANAGEABLE_ROLES;
+    return [];
+  }, [currentRole]);
+  const manageableRolesSet = useMemo(
+    () => new Set(assignableRoles),
+    [assignableRoles],
+  );
+
+  const visibleUsers = useMemo(() => {
+    if (currentRole === "super_admin") return users;
+    if (currentRole === "admin") {
+      return users.filter((u) =>
+        manageableRolesSet.has((u.role || "auditor") as AppUserRole),
+      );
+    }
+    return [];
+  }, [users, currentRole, manageableRolesSet]);
 
   const filteredUsers = useMemo(() => {
-    return users.filter(
+    return visibleUsers.filter(
       (user) =>
         user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.email.toLowerCase().includes(searchQuery.toLowerCase()),
     );
-  }, [users, searchQuery]);
+  }, [visibleUsers, searchQuery]);
+
+  const isUserManageable = (user: User) => {
+    if (currentRole === "super_admin") return true;
+    if (currentRole === "admin") {
+      return manageableRolesSet.has((user.role || "auditor") as AppUserRole);
+    }
+    return false;
+  };
 
   const getMergedPresenceStatus = (user: User) => {
     return presenceMap[user._id] || user.appearance?.status || "offline";
@@ -141,6 +191,7 @@ export default function UsersPage() {
   };
 
   const handleOpenEdit = (user: User) => {
+    if (!isUserManageable(user)) return;
     setEditUser({
       _id: user._id,
       name: user.name,
@@ -152,6 +203,7 @@ export default function UsersPage() {
   };
 
   const handleOpenDelete = (user: User) => {
+    if (!isUserManageable(user)) return;
     setSelectedUser(user);
     setIsDeleteDialogOpen(true);
   };
@@ -184,12 +236,12 @@ export default function UsersPage() {
       header: "Role",
       render: (row) => (
         <div className="flex items-center gap-2">
-          {row.role === "admin" ? (
+          {isPlatformAdmin(row.role) ? (
             <Shield className="h-4 w-4 text-primary" />
           ) : (
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           )}
-          <span className="capitalize text-sm">{row.role || "auditor"}</span>
+          <span className="text-sm">{formatRoleLabel(row.role || "auditor")}</span>
         </div>
       ),
     },
@@ -224,6 +276,7 @@ export default function UsersPage() {
               type="button"
               size="sm"
               variant="outline"
+              disabled={!isUserManageable(row)}
               onClick={() => handleOpenEdit(row)}
             >
               <Edit className="mr-2 h-4 w-4" />
@@ -233,6 +286,7 @@ export default function UsersPage() {
               type="button"
               size="sm"
               variant="destructive"
+              disabled={!isUserManageable(row)}
               onClick={() => handleOpenDelete(row)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -252,11 +306,15 @@ export default function UsersPage() {
                   <BarChart3 className="mr-2 h-4 w-4" />
                   Performance
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleOpenEdit(row)}>
+                <DropdownMenuItem
+                  disabled={!isUserManageable(row)}
+                  onClick={() => handleOpenEdit(row)}
+                >
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  disabled={!isUserManageable(row)}
                   onClick={() => handleOpenDelete(row)}
                   className="text-destructive"
                 >
@@ -367,6 +425,7 @@ export default function UsersPage() {
         <Button
           onClick={() => setIsAddDialogOpen(true)}
           className="w-full shrink-0 sm:w-auto"
+          disabled={!canManageUsers || assignableRoles.length === 0}
         >
           <Plus className="mr-2 h-4 w-4" />
           Add User
@@ -382,9 +441,9 @@ export default function UsersPage() {
 
       <div className="mt-4 flex min-w-0 flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-0">
         <span>
-          Showing {filteredUsers.length} of {users.length}
+          Showing {filteredUsers.length} of {visibleUsers.length}
         </span>
-        <span>Auditors: {users.length}</span>
+        <span>Total Users: {visibleUsers.length}</span>
       </div>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -431,19 +490,29 @@ export default function UsersPage() {
               <Label>Role</Label>
               <Select
                 value={newUser.role}
-                onValueChange={(value: "admin" | "auditor") =>
-                  setNewUser((p) => ({ ...p, role: value }))
+                onValueChange={(value: AppUserRole) =>
+                  setNewUser((p) => ({
+                    ...p,
+                    role: value,
+                  }))
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auditor">Auditor</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {assignableRoles.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {formatRoleLabel(r)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+
+            <p className="rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
+              Permissions are controlled by backend role policies.
+            </p>
           </div>
 
           <DialogFooter>
@@ -503,19 +572,29 @@ export default function UsersPage() {
               <Label>Role</Label>
               <Select
                 value={editUser.role}
-                onValueChange={(value: "admin" | "auditor") =>
-                  setEditUser((p) => ({ ...p, role: value }))
+                onValueChange={(value: AppUserRole) =>
+                  setEditUser((p) => ({
+                    ...p,
+                    role: value,
+                  }))
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auditor">Auditor</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {assignableRoles.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {formatRoleLabel(r)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+
+            <p className="rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
+              Permissions are controlled by backend role policies.
+            </p>
           </div>
 
           <DialogFooter>
