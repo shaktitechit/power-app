@@ -1,4 +1,5 @@
 "use client";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 
 import {
   canManageResource,
@@ -2319,7 +2320,7 @@ export function HVACAuditSection({
                       {form.existingDocuments.map((doc, idx) => (
                         <a
                           key={idx}
-                          href={doc.fileUrl}
+                          href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"
                           title={doc.fileName || `Document ${idx + 1}`}

@@ -2,6 +2,7 @@
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useState } from "react";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   useParams,
   useRouter,
@@ -305,16 +306,16 @@ export default function ConnectionDetailsPage() {
                       className="group overflow-hidden rounded-xl border border-border bg-muted/20"
                     >
                       {doc.fileType === "image" ? (
-                        <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                        <a href={toSameOriginFileManagementUrl(doc.fileUrl)} target="_blank" rel="noreferrer">
                           <img
-                            src={doc.fileUrl}
+                            src={toSameOriginFileManagementUrl(doc.fileUrl)}
                             alt={doc.fileName || `Image ${index + 1}`}
                             className="h-32 w-full object-cover transition duration-200 group-hover:scale-105"
                           />
                         </a>
                       ) : (
                         <a
-                          href={doc.fileUrl}
+                          href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"
                           className="flex h-32 flex-col items-center justify-center gap-2"

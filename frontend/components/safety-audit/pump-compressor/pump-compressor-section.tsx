@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   Plus,
   Pencil,
@@ -930,7 +931,7 @@ export function SafetyPumpCompressorSection({
                               <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                             )}
                             <a
-                              href={doc.fileUrl}
+                              href={toSameOriginFileManagementUrl(doc.fileUrl)}
                               target="_blank"
                               rel="noreferrer"
                               className="truncate text-primary hover:underline"

@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, ClipboardList, FileText, ImageIcon, Plug, Zap } from "lucide-react";
 import type { UtilityAccount } from "@/store/slices/electrical-audit/utilityApiSlice";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   type UtilityDocument,
   formatUtilityAuditSubmittedBy,
@@ -349,19 +350,19 @@ export function UtilityAccountDetailsEnergy({
                   >
                     {doc.fileType === "image" ? (
                       <a
-                        href={doc.fileUrl}
+                        href={toSameOriginFileManagementUrl(doc.fileUrl)}
                         target="_blank"
                         rel="noreferrer"
                       >
                         <img
-                          src={doc.fileUrl}
+                          src={toSameOriginFileManagementUrl(doc.fileUrl)}
                           alt={doc.fileName || `Image ${index + 1}`}
                           className="h-32 w-full object-cover transition duration-200 group-hover:scale-105"
                         />
                       </a>
                     ) : (
                       <a
-                        href={doc.fileUrl}
+                        href={toSameOriginFileManagementUrl(doc.fileUrl)}
                         target="_blank"
                         rel="noreferrer"
                         className="flex h-32 flex-col items-center justify-center gap-2"
@@ -384,7 +385,7 @@ export function UtilityAccountDetailsEnergy({
                         </p>
 
                         <a
-                          href={doc.fileUrl}
+                          href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"
                           download={doc.fileType === "pdf"}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -462,7 +463,7 @@ export function SolarPlantSection({
                             {form.existingDocuments.map((doc, index) => (
                               <a
                                 key={`${doc.fileUrl}-${index}`}
-                                href={doc.fileUrl}
+                                href={toSameOriginFileManagementUrl(doc.fileUrl)}
                                 target="_blank"
                                 rel="noreferrer"
                                 title={doc.fileName || `Document ${index + 1}`}
@@ -668,7 +669,7 @@ export function SolarPlantSection({
                     {activeForm.existingDocuments.map((doc, index) => (
                       <a
                         key={`${doc.fileUrl}-${index}`}
-                        href={doc.fileUrl}
+                        href={toSameOriginFileManagementUrl(doc.fileUrl)}
                         target="_blank"
                         rel="noreferrer"
                         title={doc.fileName || `Document ${index + 1}`}

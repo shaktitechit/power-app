@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
  * - Development (HTTP): secure must be false or browsers won't store/send cookies.
  * - Production (HTTPS): secure true; same-site Next.js `/api` proxy → default `lax`.
  * - Cross-origin API only: set COOKIE_SAMESITE=none and COOKIE_SECURE=true (SameSite=None requires Secure).
+ * - Subdomains (app + API): set COOKIE_DOMAIN=.example.com so jwt is sent to both.
  */
 const cookieDefaults = () => {
   const secure =
@@ -20,13 +21,26 @@ const cookieDefaults = () => {
     sameSite = "lax";
   }
 
-  return {
+  const domain = process.env.COOKIE_DOMAIN?.trim();
+  const base = {
     httpOnly: true,
     secure,
     sameSite,
     path: "/",
   };
+  if (domain) {
+    base.domain = domain;
+  }
+  return base;
 };
+
+/** `Authorization: Bearer <access>` when cookies are not sent (API clients, some cross-origin setups). */
+export function getBearerAccessToken(req) {
+  const h = req.headers?.authorization;
+  if (!h || typeof h !== "string") return null;
+  const m = /^Bearer\s+(\S+)/i.exec(h.trim());
+  return m ? m[1] : null;
+}
 
 export const getAccessSecret = () =>
   process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;

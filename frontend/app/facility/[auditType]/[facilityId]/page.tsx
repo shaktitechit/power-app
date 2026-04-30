@@ -2,6 +2,7 @@
 
 import { canManageResource, canViewDocuments } from "@/lib/authRoles";
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   useParams,
   useRouter,
@@ -835,16 +836,16 @@ export default function FacilityWorkspacePage() {
                       className="group overflow-hidden rounded-xl border border-border bg-muted/20"
                     >
                       {doc.fileType === "image" ? (
-                        <a href={doc.fileUrl} target="_blank" rel="noreferrer">
+                        <a href={toSameOriginFileManagementUrl(doc.fileUrl)} target="_blank" rel="noreferrer">
                           <img
-                            src={doc.fileUrl}
+                            src={toSameOriginFileManagementUrl(doc.fileUrl)}
                             alt={doc.fileName || `Image ${index + 1}`}
                             className="h-32 w-full object-cover transition duration-200 group-hover:scale-105"
                           />
                         </a>
                       ) : (
                         <a
-                          href={doc.fileUrl}
+                          href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"
                           className="flex h-32 flex-col items-center justify-center gap-2"
@@ -868,7 +869,7 @@ export default function FacilityWorkspacePage() {
 
                         {doc.fileType === "pdf" && (
                           <a
-                            href={doc.fileUrl}
+                            href={toSameOriginFileManagementUrl(doc.fileUrl)}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-block text-xs text-primary hover:underline"

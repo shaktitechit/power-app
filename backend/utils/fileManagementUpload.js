@@ -1,4 +1,7 @@
-import { API_PUBLIC_BASE_URL } from "../config/fileManagement.js";
+import {
+  API_PUBLIC_BASE_URL,
+  FILE_DOCUMENT_LINKS_RELATIVE,
+} from "../config/fileManagement.js";
 import { uploadMulterFile } from "../services/fileManagement/index.js";
 
 /**
@@ -29,7 +32,11 @@ export const FOLDER_TO_RESOURCE_TYPE = {
 };
 
 export function buildProxyViewUrl(fileId) {
-  return `${API_PUBLIC_BASE_URL}/api/v1/file-management/files/${fileId}/view`;
+  const path = `/api/v1/file-management/files/${fileId}/view`;
+  if (FILE_DOCUMENT_LINKS_RELATIVE) {
+    return path;
+  }
+  return `${API_PUBLIC_BASE_URL}${path}`;
 }
 
 /**

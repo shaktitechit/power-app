@@ -3,6 +3,7 @@
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -605,7 +606,7 @@ export function UtilityTariffSection({
                       )}
 
                       <a
-                        href={doc.fileUrl}
+                        href={toSameOriginFileManagementUrl(doc.fileUrl)}
                         target="_blank"
                         rel="noreferrer"
                         title={doc.fileName || `Document ${index + 1}`}

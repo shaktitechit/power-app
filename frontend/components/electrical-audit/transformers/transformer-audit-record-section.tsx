@@ -3,6 +3,7 @@
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1146,7 +1147,7 @@ export function TransformerAuditRecordSection({
                           <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                         )}
                         <a
-                          href={doc.fileUrl}
+                          href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"
                           title={

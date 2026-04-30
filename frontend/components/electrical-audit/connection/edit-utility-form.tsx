@@ -2,6 +2,7 @@
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   Dialog,
   DialogContent,
@@ -537,7 +538,7 @@ export function EditUtilityAccountForm({
                     <div className="flex w-full shrink-0 flex-row items-center justify-end gap-2 sm:w-auto">
                       {doc.fileUrl && (
                         <a
-                          href={doc.fileUrl}
+                          href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"
                           className={cn(AUDIT_DOC_LINK_INLINE, "text-xs")}

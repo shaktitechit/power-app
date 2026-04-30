@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../modals/user.js";
 import logger from "../config/logger.js";
 import buildLogMeta from "../utils/buildLogMeta.js";
-import { getAccessSecret } from "../utils/authTokens.js";
+import { getAccessSecret, getBearerAccessToken } from "../utils/authTokens.js";
 import asyncHandler from "./asyncHandler.js";
 import { isAdmin as isPlatformAdmin } from "../services/authorization/index.js";
 
@@ -12,9 +12,9 @@ const unauthorized = (message) => {
   return err;
 };
 
-// 🔐 Protect routes (access JWT in `jwt` cookie only)
+// 🔐 Protect routes: `jwt` cookie (normal browser) or `Authorization: Bearer` (fallback).
 const protect = asyncHandler(async (req, res, next) => {
-  const token = req.cookies.jwt;
+  const token = req.cookies.jwt || getBearerAccessToken(req);
 
   if (!token) {
     logger.warn("Authentication failed: token missing", buildLogMeta(req));

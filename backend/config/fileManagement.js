@@ -20,11 +20,39 @@ export const FILE_MANAGEMENT_API_KEY =
   process.env.FILE_MANAGEMENT_API_KEY || "";
 
 /**
- * Public origin of this Power API — used in stored document URLs (`/api/v1/file-management/files/:id/view`).
+ * How browser-facing document links are built (see `buildProxyViewUrl` in `fileManagementUpload.js`).
+ * - Path-only `/api/v1/...` when relative (SPA + Next `/api` proxy → same host as `jwt` cookie).
+ * - Set `FILE_DOCUMENT_LINKS_RELATIVE=true`, or `API_PUBLIC_BASE_URL=same-origin` / `relative`.
+ * - Or set full `API_PUBLIC_BASE_URL=https://...` for absolute links (must match cookie host or use COOKIE_DOMAIN).
+ * - In production, defaults to relative if `API_PUBLIC_BASE_URL` is not an explicit http(s) URL.
  */
-export const API_PUBLIC_BASE_URL = stripTrailingSlash(
-  process.env.API_PUBLIC_BASE_URL || "http://localhost:5000",
-);
+function resolvePublicBaseForFileLinks() {
+  const raw = (process.env.API_PUBLIC_BASE_URL ?? "").trim();
+
+  if (process.env.FILE_DOCUMENT_LINKS_RELATIVE === "true") {
+    return { fileLinksRelative: true, base: "" };
+  }
+  if (/^same-origin$/i.test(raw) || /^relative$/i.test(raw)) {
+    return { fileLinksRelative: true, base: "" };
+  }
+  if (/^https?:\/\//i.test(raw)) {
+    return { fileLinksRelative: false, base: stripTrailingSlash(raw) };
+  }
+  if (process.env.NODE_ENV === "production") {
+    return { fileLinksRelative: true, base: "" };
+  }
+  return {
+    fileLinksRelative: false,
+    base: stripTrailingSlash("http://localhost:5000"),
+  };
+}
+
+const _fileLinks = resolvePublicBaseForFileLinks();
+
+export const FILE_DOCUMENT_LINKS_RELATIVE = _fileLinks.fileLinksRelative;
+
+/** Used only when {@link FILE_DOCUMENT_LINKS_RELATIVE} is false. */
+export const API_PUBLIC_BASE_URL = _fileLinks.base;
 
 /** Timeout for JSON calls to the file-management API (ms). */
 export const FILE_MANAGEMENT_REQUEST_TIMEOUT_MS = Number(

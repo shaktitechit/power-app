@@ -31,6 +31,8 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
+
 import {
   canGenerateReports,
   canManageResource,
@@ -769,8 +771,7 @@ export default function ReportsSection({
                             }
                             onClick={() => {
                               if (report.excel_file?.fileUrl) {
-                                window.open(
-                                  report.excel_file.fileUrl,
+                                window.open(toSameOriginFileManagementUrl(report.excel_file.fileUrl),
                                   "_blank",
                                 );
                               }
@@ -790,7 +791,7 @@ export default function ReportsSection({
                             }
                             onClick={() => {
                               if (report.pdf_file?.fileUrl) {
-                                window.open(report.pdf_file.fileUrl, "_blank");
+                                window.open(toSameOriginFileManagementUrl(report.pdf_file.fileUrl), "_blank");
                               }
                             }}
                           >
