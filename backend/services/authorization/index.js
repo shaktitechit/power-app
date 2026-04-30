@@ -5,9 +5,6 @@ import { RESOURCES } from "../../constants/resources.js";
 import { ACTIONS } from "../../constants/actions.js";
 import { rolePolicies } from "../../policies/rolePolicies.js";
 
-/** file view/download (presigned redirect) — super admin, admin, and manager only */
-const ROLES_WITH_FILE_ACCESS = new Set(["super_admin", "admin", "manager"]);
-
 const ACTION_ALIASES = {
   [ACTIONS.EDIT]: ACTIONS.UPDATE,
   [ACTIONS.VIEW_REPORT]: ACTIONS.READ,
@@ -145,9 +142,6 @@ async function scopeSatisfied(user, scope, context = {}) {
  */
 export async function can(user, resource, action, context = {}) {
   if (!user?._id) return false;
-  if (resource === RESOURCES.FILE && !ROLES_WITH_FILE_ACCESS.has(user.role)) {
-    return false;
-  }
   const policies = getEffectivePolicies(user);
   const matches = findMatchingPolicies(policies, resource, action);
   if (!matches.length) return false;

@@ -20,26 +20,13 @@ const cookieDefaults = () => {
     sameSite = "lax";
   }
 
-  const domain = process.env.COOKIE_DOMAIN?.trim();
-  const base = {
+  return {
     httpOnly: true,
     secure,
     sameSite,
     path: "/",
   };
-  if (domain) {
-    base.domain = domain;
-  }
-  return base;
 };
-
-/** `Authorization: Bearer <access>` for routes when the browser does not send cookies. */
-export function getBearerAccessToken(req) {
-  const h = req.headers?.authorization;
-  if (!h || typeof h !== "string") return null;
-  const m = /^Bearer\s+(\S+)/i.exec(h.trim());
-  return m ? m[1] : null;
-}
 
 export const getAccessSecret = () =>
   process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;

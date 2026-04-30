@@ -380,6 +380,11 @@ export const rolePolicies = {
       ],
       scope: "assigned",
     },
+    {
+      resource: R.FILE,
+      actions: [A.READ, A.DOWNLOAD, A.VIEW_DOCUMENT],
+      scope: "all",
+    },
     { resource: R.USER_PROFILE, actions: [A.READ, A.UPDATE], scope: "own" },
     { resource: R.USER_PERFORMANCE, actions: [A.READ], scope: "own" },
     { resource: R.DASHBOARD, actions: [A.READ], scope: "assigned" },
