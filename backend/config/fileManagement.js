@@ -20,11 +20,36 @@ export const FILE_MANAGEMENT_API_KEY =
   process.env.FILE_MANAGEMENT_API_KEY || "";
 
 /**
- * Public origin of this Power API — used in stored document URLs (`/api/v1/file-management/files/:id/view`).
+ * When true, stored document links are path-only (`/api/v1/file-management/...`) so the browser stays on
+ * the same host as the SPA (where the `jwt` cookie is set). Set `FILE_DOCUMENT_LINKS_RELATIVE=true` or
+ * `API_PUBLIC_BASE_URL=same-origin` (or `relative`). Requires reverse-proxying `/api` to this server.
  */
-export const API_PUBLIC_BASE_URL = stripTrailingSlash(
-  process.env.API_PUBLIC_BASE_URL || "http://localhost:5000",
-);
+function resolvePublicBaseForFileLinks() {
+  const raw = process.env.API_PUBLIC_BASE_URL;
+  const explicitRelative =
+    process.env.FILE_DOCUMENT_LINKS_RELATIVE === "true" ||
+    (raw != null &&
+      (/^same-origin$/i.test(String(raw).trim()) ||
+        /^relative$/i.test(String(raw).trim())));
+
+  if (explicitRelative) {
+    return { fileLinksRelative: true, base: "" };
+  }
+
+  const base = stripTrailingSlash(
+    raw != null && String(raw).trim() !== ""
+      ? String(raw).trim()
+      : "http://localhost:5000",
+  );
+  return { fileLinksRelative: false, base };
+}
+
+const _publicFile = resolvePublicBaseForFileLinks();
+
+export const FILE_DOCUMENT_LINKS_RELATIVE = _publicFile.fileLinksRelative;
+
+/** Origin for absolute document URLs (unused when {@link FILE_DOCUMENT_LINKS_RELATIVE}). */
+export const API_PUBLIC_BASE_URL = _publicFile.base;
 
 /** Timeout for JSON calls to the file-management API (ms). */
 export const FILE_MANAGEMENT_REQUEST_TIMEOUT_MS = Number(
