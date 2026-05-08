@@ -29,6 +29,26 @@
             "date": 1777537581844,
             "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\rejections-2026-04-30.log",
             "hash": "d45485c32e3952f90f376e11044e2a794fdd190b2e6d8f9503ced51845cd7119"
+        },
+        {
+            "date": 1777634300643,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\rejections-2026-05-01.log",
+            "hash": "2dea381bdcb90e29057840e834d9b01594ea840f2d0199ac5f987d9b8dd83758"
+        },
+        {
+            "date": 1777896057431,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\rejections-2026-05-04.log",
+            "hash": "15577b98fd6ce3b3238236f14479d2058ece8b37596ef124bb924f4398633167"
+        },
+        {
+            "date": 1778058556312,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\rejections-2026-05-06.log",
+            "hash": "dd855edfe5ac51df442c38e2b02c104dacb808359ef4f661e30d49ef6eb633a6"
+        },
+        {
+            "date": 1778135341194,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\rejections-2026-05-07.log",
+            "hash": "df8ef05f21d6f1bb93f3f530ef5ff642768c8f09c9706a96cbeef8b37f91ff51"
         }
     ],
     "hashType": "sha256"

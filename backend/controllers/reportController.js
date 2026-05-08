@@ -123,7 +123,7 @@ const createProcessingReport = async ({
 };
 
 /**
- * @desc    Generate a new report
+ * @desc    Generate a new report (report_type limited to full_audit_report — see validateGeneratePayload)
  * @route   POST /api/v1/reports/generate
  * @access  Private
  */
@@ -236,7 +236,7 @@ const regenerateReport = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Create report row only, without generating files
+ * @desc    Create report row only, without generating files (report_type limited to full_audit_report)
  * @route   POST /api/v1/reports
  * @access  Private
  */

@@ -4,6 +4,14 @@ import { apiSlice } from "./apiSlice";
 
 export type ReportScope = "facility" | "utility_account";
 
+/**
+ * Only `report_type` accepted by POST `/reports/generate` and POST `/reports`.
+ * Matches `GENERATION_ALLOWED_REPORT_TYPES` in backend `reportGenerationPolicy.js`.
+ */
+export const REPORT_GENERATION_TYPE = "full_audit_report" as const;
+
+export type ReportGenerationType = typeof REPORT_GENERATION_TYPE;
+
 /** Per-area electrical safety reports (`{registryKey}_report`) — align with backend `SAFETY_GRANULAR_REPORT_TYPES`. */
 export type ElectricalSafetyGranularReportType =
   | "safety_general_report"
@@ -112,7 +120,7 @@ export interface CreateReportRequest {
   facility_id: string;
   utility_account_id?: string;
   report_scope: ReportScope;
-  report_type?: ReportType;
+  report_type?: ReportGenerationType;
   title: string;
   snapshot_meta?: ReportSnapshotMeta;
 }
@@ -121,7 +129,7 @@ export interface GenerateReportRequest {
   facility_id: string;
   utility_account_id?: string;
   report_scope: ReportScope;
-  report_type?: ReportType;
+  report_type?: ReportGenerationType;
   title?: string;
   snapshot_meta?: ReportSnapshotMeta;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,7 @@ import {
   useGenerateReportMutation,
   useGetReportsQuery,
   useRegenerateReportMutation,
+  REPORT_GENERATION_TYPE,
   type Report,
   type ReportScope,
   type ReportType,
@@ -60,18 +61,13 @@ import {
   ELECTRICAL_SAFETY_AUDIT,
   type AuditTypeOption,
 } from "@/lib/facilityConstants";
+import { ELECTRICAL_ENERGY_REPORT_TYPE_LABELS } from "@/lib/reports/electricalEnergyReportTypes";
 import {
-  ELECTRICAL_ENERGY_REPORT_OPTIONS,
-  ELECTRICAL_ENERGY_REPORT_TYPES,
-  ELECTRICAL_ENERGY_REPORT_TYPE_LABELS,
-} from "@/lib/reports/electricalEnergyReportTypes";
-import {
-  ELECTRICAL_SAFETY_AUDIT_REPORT_OPTIONS,
-  ELECTRICAL_SAFETY_AUDIT_REPORT_TYPES,
   ELECTRICAL_SAFETY_AUDIT_REPORT_TYPE_LABELS,
   ELECTRICAL_SAFETY_GRANULAR_REPORT_TYPE_LABELS,
   isElectricalSafetyAuditReportType,
 } from "@/lib/reports/electricalSafetyAuditReportTypes";
+import { labelForFullAuditGeneration } from "@/lib/reports/generationReportPolicy";
 
 type FacilityOption = {
   _id: string;
@@ -102,14 +98,6 @@ const REPORT_SCOPE_OPTIONS: { label: string; value: ReportScope }[] = [
   { label: "Facility", value: "facility" },
   { label: "Utility Account", value: "utility_account" },
 ];
-
-/** Report types offered per facility audit program (matches `facility.audit_type`). */
-const REPORT_TYPES_BY_AUDIT: Record<AuditTypeOption, ReportType[]> = {
-  "Electrical Energy Audit": [...ELECTRICAL_ENERGY_REPORT_TYPES],
-  "Electrical Safety Audit": [...ELECTRICAL_SAFETY_AUDIT_REPORT_TYPES],
-  "Thermal Audit": ["full_audit_report", "executive_summary"],
-  "Lightning Arrester Audit": ["full_audit_report", "executive_summary"],
-};
 
 const getStatusClasses = (status?: string) => {
   switch (status) {
@@ -259,7 +247,6 @@ export default function ReportsSection({
   const [reportScope, setReportScope] = useState<ReportScope>(
     defaultUtilityAccountId ? "utility_account" : "facility",
   );
-  const [reportType, setReportType] = useState<ReportType>("full_audit_report");
   const [customTitle, setCustomTitle] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteReportId, setDeleteReportId] = useState<string | null>(null);
@@ -279,19 +266,6 @@ export default function ReportsSection({
       return t === auditType;
     });
   }, [facilities, auditType]);
-
-  const reportTypeOptionsForAudit = useMemo(() => {
-    if (!auditType) return [];
-    const allowed = REPORT_TYPES_BY_AUDIT[auditType];
-    if (auditType === ELECTRICAL_SAFETY_AUDIT) {
-      return ELECTRICAL_SAFETY_AUDIT_REPORT_OPTIONS.filter((opt) =>
-        allowed.includes(opt.value),
-      );
-    }
-    return ELECTRICAL_ENERGY_REPORT_OPTIONS.filter((opt) =>
-      allowed.includes(opt.value),
-    );
-  }, [auditType]);
 
   const { data: utilityAccountsResponse, isLoading: utilityAccountsLoading } =
     useGetUtilityAccountsQuery(
@@ -355,14 +329,6 @@ export default function ReportsSection({
     }
   }, [defaultUtilityAccountId]);
 
-  useLayoutEffect(() => {
-    if (!auditType) return;
-    const allowed = REPORT_TYPES_BY_AUDIT[auditType];
-    setReportType((prev) =>
-      allowed.includes(prev) ? prev : (allowed[0] ?? "full_audit_report"),
-    );
-  }, [auditType]);
-
   useEffect(() => {
     if (reportScope === "facility") {
       setUtilityAccountId("");
@@ -422,7 +388,7 @@ export default function ReportsSection({
             utility_account_id:
               reportScope === "utility_account" ? utilityAccountId : undefined,
             report_scope: reportScope,
-            report_type: reportType,
+            report_type: REPORT_GENERATION_TYPE,
             title: customTitle.trim() || undefined,
             snapshot_meta: {
               facility_name: selectedFacility?.name || "",
@@ -612,30 +578,16 @@ export default function ReportsSection({
 
             <div className="min-w-0 space-y-2">
               <Label>Report type</Label>
-              <Select
-                value={reportType}
-                onValueChange={(value: ReportType) => setReportType(value)}
-                disabled={!auditType || !facilityId}
+              <div
+                className="flex h-9 w-full max-w-full min-w-0 items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-foreground"
+                title={REPORT_GENERATION_TYPE}
               >
-                <SelectTrigger className="h-9 w-full max-w-full min-w-0">
-                  <SelectValue
-                    placeholder={
-                      !auditType
-                        ? "Select audit type first"
-                        : !facilityId
-                          ? "Select facility first"
-                          : "Select report type"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {reportTypeOptionsForAudit.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {!auditType
+                  ? "Select audit type first"
+                  : !facilityId
+                    ? "Select facility first"
+                    : labelForFullAuditGeneration(auditType)}
+              </div>
             </div>
           </div>
 

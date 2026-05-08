@@ -147,8 +147,8 @@ const applySubTitleStyle = (row) => {
 
 const getTintArgb = (text, tintResolver) =>
   tintResolver
-    ? tintResolver.fromHeading(text)?.argb ?? null
-    : getUtilityAccountSectionTintFromHeading(text)?.argb ?? null;
+    ? (tintResolver.fromHeading(text)?.argb ?? null)
+    : (getUtilityAccountSectionTintFromHeading(text)?.argb ?? null);
 
 const applyRowFill = (row, tint) => {
   if (!tint) return;
@@ -422,7 +422,11 @@ const isKeyValueSection = (subSection) => {
   return first === "label" && second === "value";
 };
 
-const addSectionWithSubsections = (workbook, section = {}, tintResolver = null) => {
+const addSectionWithSubsections = (
+  workbook,
+  section = {},
+  tintResolver = null,
+) => {
   if (!section) return;
 
   const hasSubSections =
@@ -611,7 +615,41 @@ export const generateExcelReport = async ({ reportData }) => {
   autoFitColumns(metaSheet);
 
   const tintResolver = createUtilityAccountTintResolver();
-  addDynamicSectionSheets(workbook, reportData, tintResolver);
+
+  /** Multi-block checklist sheets: one combined sheet per utility account (facility) or single sheet (utility scope). */
+  const isCombinedSafetyChecklistSheet = (s) =>
+    s?.key === "safety_audit_combined" ||
+    (typeof s?.key === "string" && s.key.startsWith("safety_audit_ua_"));
+
+  const combinedSafetySheets = (reportData?.sheet_sections || []).filter(
+    isCombinedSafetyChecklistSheet,
+  );
+
+  if (combinedSafetySheets.length > 0) {
+    combinedSafetySheets.forEach((section) =>
+      addMultiBlockSheet(workbook, section, tintResolver),
+    );
+
+    const otherSections = (reportData?.sections || []).filter(
+      (s) => !s.key?.startsWith("safety_"),
+    );
+
+    const otherSheetSections = (reportData?.sheet_sections || []).filter(
+      (s) => !isCombinedSafetyChecklistSheet(s),
+    );
+
+    addDynamicSectionSheets(
+      workbook,
+      {
+        ...reportData,
+        sections: otherSections,
+        sheet_sections: otherSheetSections,
+      },
+      tintResolver,
+    );
+  } else {
+    addDynamicSectionSheets(workbook, reportData, tintResolver);
+  }
 
   const uint8 = await workbook.xlsx.writeBuffer();
   return Buffer.from(uint8);

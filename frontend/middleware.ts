@@ -33,6 +33,9 @@ export function middleware(req: NextRequest) {
   if (pathname.startsWith("/users") && !canUsersHub) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
+  if (pathname.startsWith("/audits") && !canUsersHub) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
 
   if (pathname.startsWith("/performance") && !canPerformanceHub) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
@@ -53,6 +56,7 @@ export const config = {
     "/facility/:path*",
     "/settings",
     "/reports",
+    "/audits",
     "/reports/:path*",
     "/users",
     "/users/:path*",

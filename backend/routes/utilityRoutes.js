@@ -27,10 +27,11 @@ router
   .route("/")
   .post(
     protect,
+    // Multer must run before authorize so multipart fields (e.g. facility_id) are on req.body.
+    uploadDocuments,
     authorize(RESOURCES.UTILITY_ACCOUNT, ACTIONS.CREATE, {
       resolveContext: (req) => ({ facilityId: req.body?.facility_id }),
     }),
-    uploadDocuments,
     createUtilityAccount,
   )
   .get(protect, getUtilityAccounts);

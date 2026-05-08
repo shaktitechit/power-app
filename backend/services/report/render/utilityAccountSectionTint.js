@@ -1,54 +1,22 @@
 /**
- * Pastel row/header tints per utility-account prefix (text before ` - ` in subsection headings).
- * Shared by Excel + PDF so colors match across exports.
+ * Alternating row/header fills per utility-account prefix (text before ` - ` in subsection headings).
+ * Only two tones — lighter / darker — so multi-account exports stay readable and consistent.
+ * Shared by Excel + PDF.
  */
 
-/** @type {readonly string[]} #RRGGBB — light fills, readable with dark text */
+/** Softer band — odd numbered utility-account slots (0, 2, 4…) in discovery order */
+export const UTILITY_ACCOUNT_TINT_LIGHT_HEX = "#EFF6FC";
+
+/** Slightly deeper band — even numbered slots (1, 3, …); same hue family as light */
+export const UTILITY_ACCOUNT_TINT_DARK_HEX = "#D0E4F7";
+
+/** @type {readonly string[]} — `#RRGGBB`; length 2, alternating by account slot */
 export const UTILITY_ACCOUNT_SECTION_TINTS_HEX = Object.freeze([
-  "#F3E5F5",
-  "#E3F2FD",
-  "#E8F5E9",
-  "#FFF3E0",
-  "#E0F2F1",
-  "#FCE4EC",
-  "#EDE7F6",
-  "#E8EAF6",
-  "#E1F5FE",
-  "#F1F8E9",
-  "#FFF8E1",
-  "#FFEBEE",
-  "#E8F5E8",
-  "#F9FBE7",
-  "#E0F7FA",
-  "#F3E0F7",
-  "#FFF0F0",
-  "#EFEEFF",
-  "#E3F9E5",
-  "#FFE0B2",
-  "#C5E1A5",
-  "#B3E5FC",
-  "#D1C4E9",
-  "#FFCDD2",
-  "#DCEDC8",
-  "#B2EBF2",
-  "#C8E6C9",
-  "#BBDEFB",
-  "#D7CCC8",
-  "#FFECB3",
-  "#E1BEE7",
-  "#B2DFDB",
-  "#F0F4C3",
-  "#FFCCBC",
-  "#CFD8DC",
-  "#D4E157",
-  "#A5D6A7",
-  "#90CAF9",
-  "#CE93D8",
-  "#80DEEA",
-  "#FFE082",
-  "#A1887F",
-  "#9FA8DA",
+  UTILITY_ACCOUNT_TINT_LIGHT_HEX,
+  UTILITY_ACCOUNT_TINT_DARK_HEX,
 ]);
+
+const TINT_SLOT_COUNT = UTILITY_ACCOUNT_SECTION_TINTS_HEX.length;
 
 const hashAccountKey = (key) => {
   let h = 2166136261;
@@ -80,7 +48,7 @@ export const getUtilityAccountSectionTint = (accountPrefix) => {
   const prefix = String(accountPrefix || "").trim();
   if (!prefix) return null;
 
-  const idx = hashAccountKey(prefix) % UTILITY_ACCOUNT_SECTION_TINTS_HEX.length;
+  const idx = hashAccountKey(prefix) % TINT_SLOT_COUNT;
   const hex = UTILITY_ACCOUNT_SECTION_TINTS_HEX[idx];
   return { hex, argb: `FF${hex.slice(1)}` };
 };
@@ -94,17 +62,16 @@ export const getUtilityAccountSectionTintFromHeading = (heading) => {
 };
 
 /**
- * Assigns distinct palette slots to each unique account prefix in export order
- * (first account → color 0, second → color 1, …). Reuses the same color when the
- * same prefix appears again. Wraps if there are more distinct accounts than palette entries.
+ * Assigns alternating slots (0, 1, 2…) to each unique account prefix in export order:
+ * first account → lighter/darker flip via slot % 2, same prefix always maps to same slot.
  */
 export const createUtilityAccountTintResolver = () => {
   const prefixToSlot = new Map();
   let distinctCount = 0;
 
   const tintAtSlot = (slot) => {
-    const idx = slot % UTILITY_ACCOUNT_SECTION_TINTS_HEX.length;
-    const hex = UTILITY_ACCOUNT_SECTION_TINTS_HEX[idx];
+    const hex =
+      UTILITY_ACCOUNT_SECTION_TINTS_HEX[slot % TINT_SLOT_COUNT];
     return { hex, argb: `FF${hex.slice(1)}` };
   };
 

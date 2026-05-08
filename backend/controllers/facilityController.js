@@ -207,7 +207,7 @@ const getFacilities = asyncHandler(async (req, res) => {
   let facilities = [];
 
   if (hasOrgWideFacilityAccess(req.user)) {
-    facilities = await Facility.find().sort({ createdAt: -1 });
+    facilities = await Facility.find().sort({ start_date: -1, createdAt: -1 });
   } else {
     const assignedFacilityIds = await FacilityAuditor.find({
       user_id: req.user._id,
@@ -216,14 +216,14 @@ const getFacilities = asyncHandler(async (req, res) => {
     if (req.user?.role === "manager") {
       facilities = await Facility.find({
         _id: { $in: assignedFacilityIds },
-      }).sort({ createdAt: -1 });
+      }).sort({ start_date: -1, createdAt: -1 });
     } else {
       facilities = await Facility.find({
         $or: [
           { owner_user_id: req.user._id },
           { _id: { $in: assignedFacilityIds } },
         ],
-      }).sort({ createdAt: -1 });
+      }).sort({ start_date: -1, createdAt: -1 });
     }
   }
 

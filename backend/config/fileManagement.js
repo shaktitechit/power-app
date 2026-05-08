@@ -61,12 +61,12 @@ export const FILE_MANAGEMENT_REQUEST_TIMEOUT_MS = Number(
 
 /** Max time to wait for file processing after upload (ms). */
 export const FILE_MANAGEMENT_UPLOAD_MAX_WAIT_MS = Number(
-  process.env.FILE_MANAGEMENT_UPLOAD_MAX_WAIT_MS || 120_000,
+  process.env.FILE_MANAGEMENT_UPLOAD_MAX_WAIT_MS || 1200000,
 );
 
 /** Interval when polling file status (ms). */
 export const FILE_MANAGEMENT_POLL_INTERVAL_MS = Number(
-  process.env.FILE_MANAGEMENT_POLL_INTERVAL_MS || 500,
+  process.env.FILE_MANAGEMENT_POLL_INTERVAL_MS || 5000,
 );
 
 /**

@@ -567,7 +567,7 @@ export function EditFacilityForm({
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => updateField("start_date", e.target.value)}
-                disabled
+                disabled={isBusy}
               />
             </div>
 
@@ -578,7 +578,7 @@ export function EditFacilityForm({
                 type="date"
                 value={formData.closure_date}
                 onChange={(e) => updateField("closure_date", e.target.value)}
-                disabled={isBusy || formData.status !== "inactive"}
+                disabled={isBusy}
               />
             </div>
 

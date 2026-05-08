@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  ClipboardList,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,12 @@ const navItems: NavItem[] = [
     href: "/facilities",
     icon: Building2,
     access: "facilityRead",
+  },
+  {
+    title: "Audits",
+    href: "/audits",
+    icon: ClipboardList,
+    access: "usersHub",
   },
   {
     title: "Analytics",
@@ -128,7 +135,7 @@ export function Sidebar({
     if (item.access === "usersHub")
       return canUsersHubFromCookie;
     if (item.access === "reportsHub")
-      return isManagerRole || isAuditorRole || canUsersHubFromCookie;
+      return isManagerRole || canUsersHubFromCookie;
     if (item.access === "dashboardRead")
       return (
         isManagerRole ||

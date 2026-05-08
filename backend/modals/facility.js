@@ -44,6 +44,7 @@ const facilitySchema = new mongoose.Schema(
 
     start_date: {
       type: Date,
+      default: Date.now,
     },
 
     client_representatives: [

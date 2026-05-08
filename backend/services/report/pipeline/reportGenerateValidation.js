@@ -8,6 +8,9 @@ import { ELECTRICAL_ENERGY_REPORT_TYPES } from "../constants/electrical-energy/r
 import {
   SAFETY_GRANULAR_REPORT_TYPES,
 } from "../builders/safety-audit/reportModelRegistry.js";
+import { GENERATION_ALLOWED_REPORT_TYPES } from "../constants/reportGenerationPolicy.js";
+
+export { GENERATION_ALLOWED_REPORT_TYPES };
 
 export const REPORT_SCOPES = ["facility", "utility_account"];
 
@@ -48,6 +51,18 @@ export const normalizeReportType = (type) => {
   }
 
   return type;
+};
+
+/** Enforces create/generate API policy — only {@link GENERATION_ALLOWED_REPORT_TYPES}. */
+export const normalizeGenerationReportType = (type) => {
+  const normalized = normalizeReportType(type);
+  if (!GENERATION_ALLOWED_REPORT_TYPES.includes(normalized)) {
+    throwError(
+      `Only ${GENERATION_ALLOWED_REPORT_TYPES.join(", ")} can be generated`,
+      400,
+    );
+  }
+  return normalized;
 };
 
 export const buildDefaultTitle = ({
@@ -91,7 +106,7 @@ export const validateGeneratePayload = ({
   }
 
   const normalizedScope = normalizeReportScope(report_scope);
-  const normalizedType = normalizeReportType(report_type);
+  const normalizedType = normalizeGenerationReportType(report_type);
 
   if (normalizedScope === "utility_account" && !utility_account_id) {
     throwError(

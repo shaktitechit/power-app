@@ -1,3 +1,7 @@
+import mongoose from "mongoose";
+
+import UtilityAccount from "../../../../modals/utilityAccount.js";
+
 import { buildCoverSection } from "../shared/buildCoverSection.js";
 import { SAFETY_COVER_REPORT_TYPE_LABELS } from "./coverReportTypeLabels.js";
 import { buildFacilityInfoSection } from "../shared/buildFacilityInfoSection.js";
@@ -14,8 +18,9 @@ import {
   buildSafetyExecutiveSummarySheet,
   buildSafetyReportSummaryMeta,
   SAFETY_CHECKLIST_SECTION_BUILDERS,
+  safetyChecklistSectionToTableBlocks,
 } from "./sections/index.js";
-import { createSafetySectionBuilder } from "./sections/safetyChecklistSection.js";
+import { createSafetySectionBuilder, getId } from "./sections/safetyChecklistSection.js";
 import { safetyReportTypeToSpecKey } from "./reportModelRegistry.js";
 
 const throwError = (message, statusCode = 500) => {
@@ -85,6 +90,18 @@ const safeSection = async (builder, fallback, label = "section") => {
     console.error(`Failed to build safety ${label}:`, error);
     return fallback;
   }
+};
+
+/** All checklist areas as table blocks for one utility-account scope. */
+const buildCombinedSafetyChecklistBlocks = async (checklistCtx) => {
+  const sections = await Promise.all(
+    SAFETY_CHECKLIST_SECTION_BUILDERS.map((buildSection) =>
+      buildSection(checklistCtx),
+    ),
+  );
+  return sections.flatMap((section) =>
+    safetyChecklistSectionToTableBlocks(section),
+  );
 };
 
 /**
@@ -193,12 +210,46 @@ export const assembleReportPayload = async ({
   }
 
   if (shouldBuildAllSafetyChecklistSections(reportType)) {
-    await Promise.all(
-      SAFETY_CHECKLIST_SECTION_BUILDERS.map(async (buildSection) => {
-        const section = await buildSection(checklistCtx);
-        if (section) pushSectionIfValid(result, section);
-      }),
-    );
+    if (scope === "facility") {
+      const accounts = await UtilityAccount.find({
+        facility_id: new mongoose.Types.ObjectId(getId(facility._id)),
+      })
+        .select("_id account_number")
+        .sort({ account_number: 1 })
+        .lean();
+
+      for (const acc of accounts) {
+        const blocks = await buildCombinedSafetyChecklistBlocks({
+          facility,
+          utilityAccount: acc,
+          accountMap,
+        });
+        if (!blocks.length) continue;
+
+        const label =
+          (acc.account_number && String(acc.account_number).trim()) ||
+          String(acc._id);
+        result.sheet_sections.push({
+          key: `safety_audit_ua_${String(acc._id)}`,
+          title: `Safety Audit — ${label}`,
+          blocks,
+        });
+      }
+    } else {
+      const blocks = await buildCombinedSafetyChecklistBlocks(checklistCtx);
+      if (blocks.length > 0) {
+        const label =
+          (utilityAccount?.account_number &&
+            String(utilityAccount.account_number).trim()) ||
+          utilityAccount?._id?.toString?.() ||
+          "Utility account";
+        result.sheet_sections.push({
+          key: "safety_audit_combined",
+          title: `Safety Audit — ${label}`,
+          blocks,
+        });
+      }
+    }
   } else if (shouldBuildGranularSafetyChecklistSection(reportType)) {
     const specKey = safetyReportTypeToSpecKey(reportType);
     if (specKey) {

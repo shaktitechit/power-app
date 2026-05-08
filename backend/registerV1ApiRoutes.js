@@ -3,6 +3,7 @@ import { apiRateLimiter } from "./middlewares/rateLimitLoggerMiddleware.js";
 // Core & shared
 import usersRoute from "./routes/usersRoute.js";
 import facilityRoute from "./routes/facilityRoute.js";
+import auditRoutes from "./routes/auditRoutes.js";
 import utilityRoutes from "./routes/utilityRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
@@ -64,6 +65,7 @@ export function registerV1ApiRoutes(app) {
   // --- Users, facilities, utilities (root shared) ---
   app.use("/api/v1/users", usersRoute);
   app.use("/api/v1/facilities", facilityRoute);
+  app.use("/api/v1/audits", auditRoutes);
   app.use("/api/v1/utilities", utilityRoutes);
 
   // --- Electrical audit (`routes/electrical-audit`): tariffs, billing, equipment, records ---

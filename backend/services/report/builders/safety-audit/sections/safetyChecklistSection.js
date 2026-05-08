@@ -130,6 +130,25 @@ export const buildSafetyAccountMap = async (facilityId) => {
 };
 
 /**
+ * Turns a checklist section `{ sections: [{ heading, columns, rows }] }` into
+ * Excel/PDF `table` blocks (same column definitions as the subsection rows).
+ *
+ * @param {{ sections?: Array<{ heading?: string; rows?: object[] }> } | null} section
+ * @returns {Array<{ type: 'table'; heading?: string; columns: typeof ITEM_COLUMNS; items: object[] }>}
+ */
+export const safetyChecklistSectionToTableBlocks = (section) => {
+  if (!section || !Array.isArray(section.sections) || !section.sections.length) {
+    return [];
+  }
+  return section.sections.map((sub) => ({
+    type: "table",
+    heading: sub.heading,
+    columns: ITEM_COLUMNS,
+    items: Array.isArray(sub.rows) ? sub.rows : [],
+  }));
+};
+
+/**
  * @param {{ key: string; title: string; Model: import("mongoose").Model }} spec
  * @param {{ facility: object; utilityAccount?: object | null; accountMap: Map }} ctx
  */

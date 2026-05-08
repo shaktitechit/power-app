@@ -60,6 +60,15 @@ type ClientRepresentative = {
 
 const facilityStatuses = ["active", "inactive"] as const;
 
+/** `YYYY-MM-DD` for `<input type="date" />` using local calendar date */
+function getTodayLocalDateString(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function TeamMemberMultiSelect({
   users,
   selectedIds,
@@ -207,7 +216,7 @@ export function CreateFacilityForm({
     name: "",
     city: "",
     address: "",
-    start_date: "",
+    start_date: getTodayLocalDateString(),
     client_representatives: [
       { name: "", contact_number: "", email: "" },
     ] as ClientRepresentative[],
@@ -237,7 +246,7 @@ export function CreateFacilityForm({
       name: "",
       city: "",
       address: "",
-      start_date: "",
+      start_date: getTodayLocalDateString(),
       client_representatives: [{ name: "", contact_number: "", email: "" }],
       facility_type: "",
       audit_type: AUDIT_TYPE_OPTIONS[0],

@@ -29,6 +29,7 @@ import {
   createSafetySectionBuilder,
   fetchDocsForModel,
   ITEM_COLUMNS,
+  safetyChecklistSectionToTableBlocks,
 } from "./safetyChecklistSection.js";
 
 export {
@@ -39,6 +40,7 @@ export {
   createSafetySectionBuilder,
   fetchDocsForModel,
   ITEM_COLUMNS,
+  safetyChecklistSectionToTableBlocks,
 };
 
 export { buildSafetyExecutiveSummarySheet };
