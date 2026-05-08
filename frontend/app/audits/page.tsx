@@ -96,15 +96,17 @@ export default function AuditsPage() {
       title="Audit Master"
       subtitle="Browse audit data by utility account and dataset"
     >
-      <Card className="border-border">
-        <CardHeader className="flex flex-row flex-wrap items-start gap-4 border-b border-border/60 pb-4">
+      <Card className="max-w-full border-border">
+        <CardHeader className="flex flex-row flex-wrap items-start gap-4 border-b border-border/60 px-4 pb-4 sm:px-6">
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
               <ClipboardList className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0 space-y-1">
-              <CardTitle className="text-lg">Facility audit data</CardTitle>
-              <p className="text-sm text-muted-foreground">
+              <CardTitle className="text-lg leading-snug">
+                Facility audit data
+              </CardTitle>
+              <p className="break-words text-sm leading-relaxed text-muted-foreground">
                 Pick an audit program, choose a matching facility, then load a
                 snapshot. In the explorer, select a utility account and a
                 dataset to inspect audit data.
@@ -113,7 +115,7 @@ export default function AuditsPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6 pt-6">
+        <CardContent className="space-y-6 px-4 sm:px-6">
           <AuditsLoadSnapshotControls
             auditType={auditType}
             onAuditTypeChange={setAuditType}

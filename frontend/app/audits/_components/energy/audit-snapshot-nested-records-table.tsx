@@ -1,11 +1,19 @@
 "use client";
 
-import { ChevronDown, ChevronRight, ChevronUp, Columns3 } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, Columns3 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -13,6 +21,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
+import { useAuditExplorerExpanded } from "../audit-snapshot-explorer-layout-context";
 import { humanizeNestedKey } from "./audit-snapshot-utility-sidebar";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -726,6 +735,7 @@ function ColumnPickerToolbar({
   variantLabel,
   toolbarClassName,
 }: ColumnPickerToolbarProps) {
+  const auditExplorerExpanded = useAuditExplorerExpanded();
   const visibleCount = useMemo(() => {
     return allColumns.filter((c) => visibleKeys.has(c)).length;
   }, [allColumns, visibleKeys]);
@@ -763,7 +773,10 @@ function ColumnPickerToolbar({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="flex w-[min(100vw-2rem,18rem)] max-h-[min(70vh,22rem)] flex-col overflow-hidden p-0"
+          className={cn(
+            "flex w-[min(calc(100vw-1rem),20rem)] max-h-[min(70vh,22rem)] flex-col overflow-hidden p-0",
+            auditExplorerExpanded && "z-[110]",
+          )}
           align="end"
         >
           <div className="shrink-0 border-b border-border px-3 py-2">
@@ -890,16 +903,17 @@ type ConsolidatedEnergyKpiPanelProps = {
   };
 };
 
-function ConsolidatedEnergyKpiPanel({
+function ConsolidatedEnergyKpiSummaryModal({
   sections,
   rowCount,
   visibleColumnCount,
   totalColumnCount,
   nestedAuditRollup,
 }: ConsolidatedEnergyKpiPanelProps) {
-  const [open, setOpen] = useState(true);
+  const auditExplorerExpanded = useAuditExplorerExpanded();
   const { totalNestedRecords, rowsWithNestedData } = nestedAuditRollup;
   const showNestedRollup = totalNestedRecords > 0;
+  const zBoost = auditExplorerExpanded ? "z-[110]" : undefined;
 
   const metaLine = (
     <span className="inline-flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
@@ -934,36 +948,38 @@ function ConsolidatedEnergyKpiPanel({
   );
 
   return (
-    <div className="shrink-0 border-t border-border bg-muted/15">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 sm:px-4"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-label={open ? "Collapse KPI summary" : "Expand KPI summary"}
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs shadow-sm"
+        >
+          <BarChart3 className="size-3.5 shrink-0 opacity-80" aria-hidden />
+          View summary
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        showCloseButton
+        overlayClassName={zBoost}
+        className={cn(
+          "flex max-h-[min(90dvh,44rem)] w-[calc(100%-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:w-full",
+          zBoost,
+        )}
       >
-        <div className="min-w-0 flex-1 space-y-1">
-          <span className="text-xs font-semibold text-foreground">
-            Electrical energy KPI summary
-          </span>
-          <div className="text-muted-foreground">{metaLine}</div>
-        </div>
-        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
-          {open ? (
-            <ChevronUp className="size-4" aria-hidden />
-          ) : (
-            <ChevronDown className="size-4" aria-hidden />
-          )}
-        </span>
-      </button>
-
-      {open ? (
-        <div className="max-h-[min(42vh,22rem)] overflow-y-auto overscroll-contain border-t border-border/80 [-webkit-overflow-scrolling:touch] px-3 pb-4 pt-3 sm:px-4">
+        <DialogHeader className="shrink-0 space-y-2 border-b border-border px-6 pt-6 pr-12 pb-4 text-left">
+          <DialogTitle>Electrical energy KPI summary</DialogTitle>
+          <DialogDescription asChild>
+            <div className="text-muted-foreground">{metaLine}</div>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] px-6 pb-6 pt-4">
           <p className="mb-4 text-[11px] leading-snug text-muted-foreground">
-            Σ totals additive quantities where applicable; µ averages suit ratios
-            and efficiencies. Nested solar / DG / transformer / pump KPIs use
-            all nested records merged across equipment below—no need to expand
-            rows.
+            Σ totals additive quantities where applicable; µ averages suit
+            ratios and efficiencies. Nested solar / DG / transformer / pump KPIs
+            use all nested records merged across equipment below—no need to
+            expand rows.
           </p>
           <div className="space-y-6">
             {sections.map((section) => (
@@ -981,8 +997,8 @@ function ConsolidatedEnergyKpiPanel({
             ))}
           </div>
         </div>
-      ) : null}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1050,7 +1066,7 @@ function getAuditSnapshotTableChrome(
           "group-hover:bg-amber-200/55 dark:group-hover:bg-amber-900/45",
         ),
       dataCell:
-        "max-w-[min(100vw,18rem)] min-w-[8rem] whitespace-normal break-words px-3 py-2 align-top text-xs transition-colors duration-200 sm:max-w-[14rem] md:max-w-[18rem] text-foreground/95 group-hover:text-foreground",
+        "max-w-[min(100vw,18rem)] min-w-[6rem] whitespace-normal break-words px-2 py-2 align-top text-xs transition-colors duration-200 sm:min-w-[8rem] sm:max-w-[14rem] sm:px-3 md:max-w-[18rem] text-foreground/95 group-hover:text-foreground",
       expandButton:
         "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-amber-900 transition-all hover:border-amber-500/40 hover:bg-amber-200/75 hover:text-amber-950 active:scale-[0.96] dark:text-amber-100 dark:hover:border-amber-400/35 dark:hover:bg-amber-900/55 dark:hover:text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       nestedExpandRow:
@@ -1094,7 +1110,7 @@ function getAuditSnapshotTableChrome(
         "group-hover:bg-emerald-200/50 dark:group-hover:bg-emerald-900/42",
       ),
     dataCell:
-      "max-w-[min(100vw,18rem)] min-w-[8rem] whitespace-normal break-words px-3 py-2 align-top text-xs transition-colors duration-200 sm:max-w-[14rem] md:max-w-[18rem] text-foreground/95 group-hover:text-foreground",
+      "max-w-[min(100vw,18rem)] min-w-[6rem] whitespace-normal break-words px-2 py-2 align-top text-xs transition-colors duration-200 sm:min-w-[8rem] sm:max-w-[14rem] sm:px-3 md:max-w-[18rem] text-foreground/95 group-hover:text-foreground",
     expandButton:
       "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-emerald-900 transition-all hover:border-emerald-500/40 hover:bg-emerald-200/75 hover:text-emerald-950 active:scale-[0.96] dark:text-emerald-100 dark:hover:border-emerald-400/35 dark:hover:bg-emerald-900/55 dark:hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     nestedExpandRow:
@@ -1472,7 +1488,7 @@ export function AuditSnapshotNestedRecordsTable({
 
       <div
         className={cn(
-          "min-h-0 overflow-auto [-webkit-overflow-scrolling:touch]",
+          "min-h-0 overflow-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]",
           tableScrollMax,
         )}
       >
@@ -1625,13 +1641,15 @@ export function AuditSnapshotNestedRecordsTable({
       </div>
 
       {nestedDepth === 0 && snapshotProgram === "electrical_energy" ? (
-        <ConsolidatedEnergyKpiPanel
-          sections={consolidatedKpiSections}
-          rowCount={rows.length}
-          visibleColumnCount={visibleColumns.length}
-          totalColumnCount={allColumns.length}
-          nestedAuditRollup={nestedAuditRollup}
-        />
+        <div className="flex shrink-0 justify-end border-t border-border/80 bg-muted/10 px-3 py-2 sm:px-4">
+          <ConsolidatedEnergyKpiSummaryModal
+            sections={consolidatedKpiSections}
+            rowCount={rows.length}
+            visibleColumnCount={visibleColumns.length}
+            totalColumnCount={allColumns.length}
+            nestedAuditRollup={nestedAuditRollup}
+          />
+        </div>
       ) : null}
     </div>
   );

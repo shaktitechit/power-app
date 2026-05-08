@@ -40,7 +40,7 @@ export function AuditsLoadSnapshotControls({
   onLoadSnapshot,
 }: AuditsLoadSnapshotControlsProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+    <div className="grid min-w-0 gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
       <div className="space-y-2">
         <Label>Audit program</Label>
         <Select

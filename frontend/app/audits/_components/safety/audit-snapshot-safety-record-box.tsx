@@ -72,8 +72,8 @@ function SafetyNestedObjectTable({
   }
 
   return (
-    <div className="max-h-[min(50vh,22rem)] overflow-auto rounded-lg border border-amber-500/30 bg-background/60 shadow-sm dark:border-amber-500/35">
-      <table className="w-full min-w-[18rem] border-collapse text-xs">
+    <div className="-mx-1 max-h-[min(50vh,22rem)] overflow-auto overscroll-x-contain rounded-lg border border-amber-500/30 bg-background/60 shadow-sm [-webkit-overflow-scrolling:touch] dark:border-amber-500/35 sm:mx-0">
+      <table className="w-full min-w-[min(100%,20rem)] border-collapse text-xs">
         <thead className="sticky top-0 z-[1] bg-amber-100/95 shadow-sm dark:bg-amber-950/55">
           <tr className="border-b border-amber-500/30">
             {cols.map((c) => (
@@ -231,16 +231,17 @@ function SafetyUtilityAccountFullExportToolbar({
   utilityNest: FacilityAuditSafetyUtilityNest;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/25">
-      <p className="mr-auto min-w-0 text-[11px] text-muted-foreground">
+    <div className="mb-4 flex flex-col gap-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-3 dark:border-amber-500/30 dark:bg-amber-950/25 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:px-3 sm:py-2">
+      <p className="min-w-0 break-words text-[11px] leading-relaxed text-muted-foreground sm:mr-auto">
         Export this utility account: facility, account details, and{" "}
         <span className="font-medium text-foreground">all</span> safety checklists.
       </p>
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
       <Button
         type="button"
         variant="outline"
         size="sm"
-        className="h-8 border-amber-500/35 text-xs dark:border-amber-500/40"
+        className="h-9 w-full border-amber-500/35 text-xs sm:h-8 sm:w-auto dark:border-amber-500/40"
         onClick={async () => {
           try {
             await downloadSafetyUtilityAccountExcel(snapshot, utilityNest);
@@ -257,7 +258,7 @@ function SafetyUtilityAccountFullExportToolbar({
         type="button"
         variant="outline"
         size="sm"
-        className="h-8 border-amber-500/35 text-xs dark:border-amber-500/40"
+        className="h-9 w-full border-amber-500/35 text-xs sm:h-8 sm:w-auto dark:border-amber-500/40"
         onClick={async () => {
           try {
             await downloadSafetyUtilityAccountPdf(snapshot, utilityNest);
@@ -270,6 +271,7 @@ function SafetyUtilityAccountFullExportToolbar({
       >
         Export PDF (full account)
       </Button>
+      </div>
     </div>
   );
 }
@@ -294,7 +296,7 @@ export function SafetyAuditSectionRecordsView({
         <section
           key={idx}
           className={cn(
-            "rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-500/[0.07] via-background to-background p-4 shadow-md shadow-amber-900/5 ring-1 ring-amber-500/15 dark:border-amber-500/28 dark:from-amber-950/35 dark:shadow-black/20 dark:ring-amber-400/10",
+            "rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-500/[0.07] via-background to-background p-3 shadow-md shadow-amber-900/5 ring-1 ring-amber-500/15 sm:p-4 dark:border-amber-500/28 dark:from-amber-950/35 dark:shadow-black/20 dark:ring-amber-400/10",
           )}
         >
           {records.length > 1 ? (

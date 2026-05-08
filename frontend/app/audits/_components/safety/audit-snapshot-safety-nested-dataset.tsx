@@ -69,7 +69,7 @@ export function AuditSnapshotSafetyNestedDatasetBody({
 }: AuditSnapshotSafetyNestedDatasetBodyProps) {
   if (!items.length) {
     return (
-      <div className="flex min-h-[min(50vh,24rem)] flex-1 items-center justify-center rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+      <div className="flex min-h-[min(50vh,24rem)] flex-1 items-center justify-center rounded-lg border border-dashed border-border px-3 py-10 text-center text-sm text-muted-foreground sm:px-4">
         No nested sections in this snapshot.
       </div>
     );

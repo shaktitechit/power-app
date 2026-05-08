@@ -29,7 +29,7 @@ export function AuditSnapshotNestedDataSidebar({
 }: AuditSnapshotNestedDataSidebarProps) {
   if (!items.length) {
     return (
-      <aside className="flex w-full max-h-[min(36vh,16rem)] shrink-0 flex-col border-border bg-muted/20 lg:max-h-none lg:h-full lg:w-52 lg:border-r">
+      <aside className="flex w-full max-h-[min(40vh,18rem)] shrink-0 flex-col overflow-hidden border-b border-border bg-muted/20 lg:h-full lg:max-h-full lg:w-52 lg:min-h-0 lg:border-b-0 lg:border-r">
         <div className="p-3 text-sm text-muted-foreground">
           No nested sections in this snapshot.
         </div>
@@ -45,7 +45,7 @@ export function AuditSnapshotNestedDataSidebar({
   return (
     <aside
       className={cn(
-        "flex w-full max-h-[min(36vh,16rem)] shrink-0 flex-col border-border bg-muted/20 lg:h-full lg:max-h-none lg:w-56 lg:min-h-0 lg:border-r",
+        "flex w-full max-h-[min(40vh,18rem)] shrink-0 flex-col overflow-hidden border-b border-border bg-muted/20 lg:h-full lg:max-h-full lg:w-56 lg:min-h-0 lg:border-b-0 lg:border-r",
       )}
     >
       <div className="shrink-0 border-b border-border px-3 py-3">
@@ -74,7 +74,7 @@ export function AuditSnapshotNestedDataSidebar({
                   : "text-foreground hover:bg-muted",
               )}
             >
-              <span className="min-w-0 truncate font-medium">
+              <span className="min-w-0 flex-1 break-words font-medium leading-snug sm:truncate">
                 {tab.label ?? humanizeNestedKey(tab.key)}
               </span>
               <span

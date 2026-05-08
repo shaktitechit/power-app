@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
+import { useAuditExplorerExpanded } from "../audit-snapshot-explorer-layout-context";
 import { humanizeNestedKey } from "./audit-snapshot-utility-sidebar";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -726,6 +727,7 @@ function ColumnPickerToolbar({
   variantLabel,
   toolbarClassName,
 }: ColumnPickerToolbarProps) {
+  const auditExplorerExpanded = useAuditExplorerExpanded();
   const visibleCount = useMemo(() => {
     return allColumns.filter((c) => visibleKeys.has(c)).length;
   }, [allColumns, visibleKeys]);
@@ -763,7 +765,10 @@ function ColumnPickerToolbar({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="flex w-[min(100vw-2rem,18rem)] max-h-[min(70vh,22rem)] flex-col overflow-hidden p-0"
+          className={cn(
+            "flex w-[min(calc(100vw-1rem),20rem)] max-h-[min(70vh,22rem)] flex-col overflow-hidden p-0",
+            auditExplorerExpanded && "z-[110]",
+          )}
           align="end"
         >
           <div className="shrink-0 border-b border-border px-3 py-2">
@@ -894,7 +899,7 @@ function getAuditSnapshotTableChrome(
           "group-hover:bg-amber-200/55 dark:group-hover:bg-amber-900/45",
         ),
       dataCell:
-        "max-w-[min(100vw,18rem)] min-w-[8rem] whitespace-normal break-words px-3 py-2 align-top text-xs transition-colors duration-200 sm:max-w-[14rem] md:max-w-[18rem] text-foreground/95 group-hover:text-foreground",
+        "max-w-[min(100vw,18rem)] min-w-[6rem] whitespace-normal break-words px-2 py-2 align-top text-xs transition-colors duration-200 sm:min-w-[8rem] sm:max-w-[14rem] sm:px-3 md:max-w-[18rem] text-foreground/95 group-hover:text-foreground",
       expandButton:
         "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-amber-900 transition-all hover:border-amber-500/40 hover:bg-amber-200/75 hover:text-amber-950 active:scale-[0.96] dark:text-amber-100 dark:hover:border-amber-400/35 dark:hover:bg-amber-900/55 dark:hover:text-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       nestedExpandRow:
@@ -938,7 +943,7 @@ function getAuditSnapshotTableChrome(
         "group-hover:bg-emerald-200/50 dark:group-hover:bg-emerald-900/42",
       ),
     dataCell:
-      "max-w-[min(100vw,18rem)] min-w-[8rem] whitespace-normal break-words px-3 py-2 align-top text-xs transition-colors duration-200 sm:max-w-[14rem] md:max-w-[18rem] text-foreground/95 group-hover:text-foreground",
+      "max-w-[min(100vw,18rem)] min-w-[6rem] whitespace-normal break-words px-2 py-2 align-top text-xs transition-colors duration-200 sm:min-w-[8rem] sm:max-w-[14rem] sm:px-3 md:max-w-[18rem] text-foreground/95 group-hover:text-foreground",
     expandButton:
       "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-emerald-900 transition-all hover:border-emerald-500/40 hover:bg-emerald-200/75 hover:text-emerald-950 active:scale-[0.96] dark:text-emerald-100 dark:hover:border-emerald-400/35 dark:hover:bg-emerald-900/55 dark:hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     nestedExpandRow:
@@ -1316,7 +1321,7 @@ export function AuditSnapshotNestedRecordsTable({
 
       <div
         className={cn(
-          "min-h-0 overflow-auto [-webkit-overflow-scrolling:touch]",
+          "min-h-0 overflow-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]",
           tableScrollMax,
         )}
       >
