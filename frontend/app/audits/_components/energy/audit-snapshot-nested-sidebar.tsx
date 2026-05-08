@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+
 import { humanizeNestedKey } from "./audit-snapshot-utility-sidebar";
 
 export type NestedDatasetSpec = { key: string; label?: string; data: unknown };
@@ -93,3 +94,4 @@ export function AuditSnapshotNestedDataSidebar({
     </aside>
   );
 }
+

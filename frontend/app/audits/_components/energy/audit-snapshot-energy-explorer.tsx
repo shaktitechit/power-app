@@ -10,13 +10,20 @@ import type {
 import {
   ALL_UTILITY_ACCOUNTS_VALUE,
   AuditSnapshotExplorerChrome,
-} from "../audit-snapshot-explorer-chrome";
+} from "./audit-snapshot-explorer-chrome";
 import { AuditSnapshotEnergyNestedDatasetBody } from "./audit-snapshot-energy-nested-dataset";
 import {
   filterNestedDatasetsWithData,
-} from "../audit-snapshot-nested-sidebar";
-import { useSyncNestedDatasetKey } from "../use-sync-nested-dataset-key";
-import { getUtilityAccountId } from "../audit-snapshot-utility-sidebar";
+} from "./audit-snapshot-nested-sidebar";
+import { useSyncNestedDatasetKey } from "./use-sync-nested-dataset-key";
+import {
+  getUtilityAccountId,
+  getUtilityAccountNumber,
+} from "./audit-snapshot-utility-sidebar";
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return Boolean(v) && typeof v === "object" && !Array.isArray(v);
+}
 
 const ENERGY_NEST_KEYS: (keyof Omit<
   FacilityAuditEnergyUtilityNest,
@@ -67,7 +74,14 @@ function mergeEnergyNestField(
 ): unknown[] {
   return accounts.flatMap((row) => {
     const v = row[key];
-    return Array.isArray(v) ? v : [];
+    if (!Array.isArray(v)) return [];
+    const utilityAccountNumber = getUtilityAccountNumber(row.utility_account);
+    return v.map((item) => {
+      if (!isPlainObject(item)) return item;
+      const cur = item.utility_account_number;
+      if (typeof cur === "string" && cur.trim()) return item;
+      return { ...item, utility_account_number: utilityAccountNumber };
+    });
   });
 }
 
@@ -161,6 +175,9 @@ export function AuditSnapshotEnergyExplorer({
         <AuditSnapshotEnergyNestedDatasetBody
           items={nestedDatasets}
           selectedKey={activeNestedKey}
+          includeUtilityAccountNumberColumn={
+            selectedUtilityAccountId === ALL_UTILITY_ACCOUNTS_VALUE
+          }
         />
       }
     />

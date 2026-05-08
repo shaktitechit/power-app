@@ -10,13 +10,20 @@ import type {
 import {
   ALL_UTILITY_ACCOUNTS_VALUE,
   AuditSnapshotExplorerChrome,
-} from "../audit-snapshot-explorer-chrome";
+} from "./audit-snapshot-explorer-chrome";
 import { AuditSnapshotSafetyNestedDatasetBody } from "./audit-snapshot-safety-nested-dataset";
 import {
   filterNestedDatasetsWithData,
-} from "../audit-snapshot-nested-sidebar";
-import { useSyncNestedDatasetKey } from "../use-sync-nested-dataset-key";
-import { getUtilityAccountId } from "../audit-snapshot-utility-sidebar";
+} from "./audit-snapshot-nested-sidebar";
+import { useSyncNestedDatasetKey } from "./use-sync-nested-dataset-key";
+import {
+  getUtilityAccountId,
+  getUtilityAccountNumber,
+} from "./audit-snapshot-utility-sidebar";
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return Boolean(v) && typeof v === "object" && !Array.isArray(v);
+}
 
 function mergeSafetyNestedDatasets(
   accounts: FacilityAuditSafetyUtilityNest[],
@@ -31,7 +38,14 @@ function mergeSafetyNestedDatasets(
       key,
       data: accounts.flatMap((row) => {
         const arr = row.safety_sections?.[key];
-        return Array.isArray(arr) ? arr : [];
+        if (!Array.isArray(arr)) return [];
+        const utilityAccountNumber = getUtilityAccountNumber(row.utility_account);
+        return arr.map((rec) => {
+          if (!isPlainObject(rec)) return rec;
+          const cur = rec.utility_account_number;
+          if (typeof cur === "string" && cur.trim()) return rec;
+          return { ...rec, utility_account_number: utilityAccountNumber };
+        });
       }),
     }));
 }
@@ -123,6 +137,15 @@ export function AuditSnapshotSafetyExplorer({
         <AuditSnapshotSafetyNestedDatasetBody
           items={nestedDatasets}
           selectedKey={activeNestedKey}
+          utilityAccountFullExport={
+            selectedUtilityAccountId !== ALL_UTILITY_ACCOUNTS_VALUE &&
+            selectedRow
+              ? {
+                  snapshot,
+                  utilityNest: selectedRow as FacilityAuditSafetyUtilityNest,
+                }
+              : null
+          }
         />
       }
     />

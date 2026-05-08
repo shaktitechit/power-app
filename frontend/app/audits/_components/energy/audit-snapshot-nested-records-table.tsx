@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronRight, ChevronUp, Columns3 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +17,295 @@ import { humanizeNestedKey } from "./audit-snapshot-utility-sidebar";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
+}
+
+function buildExportFileBaseName(args: {
+  snapshotProgram: AuditSnapshotNestedTableProgram;
+  nestedDepth: number;
+  variantLabel?: string;
+}): string {
+  const programToken =
+    args.snapshotProgram === "electrical_safety" ? "safety" : "energy";
+  const depthToken = `depth-${args.nestedDepth + 1}`;
+  const variantToken = args.variantLabel
+    ? args.variantLabel
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+    : null;
+  const dateToken = new Date().toISOString().slice(0, 10);
+  return ["audit-snapshot", programToken, depthToken, variantToken, dateToken]
+    .filter(Boolean)
+    .join("_");
+}
+
+function buildTabularExportAoa(args: {
+  rows: unknown[];
+  visibleColumns: string[];
+}): (string | number)[][] {
+  const head: (string | number)[] = [
+    "#",
+    ...args.visibleColumns.map((c) => humanizeNestedKey(c)),
+  ];
+
+  const body: (string | number)[][] = args.rows.map((row, idx) => {
+    const r = isPlainObject(row) ? row : null;
+    return [
+      idx + 1,
+      ...args.visibleColumns.map((col) => cellPreview(r ? r[col] : undefined)),
+    ];
+  });
+
+  return [head, ...body];
+}
+
+function mergeNestedAuditRecordsForExport(args: {
+  parentRows: unknown[];
+  nestedKey: (typeof NESTED_AUDIT_RECORD_KEYS_ORDER)[number];
+  parentVisibleColumns: string[];
+  nestedVisibleColumns?: string[];
+}): { columns: string[]; rows: unknown[] } {
+  const merged: unknown[] = [];
+
+  for (let parentIdx = 0; parentIdx < args.parentRows.length; parentIdx += 1) {
+    const parent = args.parentRows[parentIdx];
+    if (!isPlainObject(parent)) continue;
+    const arr = parent[args.nestedKey];
+    if (!Array.isArray(arr) || arr.length === 0) continue;
+
+    for (const rec of arr) {
+      if (!isPlainObject(rec)) {
+        merged.push({
+          __parent_row__: parentIdx + 1,
+          __nested_record__: cellPreview(rec),
+        });
+        continue;
+      }
+
+      const parentPrefix: Record<string, unknown> = {
+        __parent_row__: parentIdx + 1,
+      };
+
+      for (const c of args.parentVisibleColumns) {
+        parentPrefix[`parent.${c}`] = parent[c];
+      }
+
+      merged.push({ ...parentPrefix, ...rec });
+    }
+  }
+
+  const nestedCols =
+    args.nestedVisibleColumns?.length
+      ? args.nestedVisibleColumns
+      : inferColumns(merged, { omitNestedAuditArrays: true });
+  const parentCols = args.parentVisibleColumns.map((c) => `parent.${c}`);
+  const columns = ["__parent_row__", ...parentCols, ...nestedCols].slice(
+    0,
+    MAX_TABLE_COLUMNS + 1 + Math.min(parentCols.length, 24),
+  );
+
+  return { columns, rows: merged };
+}
+
+function buildObjectExportAoa(args: {
+  rows: unknown[];
+  columns: string[];
+  startIndexAt?: number;
+}): (string | number)[][] {
+  const head: (string | number)[] = args.columns.map((c) => {
+    if (c === "__parent_row__") return "Parent #";
+    if (c === "__nested_record__") return "Nested record";
+    if (c.startsWith("parent.")) {
+      return `Parent · ${humanizeNestedKey(c.slice(7))}`;
+    }
+    return humanizeNestedKey(c);
+  });
+
+  const body: (string | number)[][] = args.rows.map((row, idx) => {
+    const r = isPlainObject(row) ? row : null;
+    const indexValue = (args.startIndexAt ?? 1) + idx;
+    return args.columns.map((col) => {
+      if (col === "__index__") return indexValue;
+      return cellPreview(r ? r[col] : undefined);
+    });
+  });
+
+  return [head, ...body];
+}
+
+function buildKpiSummaryExportAoa(
+  sections: EnergyKpiSection[],
+): (string | number)[][] {
+  const aoa: (string | number)[][] = [
+    ["Section", "Metric", "Mode", "Total (Σ)", "Average (µ)", "Count"],
+  ];
+
+  for (const section of sections) {
+    if (!section.kpis.length) continue;
+    for (const kpi of section.kpis) {
+      aoa.push([
+        section.title,
+        kpi.label,
+        kpi.mode,
+        kpi.mode === "avg" ? "" : formatKpiNumber(kpi.sum),
+        kpi.mode === "sum" ? "" : formatKpiNumber(kpi.average),
+        kpi.count,
+      ]);
+    }
+  }
+
+  return aoa;
+}
+
+async function downloadVisibleTableAsExcel(args: {
+  rows: unknown[];
+  visibleColumns: string[];
+  snapshotProgram: AuditSnapshotNestedTableProgram;
+  nestedDepth: number;
+  variantLabel?: string;
+  kpiSections?: EnergyKpiSection[];
+  nestedVisibleColumnsByKey?: Record<string, string[]>;
+}) {
+  try {
+    const { utils, writeFile } = await import("xlsx");
+    const aoa = buildTabularExportAoa({
+      rows: args.rows,
+      visibleColumns: args.visibleColumns,
+    });
+    const ws = utils.aoa_to_sheet(aoa);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Visible data");
+
+    if (args.kpiSections?.length) {
+      const kpiAoa = buildKpiSummaryExportAoa(args.kpiSections);
+      const kpiWs = utils.aoa_to_sheet(kpiAoa);
+      utils.book_append_sheet(wb, kpiWs, "KPI summary");
+    }
+
+    if (args.nestedDepth === 0) {
+      for (const nk of NESTED_AUDIT_RECORD_KEYS_ORDER) {
+        const merged = mergeNestedAuditRecordsForExport({
+          parentRows: args.rows,
+          nestedKey: nk,
+          parentVisibleColumns: args.visibleColumns,
+          nestedVisibleColumns: args.nestedVisibleColumnsByKey?.[nk],
+        });
+        if (merged.rows.length === 0) continue;
+        const nestedAoa = buildObjectExportAoa({
+          rows: merged.rows,
+          columns: merged.columns,
+        });
+        const nestedWs = utils.aoa_to_sheet(nestedAoa);
+        utils.book_append_sheet(
+          wb,
+          nestedWs,
+          humanizeNestedKey(nk).slice(0, 31),
+        );
+      }
+    }
+
+    writeFile(wb, `${buildExportFileBaseName(args)}.xlsx`, { compression: true });
+    toast.success("Excel downloaded");
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("Excel export failed", e);
+    toast.error("Excel export failed");
+  }
+}
+
+async function downloadVisibleTableAsPdf(args: {
+  rows: unknown[];
+  visibleColumns: string[];
+  snapshotProgram: AuditSnapshotNestedTableProgram;
+  nestedDepth: number;
+  variantLabel?: string;
+  kpiSections?: EnergyKpiSection[];
+  nestedVisibleColumnsByKey?: Record<string, string[]>;
+}) {
+  try {
+    const [{ jsPDF }, autoTableMod] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
+
+    const autoTable = autoTableMod.default;
+    const aoa = buildTabularExportAoa({
+      rows: args.rows,
+      visibleColumns: args.visibleColumns,
+    });
+
+    const head = aoa.length ? [aoa[0].map(String)] : [["#"]];
+    const body = aoa.slice(1).map((r) => r.map(String));
+
+    const landscape = args.visibleColumns.length >= 7;
+    const doc = new jsPDF({
+      orientation: landscape ? "landscape" : "portrait",
+      unit: "pt",
+      format: "a4",
+    });
+
+    autoTable(doc, {
+      head,
+      body,
+      theme: "striped",
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [20, 20, 20] },
+      margin: { top: 36, left: 24, right: 24, bottom: 24 },
+    });
+
+    if (args.kpiSections?.length) {
+      const kpiRows = buildKpiSummaryExportAoa(args.kpiSections);
+      const kpiHead = kpiRows.length ? [kpiRows[0].map(String)] : [["KPI"]];
+      const kpiBody = kpiRows.slice(1).map((r) => r.map(String));
+      doc.addPage();
+      autoTable(doc, {
+        head: kpiHead,
+        body: kpiBody,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [20, 20, 20] },
+        margin: { top: 36, left: 24, right: 24, bottom: 24 },
+      });
+    }
+
+    if (args.nestedDepth === 0) {
+      for (const nk of NESTED_AUDIT_RECORD_KEYS_ORDER) {
+        const merged = mergeNestedAuditRecordsForExport({
+          parentRows: args.rows,
+          nestedKey: nk,
+          parentVisibleColumns: args.visibleColumns,
+          nestedVisibleColumns: args.nestedVisibleColumnsByKey?.[nk],
+        });
+        if (merged.rows.length === 0) continue;
+
+        const nestedAoa = buildObjectExportAoa({
+          rows: merged.rows,
+          columns: merged.columns,
+        });
+        const nestedHead = nestedAoa.length
+          ? [nestedAoa[0].map(String)]
+          : [[humanizeNestedKey(nk)]];
+        const nestedBody = nestedAoa.slice(1).map((r) => r.map(String));
+        doc.addPage();
+        autoTable(doc, {
+          head: nestedHead,
+          body: nestedBody,
+          theme: "striped",
+          styles: { fontSize: 7, cellPadding: 2 },
+          headStyles: { fillColor: [20, 20, 20] },
+          margin: { top: 36, left: 24, right: 24, bottom: 24 },
+        });
+      }
+    }
+
+    doc.save(`${buildExportFileBaseName(args)}.pdf`);
+    toast.success("PDF downloaded");
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error("PDF export failed", e);
+    toast.error("PDF export failed");
+  }
 }
 
 /** Hide Mongo/ObjectId-style keys from tables and JSON previews. */
@@ -93,7 +383,9 @@ function computeExpandedNestedAuditColumnUnions(
       orderedKeys.push(nest.key);
     }
   }
-  orderedKeys.sort((a, b) => nestedAuditTypeSortIndex(a) - nestedAuditTypeSortIndex(b));
+  orderedKeys.sort(
+    (a, b) => nestedAuditTypeSortIndex(a) - nestedAuditTypeSortIndex(b),
+  );
 
   const unionSets: Record<string, Set<string>> = {};
   for (const nk of orderedKeys) {
@@ -243,7 +535,9 @@ function tryParseNumericForAggregation(value: unknown): number | null {
   return null;
 }
 
-function classifyAggregationMode(columnKey: string): "sum" | "avg" | "both" | null {
+function classifyAggregationMode(
+  columnKey: string,
+): "sum" | "avg" | "both" | null {
   const lower = columnKey.toLowerCase();
   const override = KPI_AGG_MODE_OVERRIDE[lower];
   if (override !== undefined) return override;
@@ -496,9 +790,7 @@ function ColumnPickerToolbar({
                     <Checkbox
                       checked={checked}
                       disabled={onlyOne}
-                      onCheckedChange={(v) =>
-                        onToggleColumn(col, v === true)
-                      }
+                      onCheckedChange={(v) => onToggleColumn(col, v === true)}
                       aria-label={humanizeNestedKey(col)}
                     />
                     <span className="min-w-0 flex-1 text-sm leading-snug">
@@ -561,9 +853,7 @@ function EnergyKpiTileGrid({ kpis }: { kpis: EnergyAuditColumnKpi[] }) {
           <div className="mt-2 space-y-1.5">
             {kpi.mode !== "avg" ? (
               <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0">
-                <span className="text-[11px] text-muted-foreground">
-                  Total Σ
-                </span>
+                <span className="text-[11px] text-muted-foreground">Total Σ</span>
                 <span className="font-semibold tabular-nums text-foreground">
                   {formatKpiNumber(kpi.sum)}
                 </span>
@@ -670,10 +960,10 @@ function ConsolidatedEnergyKpiPanel({
       {open ? (
         <div className="max-h-[min(42vh,22rem)] overflow-y-auto overscroll-contain border-t border-border/80 [-webkit-overflow-scrolling:touch] px-3 pb-4 pt-3 sm:px-4">
           <p className="mb-4 text-[11px] leading-snug text-muted-foreground">
-            Σ totals additive quantities where applicable; µ averages suit
-            ratios and efficiencies. Nested solar / DG / transformer / pump KPIs
-            use all nested records merged across equipment below—no need to
-            expand rows.
+            Σ totals additive quantities where applicable; µ averages suit ratios
+            and efficiencies. Nested solar / DG / transformer / pump KPIs use
+            all nested records merged across equipment below—no need to expand
+            rows.
           </p>
           <div className="space-y-6">
             {sections.map((section) => (
@@ -706,9 +996,7 @@ export type NestedAuditTableColumnControl = {
 };
 
 /** Audit program for snapshot tables — energy vs safety can diverge in layout and footer analytics. */
-export type AuditSnapshotNestedTableProgram =
-  | "electrical_energy"
-  | "electrical_safety";
+export type AuditSnapshotNestedTableProgram = "electrical_energy" | "electrical_safety";
 
 type AuditSnapshotTableChrome = {
   shell: string;
@@ -828,6 +1116,14 @@ export type AuditSnapshotNestedRecordsTableProps = {
   /** Parent-owned column visibility for nested DG / solar / transformer / pump audit grids. */
   nestedAuditColumnControl?: NestedAuditTableColumnControl | null;
   /**
+   * When the dataset is merged across utility accounts, force a `utility_account_number`
+   * column to appear (helps disambiguate rows coming from different accounts).
+   *
+   * The backend often populates `utility_account_number` for audit records; when not present,
+   * nested audit rows inherit it from the expanded parent row when possible.
+   */
+  includeUtilityAccountNumberColumn?: boolean;
+  /**
    * Which program this grid belongs to.
    * Use `AuditSnapshotEnergyNestedRecordsTable` or `AuditSnapshotSafetyNestedRecordsTable` at call sites.
    */
@@ -840,6 +1136,7 @@ export function AuditSnapshotNestedRecordsTable({
   rows,
   nestedDepth = 0,
   nestedAuditColumnControl = null,
+  includeUtilityAccountNumberColumn = false,
   snapshotProgram = "electrical_energy",
   className,
 }: AuditSnapshotNestedRecordsTableProps) {
@@ -850,17 +1147,28 @@ export function AuditSnapshotNestedRecordsTable({
     [snapshotProgram],
   );
 
-  const inferredColumns = useMemo(
-    () => inferColumns(rows, { omitNestedAuditArrays: true }),
-    [rows],
-  );
+  const inferredColumns = useMemo(() => {
+    const cols = inferColumns(rows, { omitNestedAuditArrays: true });
+    if (!includeUtilityAccountNumberColumn) return cols;
+    const key = "utility_account_number";
+    if (cols.includes(key)) return cols;
+    const next = [key, ...cols].slice(0, MAX_TABLE_COLUMNS);
+    return next;
+  }, [rows, includeUtilityAccountNumberColumn]);
 
-  const allColumns = parentControlledColumns
+  const allColumnsRaw = parentControlledColumns
     ? nestedAuditColumnControl.allColumns
     : inferredColumns;
 
-  const [localVisibleKeys, setLocalVisibleKeys] = useState<Set<string>>(() =>
-    new Set(inferredColumns),
+  const allColumns = useMemo(() => {
+    if (!includeUtilityAccountNumberColumn) return allColumnsRaw;
+    const key = "utility_account_number";
+    if (allColumnsRaw.includes(key)) return allColumnsRaw;
+    return [key, ...allColumnsRaw].slice(0, MAX_TABLE_COLUMNS);
+  }, [allColumnsRaw, includeUtilityAccountNumberColumn]);
+
+  const [localVisibleKeys, setLocalVisibleKeys] = useState<Set<string>>(
+    () => new Set(inferredColumns),
   );
 
   useEffect(() => {
@@ -916,10 +1224,7 @@ export function AuditSnapshotNestedRecordsTable({
     [allColumns, visibleKeys],
   );
 
-  const nestedAuditRollup = useMemo(
-    () => rollupNestedAuditArrays(rows),
-    [rows],
-  );
+  const nestedAuditRollup = useMemo(() => rollupNestedAuditArrays(rows), [rows]);
 
   const consolidatedKpiSections = useMemo(() => {
     if (nestedDepth !== 0 || snapshotProgram !== "electrical_energy") return [];
@@ -928,14 +1233,17 @@ export function AuditSnapshotNestedRecordsTable({
 
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-  const { expandedKeys: expandedNestedAuditKeys, unionByKey: nestedAuditUnionColumns } =
-    useMemo(
-      () => computeExpandedNestedAuditColumnUnions(rows, expandedRows),
-      [rows, expandedRows],
-    );
+  const {
+    expandedKeys: expandedNestedAuditKeys,
+    unionByKey: nestedAuditUnionColumns,
+  } = useMemo(
+    () => computeExpandedNestedAuditColumnUnions(rows, expandedRows),
+    [rows, expandedRows],
+  );
 
-  const [nestedAuditVisibleKeysByKey, setNestedAuditVisibleKeysByKey] =
-    useState<Record<string, Set<string>>>({});
+  const [nestedAuditVisibleKeysByKey, setNestedAuditVisibleKeysByKey] = useState<
+    Record<string, Set<string>>
+  >({});
 
   useEffect(() => {
     setNestedAuditVisibleKeysByKey((prev) => {
@@ -1008,9 +1316,7 @@ export function AuditSnapshotNestedRecordsTable({
       if (!cols?.length) return new Set<string>();
       const saved = nestedAuditVisibleKeysByKey[nk];
       if (saved?.size) {
-        const filtered = new Set<string>(
-          [...saved].filter((c) => cols.includes(c)),
-        );
+        const filtered = new Set<string>([...saved].filter((c) => cols.includes(c)));
         return filtered.size ? filtered : new Set<string>(cols);
       }
       return new Set<string>(cols);
@@ -1032,14 +1338,11 @@ export function AuditSnapshotNestedRecordsTable({
   }, [rows]);
 
   const tableScrollMax =
-    nestedDepth === 0
-      ? "max-h-[min(58vh,30rem)]"
-      : "max-h-[min(40vh,19rem)]";
+    nestedDepth === 0 ? "max-h-[min(58vh,30rem)]" : "max-h-[min(40vh,19rem)]";
 
   const colSpan = visibleColumns.length + 1;
 
-  const showMainColumnPicker =
-    !parentControlledColumns && allColumns.length > 0;
+  const showMainColumnPicker = !parentControlledColumns && allColumns.length > 0;
 
   const showNestedPickersOnParentHeader =
     nestedDepth === 0 &&
@@ -1047,6 +1350,28 @@ export function AuditSnapshotNestedRecordsTable({
     expandedNestedAuditKeys.some(
       (nk) => (nestedAuditUnionColumns[nk]?.length ?? 0) > 0,
     );
+
+  const canExport = rows.length > 0 && visibleColumns.length > 0;
+
+  const exportVariantLabel =
+    nestedAuditColumnControl?.auditKey != null
+      ? humanizeNestedKey(nestedAuditColumnControl.auditKey)
+      : undefined;
+
+  const showExportToolbar =
+    canExport && (showMainColumnPicker || parentControlledColumns);
+
+  const nestedVisibleColumnsByKey = useMemo(() => {
+    if (nestedDepth !== 0) return undefined;
+    const out: Record<string, string[]> = {};
+    for (const nk of NESTED_AUDIT_RECORD_KEYS_ORDER) {
+      const cols = nestedAuditUnionColumns[nk];
+      if (!cols?.length) continue;
+      const visible = resolveNestedVisibleKeys(nk);
+      out[nk] = cols.filter((c) => visible.has(c));
+    }
+    return out;
+  }, [nestedDepth, nestedAuditUnionColumns, resolveNestedVisibleKeys]);
 
   return (
     <div
@@ -1057,18 +1382,71 @@ export function AuditSnapshotNestedRecordsTable({
       )}
       data-snapshot-program={snapshotProgram}
     >
-      {showMainColumnPicker || showNestedPickersOnParentHeader ? (
+      {showMainColumnPicker || showNestedPickersOnParentHeader || showExportToolbar ? (
         <div className={cn("flex shrink-0 flex-col", chrome.pickerRail)}>
-          {showMainColumnPicker ? (
-            <ColumnPickerToolbar
-              allColumns={allColumns}
-              visibleKeys={visibleKeys}
-              onToggleColumn={toggleColumn}
-              onSelectAll={selectAllColumns}
-              onDeselectAllButOne={deselectAllColumnsButFirst}
-              toolbarClassName={chrome.columnToolbar}
-            />
-          ) : null}
+          <div className={cn("flex flex-wrap items-center gap-2", chrome.columnToolbar)}>
+            <div className="min-w-0 flex-1">
+              {showMainColumnPicker ? (
+                <ColumnPickerToolbar
+                  allColumns={allColumns}
+                  visibleKeys={visibleKeys}
+                  onToggleColumn={toggleColumn}
+                  onSelectAll={selectAllColumns}
+                  onDeselectAllButOne={deselectAllColumnsButFirst}
+                />
+              ) : null}
+            </div>
+            {showExportToolbar ? (
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-2 py-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={!canExport}
+                  onClick={() =>
+                    void downloadVisibleTableAsExcel({
+                      rows,
+                      visibleColumns,
+                      snapshotProgram,
+                      nestedDepth,
+                      variantLabel: exportVariantLabel,
+                      kpiSections:
+                        nestedDepth === 0 && snapshotProgram === "electrical_energy"
+                          ? consolidatedKpiSections
+                          : undefined,
+                      nestedVisibleColumnsByKey,
+                    })
+                  }
+                >
+                  Export Excel
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={!canExport}
+                  onClick={() =>
+                    void downloadVisibleTableAsPdf({
+                      rows,
+                      visibleColumns,
+                      snapshotProgram,
+                      nestedDepth,
+                      variantLabel: exportVariantLabel,
+                      kpiSections:
+                        nestedDepth === 0 && snapshotProgram === "electrical_energy"
+                          ? consolidatedKpiSections
+                          : undefined,
+                      nestedVisibleColumnsByKey,
+                    })
+                  }
+                >
+                  Export PDF
+                </Button>
+              </div>
+            ) : null}
+          </div>
           {showNestedPickersOnParentHeader
             ? expandedNestedAuditKeys.map((nk) => {
                 const cols = nestedAuditUnionColumns[nk];
@@ -1083,9 +1461,7 @@ export function AuditSnapshotNestedRecordsTable({
                       toggleNestedAuditColumn(nk, col, checked)
                     }
                     onSelectAll={() => selectNestedAuditAll(nk)}
-                    onDeselectAllButOne={() =>
-                      deselectNestedAuditAllButFirst(nk)
-                    }
+                    onDeselectAllButOne={() => deselectNestedAuditAllButFirst(nk)}
                     toolbarClassName={chrome.columnToolbar}
                   />
                 );
@@ -1126,9 +1502,7 @@ export function AuditSnapshotNestedRecordsTable({
           </thead>
           <tbody>
             {rows.map((row, idx) => {
-              const nested = isPlainObject(row)
-                ? getNestedAuditRecords(row)
-                : null;
+              const nested = isPlainObject(row) ? getNestedAuditRecords(row) : null;
               const isExpanded = expandedRows.has(idx);
 
               return (
@@ -1166,9 +1540,7 @@ export function AuditSnapshotNestedRecordsTable({
                       <td
                         key={col}
                         className={chrome.dataCell}
-                        title={cellPreview(
-                          isPlainObject(row) ? row[col] : undefined,
-                        )}
+                        title={cellPreview(isPlainObject(row) ? row[col] : undefined)}
                       >
                         {cellPreview(isPlainObject(row) ? row[col] : undefined)}
                       </td>
@@ -1186,9 +1558,32 @@ export function AuditSnapshotNestedRecordsTable({
                           </p>
                           {shouldUseNestedRecordsTable(nested.records) ? (
                             <AuditSnapshotNestedRecordsTable
-                              rows={nested.records}
+                              rows={
+                                includeUtilityAccountNumberColumn &&
+                                isPlainObject(row) &&
+                                typeof row.utility_account_number === "string" &&
+                                row.utility_account_number.trim() &&
+                                Array.isArray(nested.records)
+                                  ? nested.records.map((rec) => {
+                                      if (!isPlainObject(rec)) return rec;
+                                      if (
+                                        typeof rec.utility_account_number === "string" &&
+                                        rec.utility_account_number.trim()
+                                      ) {
+                                        return rec;
+                                      }
+                                      return {
+                                        ...rec,
+                                        utility_account_number: row.utility_account_number,
+                                      };
+                                    })
+                                  : nested.records
+                              }
                               nestedDepth={nestedDepth + 1}
                               snapshotProgram={snapshotProgram}
+                              includeUtilityAccountNumberColumn={
+                                includeUtilityAccountNumberColumn
+                              }
                               nestedAuditColumnControl={
                                 nestedDepth === 0
                                   ? {
@@ -1198,9 +1593,7 @@ export function AuditSnapshotNestedRecordsTable({
                                         inferColumns(nested.records, {
                                           omitNestedAuditArrays: true,
                                         }).slice(0, MAX_TABLE_COLUMNS),
-                                      visibleKeys: resolveNestedVisibleKeys(
-                                        nested.key,
-                                      ),
+                                      visibleKeys: resolveNestedVisibleKeys(nested.key),
                                       onToggleColumn: (col, checked) =>
                                         toggleNestedAuditColumn(
                                           nested.key,
@@ -1210,9 +1603,7 @@ export function AuditSnapshotNestedRecordsTable({
                                       onSelectAll: () =>
                                         selectNestedAuditAll(nested.key),
                                       onDeselectAllButOne: () =>
-                                        deselectNestedAuditAllButFirst(
-                                          nested.key,
-                                        ),
+                                        deselectNestedAuditAllButFirst(nested.key),
                                     }
                                   : null
                               }
@@ -1245,3 +1636,4 @@ export function AuditSnapshotNestedRecordsTable({
     </div>
   );
 }
+

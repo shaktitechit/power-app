@@ -1,11 +1,13 @@
 "use client";
 
+import type { FacilityAuditSafetyUtilityNest, FacilityAuditSnapshotSafetyData } from "@/store/slices/auditApiSlice";
+
 import {
   NestedDatasetEmptyMessage,
   NestedDatasetExpectedArrayMessage,
   NestedDatasetRawJsonPanel,
-} from "../audit-snapshot-nested-panel-shared";
-import type { NestedDatasetSpec } from "../audit-snapshot-nested-sidebar";
+} from "./audit-snapshot-nested-panel-shared";
+import type { NestedDatasetSpec } from "./audit-snapshot-nested-sidebar";
 import {
   isAuditSnapshotPlainObject,
   SafetyAuditSectionRecordsView,
@@ -14,12 +16,17 @@ import {
 type AuditSnapshotSafetyNestedPanelProps = {
   title: string;
   data: unknown;
+  utilityAccountFullExport?: {
+    snapshot: FacilityAuditSnapshotSafetyData;
+    utilityNest: FacilityAuditSafetyUtilityNest;
+  } | null;
 };
 
 /** Electrical Safety snapshot: document-style box per record; nested arrays of objects as tables. */
 export function AuditSnapshotSafetyNestedPanel({
   title,
   data,
+  utilityAccountFullExport = null,
 }: AuditSnapshotSafetyNestedPanelProps) {
   if (!Array.isArray(data)) {
     return <NestedDatasetExpectedArrayMessage title={title} />;
@@ -37,19 +44,28 @@ export function AuditSnapshotSafetyNestedPanel({
   }
 
   return (
-    <SafetyAuditSectionRecordsView sectionTitle={title} records={data} />
+    <SafetyAuditSectionRecordsView
+      sectionTitle={title}
+      records={data}
+      utilityAccountFullExport={utilityAccountFullExport}
+    />
   );
 }
 
 type AuditSnapshotSafetyNestedDatasetBodyProps = {
   items: NestedDatasetSpec[];
   selectedKey: string;
+  utilityAccountFullExport?: {
+    snapshot: FacilityAuditSnapshotSafetyData;
+    utilityNest: FacilityAuditSafetyUtilityNest;
+  } | null;
 };
 
 /** Active Electrical Safety dataset — sidebar selection resolved here. */
 export function AuditSnapshotSafetyNestedDatasetBody({
   items,
   selectedKey,
+  utilityAccountFullExport = null,
 }: AuditSnapshotSafetyNestedDatasetBodyProps) {
   if (!items.length) {
     return (
@@ -70,6 +86,7 @@ export function AuditSnapshotSafetyNestedDatasetBody({
       <AuditSnapshotSafetyNestedPanel
         title={tab.label ?? tab.key}
         data={tab.data}
+        utilityAccountFullExport={utilityAccountFullExport}
       />
     </div>
   );

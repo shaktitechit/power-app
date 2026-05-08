@@ -1,25 +1,27 @@
 "use client";
 
-import { AuditSnapshotEnergyNestedRecordsTable } from "../audit-snapshot-energy-nested-records-table";
+import { AuditSnapshotEnergyNestedRecordsTable } from "./audit-snapshot-energy-nested-records-table";
 import {
   NestedDatasetEmptyMessage,
   NestedDatasetExpectedArrayMessage,
   NestedDatasetRawJsonPanel,
-} from "../audit-snapshot-nested-panel-shared";
-import type { NestedDatasetSpec } from "../audit-snapshot-nested-sidebar";
+} from "./audit-snapshot-nested-panel-shared";
+import type { NestedDatasetSpec } from "./audit-snapshot-nested-sidebar";
 import {
   shouldUseNestedRecordsTable,
-} from "../audit-snapshot-nested-records-table";
+} from "./audit-snapshot-nested-records-table";
 
 type AuditSnapshotEnergyNestedPanelProps = {
   title: string;
   data: unknown;
+  includeUtilityAccountNumberColumn?: boolean;
 };
 
 /** Electrical Energy snapshot: tabular panel + emerald-themed nested grid when applicable. */
 export function AuditSnapshotEnergyNestedPanel({
   title,
   data,
+  includeUtilityAccountNumberColumn = false,
 }: AuditSnapshotEnergyNestedPanelProps) {
   if (!Array.isArray(data)) {
     return <NestedDatasetExpectedArrayMessage title={title} />;
@@ -35,18 +37,25 @@ export function AuditSnapshotEnergyNestedPanel({
     return <NestedDatasetRawJsonPanel data={data} />;
   }
 
-  return <AuditSnapshotEnergyNestedRecordsTable rows={data} />;
+  return (
+    <AuditSnapshotEnergyNestedRecordsTable
+      rows={data}
+      includeUtilityAccountNumberColumn={includeUtilityAccountNumberColumn}
+    />
+  );
 }
 
 type AuditSnapshotEnergyNestedDatasetBodyProps = {
   items: NestedDatasetSpec[];
   selectedKey: string;
+  includeUtilityAccountNumberColumn?: boolean;
 };
 
 /** Active Electrical Energy dataset — sidebar selection resolved here. */
 export function AuditSnapshotEnergyNestedDatasetBody({
   items,
   selectedKey,
+  includeUtilityAccountNumberColumn = false,
 }: AuditSnapshotEnergyNestedDatasetBodyProps) {
   if (!items.length) {
     return (
@@ -67,6 +76,7 @@ export function AuditSnapshotEnergyNestedDatasetBody({
       <AuditSnapshotEnergyNestedPanel
         title={tab.label ?? tab.key}
         data={tab.data}
+        includeUtilityAccountNumberColumn={includeUtilityAccountNumberColumn}
       />
     </div>
   );

@@ -1,14 +1,24 @@
 "use client";
 
 import { Fragment } from "react";
+import { toast } from "sonner";
 
+import type {
+  FacilityAuditSafetyUtilityNest,
+  FacilityAuditSnapshotSafetyData,
+} from "@/store/slices/auditApiSlice";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { humanizeNestedKey } from "../audit-snapshot-utility-sidebar";
+import {
+  downloadSafetyUtilityAccountExcel,
+  downloadSafetyUtilityAccountPdf,
+} from "./audit-snapshot-safety-utility-account-export";
+import { humanizeNestedKey } from "./audit-snapshot-utility-sidebar";
 import {
   formatAuditSnapshotCellPreview,
   inferAuditSnapshotTabularColumns,
   nestedRecordsJsonPreview,
-} from "../audit-snapshot-nested-records-table";
+} from "./audit-snapshot-nested-records-table";
 
 const MAX_FIELD_DEPTH = 8;
 
@@ -203,7 +213,66 @@ type SafetyAuditSectionRecordsViewProps = {
   /** Sidebar / section label */
   sectionTitle: string;
   records: unknown[];
+  /**
+   * When set, shows **Export Excel / PDF** for the entire selected utility account:
+   * facility, utility account, and every `safety_sections` checklist (not only this sidebar view).
+   */
+  utilityAccountFullExport?: {
+    snapshot: FacilityAuditSnapshotSafetyData;
+    utilityNest: FacilityAuditSafetyUtilityNest;
+  } | null;
 };
+
+function SafetyUtilityAccountFullExportToolbar({
+  snapshot,
+  utilityNest,
+}: {
+  snapshot: FacilityAuditSnapshotSafetyData;
+  utilityNest: FacilityAuditSafetyUtilityNest;
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/25">
+      <p className="mr-auto min-w-0 text-[11px] text-muted-foreground">
+        Export this utility account: facility, account details, and{" "}
+        <span className="font-medium text-foreground">all</span> safety checklists.
+      </p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 border-amber-500/35 text-xs dark:border-amber-500/40"
+        onClick={async () => {
+          try {
+            await downloadSafetyUtilityAccountExcel(snapshot, utilityNest);
+            toast.success("Excel downloaded");
+          } catch (e) {
+            console.error(e);
+            toast.error("Excel export failed");
+          }
+        }}
+      >
+        Export Excel (full account)
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 border-amber-500/35 text-xs dark:border-amber-500/40"
+        onClick={async () => {
+          try {
+            await downloadSafetyUtilityAccountPdf(snapshot, utilityNest);
+            toast.success("PDF downloaded");
+          } catch (e) {
+            console.error(e);
+            toast.error("PDF export failed");
+          }
+        }}
+      >
+        Export PDF (full account)
+      </Button>
+    </div>
+  );
+}
 
 /**
  * Safety audits: one card per document with field list; nested object arrays render as tables.
@@ -211,9 +280,16 @@ type SafetyAuditSectionRecordsViewProps = {
 export function SafetyAuditSectionRecordsView({
   sectionTitle,
   records,
+  utilityAccountFullExport = null,
 }: SafetyAuditSectionRecordsViewProps) {
   return (
     <div className="space-y-4" aria-label={humanizeNestedKey(sectionTitle)}>
+      {utilityAccountFullExport ? (
+        <SafetyUtilityAccountFullExportToolbar
+          snapshot={utilityAccountFullExport.snapshot}
+          utilityNest={utilityAccountFullExport.utilityNest}
+        />
+      ) : null}
       {records.map((rec, idx) => (
         <section
           key={idx}

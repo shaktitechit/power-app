@@ -33,4 +33,3 @@ export function AuditSnapshotExplorer({ snapshot }: AuditSnapshotExplorerProps) 
 
 export { AuditSnapshotEnergyExplorer } from "./energy/audit-snapshot-energy-explorer";
 export { AuditSnapshotSafetyExplorer } from "./safety/audit-snapshot-safety-explorer";
-export { ALL_UTILITY_ACCOUNTS_VALUE } from "./audit-snapshot-explorer-chrome";

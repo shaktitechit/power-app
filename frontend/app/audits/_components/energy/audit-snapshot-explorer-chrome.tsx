@@ -126,3 +126,4 @@ export function AuditSnapshotExplorerChrome({
     </div>
   );
 }
+

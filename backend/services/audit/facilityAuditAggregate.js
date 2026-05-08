@@ -273,16 +273,19 @@ export async function aggregateElectricalEnergyAuditForFacility(facilityRef) {
 export async function aggregateElectricalSafetyAuditForFacility(facilityRef) {
   const fid = toFacilityObjectId(facilityRef);
 
-  const facilityDoc = await Facility.findById(fid).lean();
+  const facilityDoc = await Facility.findById(fid)
+    .populate("auditor_id", "name email")
+    .lean();
   const accounts = await UtilityAccount.find({ facility_id: fid })
     .sort({ account_number: 1 })
     .lean();
 
   const buckets = createSafetyBuckets(accounts);
 
+  const auditorPopulate = { path: "auditor_id", select: "name email" };
   const safetyDocArrays = await Promise.all(
     SAFETY_AUDIT_MODEL_ENTRIES.map(({ Model }) =>
-      Model.find({ facility_id: fid }).lean(),
+      Model.find({ facility_id: fid }).populate(auditorPopulate).lean(),
     ),
   );
 
