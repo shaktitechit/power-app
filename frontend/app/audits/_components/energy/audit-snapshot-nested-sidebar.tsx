@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-import { humanizeNestedKey } from "./audit-snapshot-utility-sidebar";
+import { humanizeNestedKey } from "../shared/audit-snapshot-table-utils";
 
 export type NestedDatasetSpec = { key: string; label?: string; data: unknown };
 

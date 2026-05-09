@@ -1,7 +1,9 @@
 "use client";
 
-import { humanizeNestedKey } from "./audit-snapshot-utility-sidebar";
-import { nestedRecordsJsonPreview } from "./audit-snapshot-nested-records-table";
+import {
+  humanizeNestedKey,
+  nestedRecordsJsonPreview,
+} from "../shared/audit-snapshot-table-utils";
 
 export function NestedDatasetExpectedArrayMessage({ title }: { title: string }) {
   return (

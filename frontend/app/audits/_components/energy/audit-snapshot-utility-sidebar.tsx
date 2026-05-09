@@ -28,12 +28,6 @@ export function getUtilityAccountNumber(utilityAccount: unknown): string {
   return id ? `ID · ${id.slice(-8)}` : "Account";
 }
 
-export function humanizeNestedKey(key: string): string {
-  return key
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 type AuditSnapshotUtilitySidebarProps = {
   items: Array<{ utility_account: unknown }>;
   selectedUtilityAccountId: string;

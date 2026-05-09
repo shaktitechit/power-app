@@ -134,16 +134,22 @@ export function AuditSnapshotEnergyExplorer({
     let raw: { key: string; data: unknown }[];
 
     if (selectedUtilityAccountId === ALL_UTILITY_ACCOUNTS_VALUE) {
-      raw = ENERGY_NEST_KEYS.map((key) => ({
-        key,
-        data: mergeEnergyNestField(accounts, key),
-      }));
+      raw = [
+        { key: "utility_accounts", label: "Utility Accounts", data: accounts.map(a => a.utility_account) },
+        ...ENERGY_NEST_KEYS.map((key) => ({
+          key,
+          data: mergeEnergyNestField(accounts, key),
+        })),
+      ];
     } else if (selectedRow) {
       const e = selectedRow as FacilityAuditEnergyUtilityNest;
-      raw = ENERGY_NEST_KEYS.map((key) => ({
-        key,
-        data: e[key],
-      }));
+      raw = [
+        { key: "utility_accounts", label: "Utility Account Details", data: [e.utility_account] },
+        ...ENERGY_NEST_KEYS.map((key) => ({
+          key,
+          data: e[key],
+        })),
+      ];
     } else {
       raw = [];
     }

@@ -3,10 +3,12 @@ import type {
   FacilityAuditSnapshotSafetyData,
 } from "@/store/slices/auditApiSlice";
 
-import { formatAuditSnapshotCellPreview } from "./audit-snapshot-nested-records-table";
+import {
+  formatAuditSnapshotCellPreview,
+  humanizeNestedKey,
+} from "../shared/audit-snapshot-table-utils";
 import {
   getUtilityAccountNumber,
-  humanizeNestedKey,
 } from "./audit-snapshot-utility-sidebar";
 
 /** One logical row width so Excel / PDF tables stay rectangular. */

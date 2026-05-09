@@ -13,12 +13,12 @@ import {
   downloadSafetyUtilityAccountExcel,
   downloadSafetyUtilityAccountPdf,
 } from "./audit-snapshot-safety-utility-account-export";
-import { humanizeNestedKey } from "./audit-snapshot-utility-sidebar";
 import {
   formatAuditSnapshotCellPreview,
+  humanizeNestedKey,
   inferAuditSnapshotTabularColumns,
   nestedRecordsJsonPreview,
-} from "./audit-snapshot-nested-records-table";
+} from "../shared/audit-snapshot-table-utils";
 
 const MAX_FIELD_DEPTH = 8;
 
