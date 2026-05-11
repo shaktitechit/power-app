@@ -21,10 +21,10 @@ function buildExportFileBaseName(args: {
   const depthToken = `depth-${args.nestedDepth + 1}`;
   const variantToken = args.variantLabel
     ? args.variantLabel
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
     : null;
   const dateToken = new Date().toISOString().slice(0, 10);
   return ["audit-snapshot", programToken, depthToken, variantToken, dateToken]
@@ -130,14 +130,15 @@ function buildKpiSummaryExportAoa(
   sections: EnergyKpiSection[],
 ): (string | number)[][] {
   const aoa: (string | number)[][] = [
-    ["Section", "Metric", "Value"],
+    ["Metric", "Value"],
+    // ["Section", "Metric", "Value"],
   ];
 
   for (const section of sections) {
     if (!section.kpis.length) continue;
     for (const kpi of section.kpis) {
       let finalValue: string | number = "";
-      
+
       if (typeof kpi.value === "number") {
         finalValue = formatKpiNumber(kpi.value);
       } else if (typeof kpi.value === "string") {
@@ -148,7 +149,7 @@ function buildKpiSummaryExportAoa(
       }
 
       aoa.push([
-        section.title,
+        // section.title,
         kpi.label,
         finalValue,
       ]);

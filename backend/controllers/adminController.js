@@ -22,10 +22,20 @@ const getUsers = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: "Not authorized" });
   }
 
-  const query =
-    requesterRole === "super_admin" ? {} : { role: { $in: allowedRoles } };
+  let query;
+  if (requesterRole === "super_admin") {
+    // super_admin sees every user
+    query = {};
+  } else if (requesterRole === "admin") {
+    // admin sees only users they created
+    query = { created_by: req.user._id };
+  } else {
+    query = { role: { $in: allowedRoles } };
+  }
 
-  const users = await User.find(query);
+  const users = await User.find(query)
+    .select("-password")
+    .populate("created_by", "name email");
   return res.json(users);
 });
 
@@ -45,7 +55,7 @@ const getAssignableUsers = asyncHandler(async (req, res) => {
   }
 
   const users = await User.find({
-    role: { $nin: ["super_admin", "admin"] },
+    role: { $nin: ["super_admin"] },
   }).select("-password");
 
   return res.json(users);
@@ -77,6 +87,7 @@ const createUser = asyncHandler(async (req, res) => {
     email,
     password,
     role: targetRole,
+    created_by: req.user._id,
   });
 
   await user.save();
@@ -125,6 +136,11 @@ const updateUser = asyncHandler(async (req, res) => {
     return res
       .status(403)
       .json({ message: "You are not allowed to update this user role" });
+  }
+
+  // admin can only update users they created
+  if (requesterRole === "admin" && String(user.created_by) !== String(req.user._id)) {
+    return res.status(403).json({ message: "You can only update users you created" });
   }
 
   const updatedFields = [];
@@ -201,6 +217,11 @@ const deleteUser = asyncHandler(async (req, res) => {
     return res
       .status(403)
       .json({ message: "You are not allowed to delete this user role" });
+  }
+
+  // admin can only delete users they created
+  if (requesterRole === "admin" && String(user.created_by) !== String(req.user._id)) {
+    return res.status(403).json({ message: "You can only delete users you created" });
   }
 
   const userName = user.name;

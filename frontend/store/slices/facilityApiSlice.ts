@@ -65,6 +65,12 @@ export interface Facility {
   };
   created_by: string;
   documents: FacilityDocument[];
+  budget?: {
+    no_of_persons?: number | null;
+    no_planned_site_visits?: number | null;
+    tentative_budget?: number | null;
+    actual_budget?: number | null;
+  };
   created_at?: string;
   updated_at?: string;
   createdAt?: string;
@@ -90,6 +96,12 @@ export interface CreateFacilityRequest {
   closure_date?: string;
   auditor_ids?: string[];
   documents?: File[];
+  budget?: {
+    no_of_persons?: number | null;
+    no_planned_site_visits?: number | null;
+    tentative_budget?: number | null;
+    actual_budget?: number | null;
+  };
 }
 
 export interface UpdateFacilityRequest {
@@ -113,6 +125,12 @@ export interface UpdateFacilityRequest {
   auditor_ids?: string[];
   documents?: File[];
   removed_document_ids?: string[];
+  budget?: {
+    no_of_persons?: number | null;
+    no_planned_site_visits?: number | null;
+    tentative_budget?: number | null;
+    actual_budget?: number | null;
+  };
 }
 
 export interface CreateFacilityResponse {
@@ -210,6 +228,10 @@ const buildFacilityFormData = (
       "removed_document_ids",
       JSON.stringify(data.removed_document_ids),
     );
+  }
+
+  if (data.budget !== undefined) {
+    formData.append("budget", JSON.stringify(data.budget));
   }
 
   return formData;

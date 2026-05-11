@@ -20,6 +20,7 @@ import {
   getUtilityAccountId,
   getUtilityAccountNumber,
 } from "./audit-snapshot-utility-sidebar";
+import { extractAllDocuments } from "../shared/audit-snapshot-table-utils";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
@@ -100,12 +101,24 @@ export function AuditSnapshotSafetyExplorer({
     let raw: { key: string; data: unknown }[];
 
     if (selectedUtilityAccountId === ALL_UTILITY_ACCOUNTS_VALUE) {
-      raw = mergeSafetyNestedDatasets(accounts);
+      const allDocs = accounts.flatMap((a) => {
+        const uan = (a.utility_account as any)?.account_number || "";
+        return extractAllDocuments(a, uan);
+      });
+      raw = [
+        ...mergeSafetyNestedDatasets(accounts),
+        { key: "documents", label: "Documents", data: allDocs },
+      ];
     } else if (selectedRow) {
       const s = selectedRow as FacilityAuditSafetyUtilityNest;
-      raw = Object.entries(s.safety_sections || {})
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, data]) => ({ key, data }));
+      const uan = (s.utility_account as any)?.account_number || "";
+      const docs = extractAllDocuments(s, uan);
+      raw = [
+        ...Object.entries(s.safety_sections || {})
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([key, data]) => ({ key, data })),
+        { key: "documents", label: "Documents", data: docs },
+      ];
     } else {
       raw = [];
     }

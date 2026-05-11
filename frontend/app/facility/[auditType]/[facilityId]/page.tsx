@@ -771,6 +771,56 @@ export default function FacilityWorkspacePage() {
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-card-foreground">
                 <Activity className="h-5 w-5 text-primary" />
+                Budget Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 p-4 pt-0 sm:grid-cols-2 sm:p-6 sm:pt-0 lg:grid-cols-4">
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">No. of Persons</p>
+                <p className="mt-1 text-lg font-semibold text-foreground">
+                  {facility?.budget?.no_of_persons != null
+                    ? facility.budget.no_of_persons
+                    : "—"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">
+                  Planned Site Visits
+                </p>
+                <p className="mt-1 text-lg font-semibold text-foreground">
+                  {facility?.budget?.no_planned_site_visits != null
+                    ? facility.budget.no_planned_site_visits
+                    : "—"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">
+                  Tentative Budget
+                </p>
+                <p className="mt-1 text-lg font-semibold text-foreground">
+                  {facility?.budget?.tentative_budget != null
+                    ? `₹${facility.budget.tentative_budget.toLocaleString("en-IN")}`
+                    : "—"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Actual Budget</p>
+                <p className="mt-1 text-lg font-semibold text-foreground">
+                  {facility?.budget?.actual_budget != null
+                    ? `₹${facility.budget.actual_budget.toLocaleString("en-IN")}`
+                    : "—"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border bg-card">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-card-foreground">
+                <Activity className="h-5 w-5 text-primary" />
                 Quick Summary
               </CardTitle>
             </CardHeader>

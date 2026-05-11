@@ -181,6 +181,11 @@ export const buildFacilityInfoSection = async ({
     facility_type: normalizeText(facility?.facility_type),
     status: normalizeText(facility?.status),
 
+    no_of_persons: normalizeNumber(facility?.budget?.no_of_persons),
+    no_planned_site_visits: normalizeNumber(facility?.budget?.no_planned_site_visits),
+    tentative_budget: normalizeNumber(facility?.budget?.tentative_budget),
+    actual_budget: normalizeNumber(facility?.budget?.actual_budget),
+
     representative: primaryContact.representative,
     phone: primaryContact.phone,
     email: primaryContact.email,
@@ -256,6 +261,18 @@ export const buildFacilityInfoSection = async ({
 
     utility_account: utilityAccountMini,
 
+    budget: {
+      no_of_persons: baseData.no_of_persons,
+      no_planned_site_visits: baseData.no_planned_site_visits,
+      tentative_budget: baseData.tentative_budget,
+      actual_budget: baseData.actual_budget,
+      has_budget:
+        baseData.no_of_persons !== null ||
+        baseData.no_planned_site_visits !== null ||
+        baseData.tentative_budget !== null ||
+        baseData.actual_budget !== null,
+    },
+
     connectivity_flags: {
       has_selected_utility_account: Boolean(utilityAccountMini),
       is_solar_connected: utilityAccountMini?.is_solar_connected || false,
@@ -295,33 +312,56 @@ export const buildFacilityInfoSection = async ({
 
       ...(scope === "utility_account" && utilityAccountMini
         ? [
-            {
-              heading: "Utility Account Details",
-              columns: ["label", "value"],
-              rows: [
-                {
-                  label: "Account Number",
-                  value: baseData.account_number,
-                },
-                {
-                  label: "Connection Type",
-                  value: baseData.connection_type,
-                },
-                {
-                  label: "Category",
-                  value: baseData.category,
-                },
-                {
-                  label: "Sanctioned Demand (kVA)",
-                  value:
-                    baseData.sanctioned_demand_kVA !== null
-                      ? String(baseData.sanctioned_demand_kVA)
-                      : "",
-                },
-              ].filter((r) => r.value !== ""),
-            },
-          ]
+          {
+            heading: "Utility Account Details",
+            columns: ["label", "value"],
+            rows: [
+              {
+                label: "Account Number",
+                value: baseData.account_number,
+              },
+              {
+                label: "Connection Type",
+                value: baseData.connection_type,
+              },
+              {
+                label: "Category",
+                value: baseData.category,
+              },
+              {
+                label: "Sanctioned Demand (kVA)",
+                value:
+                  baseData.sanctioned_demand_kVA !== null
+                    ? String(baseData.sanctioned_demand_kVA)
+                    : "",
+              },
+            ].filter((r) => r.value !== ""),
+          },
+        ]
         : []),
+
+      {
+        heading: "Budget Information",
+        columns: ["label", "value"],
+        rows: [
+          {
+            label: "No. of Persons",
+            value: baseData.no_of_persons !== null ? String(baseData.no_of_persons) : "",
+          },
+          {
+            label: "No. of Planned Site Visits",
+            value: baseData.no_planned_site_visits !== null ? String(baseData.no_planned_site_visits) : "",
+          },
+          {
+            label: "Tentative Budget (₹)",
+            value: baseData.tentative_budget !== null ? String(baseData.tentative_budget) : "",
+          },
+          {
+            label: "Actual Budget (₹)",
+            value: baseData.actual_budget !== null ? String(baseData.actual_budget) : "",
+          },
+        ].filter((r) => r.value !== ""),
+      },
 
       {
         heading: "Report Period",
@@ -341,9 +381,9 @@ export const buildFacilityInfoSection = async ({
           { label: "Audit Status", value: isAuditClosed ? "Closed" : "Open" },
           ...(isAuditClosed
             ? [
-                { label: "Audit Close Date", value: baseData.audit_closed_at },
-                { label: "Audit Closed By", value: baseData.audit_closed_by },
-              ]
+              { label: "Audit Close Date", value: baseData.audit_closed_at },
+              { label: "Audit Closed By", value: baseData.audit_closed_by },
+            ]
             : []),
         ].filter((r) => r.value !== ""),
       },
@@ -363,32 +403,44 @@ export const buildFacilityInfoSection = async ({
       { label: "Audit Status", value: isAuditClosed ? "Closed" : "Open" },
       ...(isAuditClosed
         ? [
-            { label: "Audit Close Date", value: baseData.audit_closed_at },
-            { label: "Audit Closed By", value: baseData.audit_closed_by },
-          ]
+          { label: "Audit Close Date", value: baseData.audit_closed_at },
+          { label: "Audit Closed By", value: baseData.audit_closed_by },
+        ]
         : []),
       ...(scope === "utility_account" && utilityAccountMini
         ? [
-            {
-              label: "Utility Account Number",
-              value: utilityAccountMini.account_number,
-            },
-            {
-              label: "Connection Type",
-              value: utilityAccountMini.connection_type,
-            },
-            {
-              label: "Category",
-              value: utilityAccountMini.category,
-            },
-            {
-              label: "Sanctioned Demand (kVA)",
-              value:
-                utilityAccountMini.sanctioned_demand_kVA !== null
-                  ? String(utilityAccountMini.sanctioned_demand_kVA)
-                  : "",
-            },
-          ]
+          {
+            label: "Utility Account Number",
+            value: utilityAccountMini.account_number,
+          },
+          {
+            label: "Connection Type",
+            value: utilityAccountMini.connection_type,
+          },
+          {
+            label: "Category",
+            value: utilityAccountMini.category,
+          },
+          {
+            label: "Sanctioned Demand (kVA)",
+            value:
+              utilityAccountMini.sanctioned_demand_kVA !== null
+                ? String(utilityAccountMini.sanctioned_demand_kVA)
+                : "",
+          },
+        ]
+        : []),
+      ...(baseData.no_of_persons !== null
+        ? [{ label: "No. of Persons", value: String(baseData.no_of_persons) }]
+        : []),
+      ...(baseData.no_planned_site_visits !== null
+        ? [{ label: "No. of Planned Site Visits", value: String(baseData.no_planned_site_visits) }]
+        : []),
+      ...(baseData.tentative_budget !== null
+        ? [{ label: "Tentative Budget (₹)", value: String(baseData.tentative_budget) }]
+        : []),
+      ...(baseData.actual_budget !== null
+        ? [{ label: "Actual Budget (₹)", value: String(baseData.actual_budget) }]
         : []),
     ].filter((row) => row.value !== ""),
 
@@ -410,17 +462,29 @@ export const buildFacilityInfoSection = async ({
       },
       ...(scope === "utility_account" && utilityAccountMini
         ? [
-            {
-              key: "account_number",
-              label: "Account Number",
-              value: utilityAccountMini.account_number || "-",
-            },
-            {
-              key: "connection_type",
-              label: "Connection Type",
-              value: utilityAccountMini.connection_type || "-",
-            },
-          ]
+          {
+            key: "account_number",
+            label: "Account Number",
+            value: utilityAccountMini.account_number || "-",
+          },
+          {
+            key: "connection_type",
+            label: "Connection Type",
+            value: utilityAccountMini.connection_type || "-",
+          },
+        ]
+        : []),
+      ...(baseData.no_of_persons !== null
+        ? [{ key: "no_of_persons", label: "No. of Persons", value: String(baseData.no_of_persons) }]
+        : []),
+      ...(baseData.no_planned_site_visits !== null
+        ? [{ key: "no_planned_site_visits", label: "Planned Site Visits", value: String(baseData.no_planned_site_visits) }]
+        : []),
+      ...(baseData.tentative_budget !== null
+        ? [{ key: "tentative_budget", label: "Tentative Budget (₹)", value: String(baseData.tentative_budget) }]
+        : []),
+      ...(baseData.actual_budget !== null
+        ? [{ key: "actual_budget", label: "Actual Budget (₹)", value: String(baseData.actual_budget) }]
         : []),
     ],
   };

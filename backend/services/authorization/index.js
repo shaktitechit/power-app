@@ -47,8 +47,9 @@ export function findMatchingPolicies(policies, resource, action) {
  */
 export function isAdmin(user) {
   const role = user?.role;
-  return role === "admin" || role === "super_admin";
+  return role === "super_admin";
 }
+
 
 function hasWildcardAll(user) {
   const policies = getEffectivePolicies(user);
@@ -71,7 +72,7 @@ export function hasPolicyScopeAll(user, resource, action) {
 /** List / resolve all facilities (admin, super_admin, or org-wide facility read). */
 export function hasOrgWideFacilityAccess(user) {
   return (
-    isAdmin(user) ||
+    isAdmin(user) || user?.role === "admin" ||
     hasPolicyScopeAll(user, RESOURCES.FACILITY, ACTIONS.READ)
   );
 }
@@ -79,7 +80,7 @@ export function hasOrgWideFacilityAccess(user) {
 /** List all utility accounts across facilities. */
 export function hasOrgWideUtilityAccountRead(user) {
   return (
-    isAdmin(user) ||
+    isAdmin(user) || user?.role === "admin" ||
     hasPolicyScopeAll(user, RESOURCES.UTILITY_ACCOUNT, ACTIONS.READ)
   );
 }
@@ -87,7 +88,7 @@ export function hasOrgWideUtilityAccountRead(user) {
 /** Unscoped report listing (all reports). */
 export function hasOrgWideReportListAccess(user) {
   return (
-    isAdmin(user) || hasPolicyScopeAll(user, RESOURCES.REPORT, ACTIONS.READ)
+    isAdmin(user) || user?.role === "admin" || hasPolicyScopeAll(user, RESOURCES.REPORT, ACTIONS.READ)
   );
 }
 
@@ -184,7 +185,7 @@ export async function resolveAccessibleUtilityAccount(user, utilityAccountId) {
   const utilityAccount = await UtilityAccount.findById(utilityAccountId);
   if (!utilityAccount) return null;
 
-  if (isAdmin(user) || hasOrgWideUtilityAccountRead(user)) {
+  if (isAdmin(user) || user?.role === "admin" || hasOrgWideUtilityAccountRead(user)) {
     return utilityAccount;
   }
 

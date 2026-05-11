@@ -7,6 +7,7 @@ import {
 } from "./audit-snapshot-nested-panel-shared";
 import type { NestedDatasetSpec } from "./audit-snapshot-nested-sidebar";
 import { shouldUseNestedRecordsTable } from "../shared/audit-snapshot-table-utils";
+import { AuditSnapshotDocumentsGallery } from "../shared/audit-snapshot-documents-gallery";
 
 import { TariffsTable } from "./tables/tariffs-table";
 import { BillingRecordsTable } from "./tables/billing-records-table";
@@ -43,6 +44,10 @@ export function AuditSnapshotEnergyNestedPanel({
 
   if (data.length === 0) {
     return <NestedDatasetEmptyMessage title={title} />;
+  }
+
+  if (datasetKey === "documents") {
+    return <AuditSnapshotDocumentsGallery documents={data as any[]} />;
   }
 
   const useTable = shouldUseNestedRecordsTable(data);
@@ -115,7 +120,7 @@ export function AuditSnapshotEnergyNestedDatasetBody({
   const tab = items.find((t) => t.key === resolvedKey) ?? items[0];
 
   return (
-    <div className="min-h-0 min-w-0 flex-1">
+    <div className="min-h-0 min-w-0 flex-1 flex flex-col h-full">
       <AuditSnapshotEnergyNestedPanel
         title={tab.label ?? tab.key}
         datasetKey={tab.key}

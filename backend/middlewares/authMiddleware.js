@@ -68,7 +68,7 @@ const protect = asyncHandler(async (req, res, next) => {
 
 // 🔐 Admin routes: platform admins only (same as legacy `role === "admin"` + `super_admin`).
 const admin = (req, res, next) => {
-  if (req.user && isPlatformAdmin(req.user)) {
+  if (req.user && (isPlatformAdmin(req.user) || req.user.role === "admin")) {
     return next();
   }
 

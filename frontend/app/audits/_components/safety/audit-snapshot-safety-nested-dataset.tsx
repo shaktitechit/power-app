@@ -13,8 +13,11 @@ import {
   SafetyAuditSectionRecordsView,
 } from "./audit-snapshot-safety-record-box";
 
+import { AuditSnapshotDocumentsGallery } from "../shared/audit-snapshot-documents-gallery";
+
 type AuditSnapshotSafetyNestedPanelProps = {
   title: string;
+  datasetKey: string;
   data: unknown;
   utilityAccountFullExport?: {
     snapshot: FacilityAuditSnapshotSafetyData;
@@ -25,6 +28,7 @@ type AuditSnapshotSafetyNestedPanelProps = {
 /** Electrical Safety snapshot: document-style box per record; nested arrays of objects as tables. */
 export function AuditSnapshotSafetyNestedPanel({
   title,
+  datasetKey,
   data,
   utilityAccountFullExport = null,
 }: AuditSnapshotSafetyNestedPanelProps) {
@@ -34,6 +38,10 @@ export function AuditSnapshotSafetyNestedPanel({
 
   if (data.length === 0) {
     return <NestedDatasetEmptyMessage title={title} />;
+  }
+
+  if (datasetKey === "documents") {
+    return <AuditSnapshotDocumentsGallery documents={data as any[]} />;
   }
 
   const allPlainObjects = data.every(
@@ -82,9 +90,10 @@ export function AuditSnapshotSafetyNestedDatasetBody({
   const tab = items.find((t) => t.key === resolvedKey) ?? items[0];
 
   return (
-    <div className="min-h-0 min-w-0 flex-1">
+    <div className="min-h-0 min-w-0 flex-1 flex flex-col h-full">
       <AuditSnapshotSafetyNestedPanel
         title={tab.label ?? tab.key}
+        datasetKey={tab.key}
         data={tab.data}
         utilityAccountFullExport={utilityAccountFullExport}
       />

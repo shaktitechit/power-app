@@ -20,6 +20,7 @@ import {
   getUtilityAccountId,
   getUtilityAccountNumber,
 } from "./audit-snapshot-utility-sidebar";
+import { humanizeNestedKey, extractAllDocuments } from "../shared/audit-snapshot-table-utils";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
@@ -134,21 +135,29 @@ export function AuditSnapshotEnergyExplorer({
     let raw: { key: string; data: unknown }[];
 
     if (selectedUtilityAccountId === ALL_UTILITY_ACCOUNTS_VALUE) {
+      const allDocs = accounts.flatMap((a) => {
+        const uan = (a.utility_account as any)?.account_number || "";
+        return extractAllDocuments(a, uan);
+      });
       raw = [
         { key: "utility_accounts", label: "Utility Accounts", data: accounts.map(a => a.utility_account) },
         ...ENERGY_NEST_KEYS.map((key) => ({
           key,
           data: mergeEnergyNestField(accounts, key),
         })),
+        { key: "documents", label: "Documents", data: allDocs },
       ];
     } else if (selectedRow) {
       const e = selectedRow as FacilityAuditEnergyUtilityNest;
+      const uan = (e.utility_account as any)?.account_number || "";
+      const docs = extractAllDocuments(e, uan);
       raw = [
         { key: "utility_accounts", label: "Utility Account Details", data: [e.utility_account] },
         ...ENERGY_NEST_KEYS.map((key) => ({
           key,
           data: e[key],
         })),
+        { key: "documents", label: "Documents", data: docs },
       ];
     } else {
       raw = [];

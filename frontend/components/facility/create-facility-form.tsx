@@ -124,9 +124,8 @@ function TeamMemberMultiSelect({
         >
           <span className="truncate text-left">
             {selectedUsers.length > 0
-              ? `${selectedUsers.length} member${
-                  selectedUsers.length > 1 ? "s" : ""
-                } selected`
+              ? `${selectedUsers.length} member${selectedUsers.length > 1 ? "s" : ""
+              } selected`
               : "Select team members"}
           </span>
           <ChevronDown className="h-4 w-4 opacity-60" />
@@ -209,7 +208,7 @@ export function CreateFacilityForm({
 
   const users: AssignableUser[] = data?.data || [];
   const assignableUsers = users.filter(
-    (user) => user.role !== "super_admin" && user.role !== "admin",
+    (user) => user.role !== "super_admin",
   );
 
   const [formData, setFormData] = useState({
@@ -225,6 +224,12 @@ export function CreateFacilityForm({
     status: "active",
     auditor_ids: [] as string[],
     closure_date: "",
+    budget: {
+      no_of_persons: "",
+      no_planned_site_visits: "",
+      tentative_budget: "",
+      actual_budget: "",
+    },
   });
 
   const [documents, setDocuments] = useState<FacilityDocument[]>([]);
@@ -253,6 +258,7 @@ export function CreateFacilityForm({
       status: "active",
       auditor_ids: [],
       closure_date: "",
+      budget: { no_of_persons: "", no_planned_site_visits: "", tentative_budget: "", actual_budget: "" },
     });
 
     setDocuments([]);
@@ -340,6 +346,12 @@ export function CreateFacilityForm({
           auditor_ids: formData.auditor_ids,
           closure_date: formData.closure_date || undefined,
           documents: documents.map((doc) => doc.file),
+          budget: {
+            no_of_persons: formData.budget.no_of_persons !== "" ? Number(formData.budget.no_of_persons) : null,
+            no_planned_site_visits: formData.budget.no_planned_site_visits !== "" ? Number(formData.budget.no_planned_site_visits) : null,
+            tentative_budget: formData.budget.tentative_budget !== "" ? Number(formData.budget.tentative_budget) : null,
+            actual_budget: formData.budget.actual_budget !== "" ? Number(formData.budget.actual_budget) : null,
+          },
         }).unwrap(),
 
       loading: "Creating facility...",
@@ -596,6 +608,60 @@ export function CreateFacilityForm({
               >
                 Add Client Representative
               </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium">Budget Information</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="no_of_persons">No. of Persons</Label>
+                <Input
+                  id="no_of_persons"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 5"
+                  value={formData.budget.no_of_persons}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, no_of_persons: e.target.value } }))}
+                  disabled={creatingFacility}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="no_planned_site_visits">No. of Planned Site Visits</Label>
+                <Input
+                  id="no_planned_site_visits"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 3"
+                  value={formData.budget.no_planned_site_visits}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, no_planned_site_visits: e.target.value } }))}
+                  disabled={creatingFacility}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tentative_budget">Tentative Budget (₹)</Label>
+                <Input
+                  id="tentative_budget"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 50000"
+                  value={formData.budget.tentative_budget}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, tentative_budget: e.target.value } }))}
+                  disabled={creatingFacility}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="actual_budget">Actual Budget (₹)</Label>
+                <Input
+                  id="actual_budget"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 45000"
+                  value={formData.budget.actual_budget}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, actual_budget: e.target.value } }))}
+                  disabled={creatingFacility}
+                />
+              </div>
             </div>
           </div>
 

@@ -38,7 +38,9 @@ import {
   Trash2,
   Shield,
   UserCheck,
-  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  BarChart3
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -65,6 +67,11 @@ type User = {
   phone?: string;
   status?: string;
   role?: AppUserRole;
+  created_by?: {
+    _id: string;
+    name: string;
+    email: string;
+  } | string | null;
   appearance?: {
     status?: "online" | "away" | "offline" | string;
     lastSeen?: string | null;
@@ -72,6 +79,7 @@ type User = {
 };
 
 const ADMIN_MANAGEABLE_ROLES: AppUserRole[] = ["manager", "auditor"];
+const PAGE_SIZE = 10;
 
 const formatLastSeen = (value?: string | null) => {
   if (!value) return "No activity";
@@ -99,6 +107,7 @@ export default function UsersPage() {
   const currentUser = useAppSelector((state) => state.auth.user);
   const currentRole = currentUser?.role;
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -167,6 +176,13 @@ export default function UsersPage() {
         user.email.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [visibleUsers, searchQuery]);
+
+  // Reset to page 1 whenever the search filter changes
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredUsers.slice(start, start + PAGE_SIZE);
+  }, [filteredUsers, currentPage]);
 
   const isUserManageable = (user: User) => {
     if (currentRole === "super_admin") return true;
@@ -258,20 +274,31 @@ export default function UsersPage() {
       ),
     },
     {
+      key: "created_by",
+      header: "Created By",
+      render: (row) => {
+        const creator = row.created_by;
+        if (!creator) {
+          return <span className="text-xs text-muted-foreground">—</span>;
+        }
+        if (typeof creator === "string") {
+          return <span className="text-xs text-muted-foreground">{creator}</span>;
+        }
+        return (
+          <div>
+            <p className="text-sm font-medium">{creator.name}</p>
+            <p className="text-xs text-muted-foreground">{creator.email}</p>
+          </div>
+        );
+      },
+    },
+    {
       key: "actions",
       header: "Actions",
       render: (row) => (
         <>
           <div className="hidden items-center gap-2 lg:flex">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => router.push(`/users/${row._id}`)}
-            >
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Performance
-            </Button>
+
             <Button
               type="button"
               size="sm"
@@ -417,7 +444,10 @@ export default function UsersPage() {
           <Input
             placeholder="Search users..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="pl-9"
           />
         </div>
@@ -434,16 +464,46 @@ export default function UsersPage() {
 
       <DataTable
         columns={columns}
-        data={filteredUsers}
+        data={paginatedUsers}
         loading={isLoading}
         emptyMessage="No users found"
       />
 
-      <div className="mt-4 flex min-w-0 flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-0">
-        <span>
-          Showing {filteredUsers.length} of {visibleUsers.length}
+      {/* Pagination controls */}
+      <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-sm text-muted-foreground">
+          Showing {filteredUsers.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} of {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}
         </span>
-        <span>Total Users: {visibleUsers.length}</span>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={currentPage <= 1}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+
+          <span className="min-w-[6rem] text-center text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={currentPage >= totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

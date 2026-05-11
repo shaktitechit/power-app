@@ -149,6 +149,26 @@ const facilitySchema = new mongoose.Schema(
         },
       },
     ],
+
+    // 💰 Budget Information
+    budget: {
+      no_of_persons: {
+        type: Number,
+        default: null,
+      },
+      no_planned_site_visits: {
+        type: Number,
+        default: null,
+      },
+      tentative_budget: {
+        type: Number,
+        default: null,
+      },
+      actual_budget: {
+        type: Number,
+        default: null,
+      },
+    },
   },
   {
     timestamps: {

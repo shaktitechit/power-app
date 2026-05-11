@@ -22,7 +22,7 @@ import FacilityAuditor from "../modals/facilityAuditor.js";
 import RecentActivity from "../modals/recentActivity.js";
 import User from "../modals/user.js";
 import PresenceLog from "../modals/presenceLog.js";
-import { hasOrgWideFacilityAccess } from "../services/authorization/index.js";
+import { isAdmin } from "../services/authorization/index.js";
 
 const getMonthRanges = () => {
   const now = new Date();
@@ -90,7 +90,7 @@ const getModelUpdatedField = (Model) => {
 const getAccessibleFacilityIds = async (user) => {
   if (!user?._id) return [];
 
-  if (hasOrgWideFacilityAccess(user)) {
+  if (isAdmin(user)) {
     const facilities = await Facility.find({}, "_id").lean();
     return facilities.map((item) => item._id);
   }
@@ -163,25 +163,17 @@ const getCountComparison = async (Model, query = {}) => {
 const getRecentActivitiesData = async (user, facilityIds) => {
   const createdField = getModelCreatedField(RecentActivity) || "createdAt";
   const updatedField = getModelUpdatedField(RecentActivity) || "updatedAt";
-  const role = user?.role;
   let query = {};
 
-  if (role === "super_admin") {
-    query = {};
-  } else if (role === "admin") {
-    query = { actor_role: { $in: ["manager", "auditor"] } };
-  } else if (role === "manager" || role === "auditor") {
-    const teamUserIds = await getTeamMemberIdsFromFacilityAssignments(user?._id);
-    query = {
-      actor_id: { $in: teamUserIds },
-      ...(facilityIds?.length ? { facility_id: { $in: facilityIds } } : {}),
-    };
-  } else if (hasOrgWideFacilityAccess(user)) {
+  if (isAdmin(user)) {
+    // super_admin: all activities org-wide
     query = {};
   } else {
-    query = {
-      $or: [{ facility_id: { $in: facilityIds } }, { actor_id: user._id }],
-    };
+    // admin, manager, auditor: only activities on their assigned facilities
+    const teamUserIds = await getTeamMemberIdsFromFacilityAssignments(user?._id);
+    query = facilityIds?.length
+      ? { facility_id: { $in: facilityIds } }
+      : { actor_id: { $in: teamUserIds } };
   }
 
   const activities = await RecentActivity.find(query)
@@ -227,47 +219,16 @@ const getRecentActivitiesData = async (user, facilityIds) => {
 };
 
 const getVisibleUsers = async (user, facilityIds) => {
-  const role = user?.role;
-
-  if (role === "super_admin") {
+  if (isAdmin(user)) {
+    // super_admin: see all users
     const createdField = getModelCreatedField(User) || "createdAt";
     return await User.find({}, "name email role")
       .sort({ [createdField]: -1 })
       .lean();
   }
 
-  let userIds = [];
-  if (role === "admin") {
-    const users = await User.find(
-      { role: { $in: ["manager", "auditor"] } },
-      "_id",
-    ).lean();
-    userIds = users.map((item) => String(item._id));
-  } else if (role === "manager" || role === "auditor") {
-    userIds = await getTeamMemberIdsFromFacilityAssignments(user?._id);
-  } else if (hasOrgWideFacilityAccess(user)) {
-    const users = await User.find({}, "_id").lean();
-    userIds = users.map((item) => String(item._id));
-  } else {
-    const ownedFacilities = await Facility.find(
-      { owner_user_id: user._id },
-      "_id",
-    ).lean();
-
-    const assignedRows = await FacilityAuditor.find(
-      {
-        $or: [
-          { facility_id: { $in: facilityIds } },
-          { facility_id: { $in: ownedFacilities.map((f) => f._id) } },
-        ],
-      },
-      "user_id",
-    ).lean();
-
-    const assignedUserIds = assignedRows.map((item) => String(item.user_id));
-    userIds = [...new Set([String(user._id), ...assignedUserIds])];
-  }
-
+  // admin, manager, auditor: see only team members from their assigned facilities
+  const userIds = await getTeamMemberIdsFromFacilityAssignments(user?._id);
   return await User.find({ _id: { $in: userIds } }, "name email role").lean();
 };
 
@@ -332,13 +293,9 @@ const getUserAppearanceData = async (user, facilityIds) => {
 };
 
 const getDashboardStatQueries = (user, facilityIds, utilityIds) => {
-  const facilityQuery = hasOrgWideFacilityAccess(user) ? {} : { _id: { $in: facilityIds } };
-  const utilityQuery = hasOrgWideFacilityAccess(user)
-    ? {}
-    : { facility_id: { $in: facilityIds } };
-  const assetQuery = hasOrgWideFacilityAccess(user)
-    ? {}
-    : { utility_account_id: { $in: utilityIds } };
+  const facilityQuery = isAdmin(user) ? {} : { _id: { $in: facilityIds } };
+  const utilityQuery = isAdmin(user) ? {} : { facility_id: { $in: facilityIds } };
+  const assetQuery = isAdmin(user) ? {} : { utility_account_id: { $in: utilityIds } };
 
   return { facilityQuery, utilityQuery, assetQuery };
 };
@@ -379,13 +336,8 @@ const getCoreStats = async (user, facilityIds, utilityIds) => {
 const getAuditStats = async (user, facilityIds, utilityIds) => {
   const { assetQuery } = getDashboardStatQueries(user, facilityIds, utilityIds);
 
-  const facilityScopedQuery = hasOrgWideFacilityAccess(user)
-    ? {}
-    : { facility_id: { $in: facilityIds } };
-
-  const utilityScopedQuery = hasOrgWideFacilityAccess(user)
-    ? {}
-    : { utility_account_id: { $in: utilityIds } };
+  const facilityScopedQuery = isAdmin(user) ? {} : { facility_id: { $in: facilityIds } };
+  const utilityScopedQuery = isAdmin(user) ? {} : { utility_account_id: { $in: utilityIds } };
 
   const [
     acAudits,

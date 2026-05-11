@@ -101,6 +101,7 @@ const createFacility = asyncHandler(async (req, res) => {
     closure_date,
     auditor_ids,
     client_representatives,
+    budget: budgetRaw,
   } = req.body;
 
   if (!name || !city) {
@@ -116,18 +117,33 @@ const createFacility = asyncHandler(async (req, res) => {
     ? parsedClientRepresentatives
     : client_representative || client_contact_number || client_email
       ? [
-          {
-            name: String(client_representative || "").trim(),
-            contact_number: String(client_contact_number || "").trim(),
-            email: String(client_email || "").trim(),
-          },
-        ]
+        {
+          name: String(client_representative || "").trim(),
+          contact_number: String(client_contact_number || "").trim(),
+          email: String(client_email || "").trim(),
+        },
+      ]
       : [];
   const facilityId = new mongoose.Types.ObjectId();
   const uploadedDocuments = await uploadFacilityDocuments(
     req.files,
     facilityId,
   );
+
+  const parseNumberOrNull = (v) => {
+    const n = Number(v);
+    return v !== undefined && v !== null && v !== "" && !isNaN(n) ? n : null;
+  };
+  let parsedBudget = undefined;
+  if (budgetRaw !== undefined) {
+    const b = typeof budgetRaw === "string" ? JSON.parse(budgetRaw) : budgetRaw;
+    parsedBudget = {
+      no_of_persons: parseNumberOrNull(b?.no_of_persons),
+      no_planned_site_visits: parseNumberOrNull(b?.no_planned_site_visits),
+      tentative_budget: parseNumberOrNull(b?.tentative_budget),
+      actual_budget: parseNumberOrNull(b?.actual_budget),
+    };
+  }
 
   const facility = await Facility.create({
     _id: facilityId,
@@ -148,6 +164,7 @@ const createFacility = asyncHandler(async (req, res) => {
     start_date,
     closure_date,
     documents: uploadedDocuments,
+    ...(parsedBudget !== undefined && { budget: parsedBudget }),
   });
 
   if (parsedAuditorIds.length > 0) {
@@ -206,25 +223,21 @@ const createFacility = asyncHandler(async (req, res) => {
 const getFacilities = asyncHandler(async (req, res) => {
   let facilities = [];
 
-  if (hasOrgWideFacilityAccess(req.user)) {
+  if (isAdmin(req.user)) {
+    // super_admin only: see every facility in the system
     facilities = await Facility.find().sort({ start_date: -1, createdAt: -1 });
   } else {
+    // admin, manager, auditor — only facilities they are assigned to
     const assignedFacilityIds = await FacilityAuditor.find({
       user_id: req.user._id,
     }).distinct("facility_id");
-    // Manager visibility is strictly assignment-based from FacilityAuditor mappings.
-    if (req.user?.role === "manager") {
-      facilities = await Facility.find({
-        _id: { $in: assignedFacilityIds },
-      }).sort({ start_date: -1, createdAt: -1 });
-    } else {
-      facilities = await Facility.find({
-        $or: [
-          { owner_user_id: req.user._id },
-          { _id: { $in: assignedFacilityIds } },
-        ],
-      }).sort({ start_date: -1, createdAt: -1 });
-    }
+
+    facilities = await Facility.find({
+      $or: [
+        { owner_user_id: req.user._id },
+        { _id: { $in: assignedFacilityIds } },
+      ],
+    }).sort({ start_date: -1, createdAt: -1 });
   }
 
   res.status(200).json({
@@ -283,6 +296,7 @@ const updateFacility = asyncHandler(async (req, res) => {
     closure_date,
     auditor_ids,
     client_representatives,
+    budget: budgetRaw,
   } = req.body;
 
   let facility;
@@ -341,6 +355,20 @@ const updateFacility = asyncHandler(async (req, res) => {
   facility.status = status ?? facility.status;
   facility.start_date = start_date ?? facility.start_date;
   facility.closure_date = closure_date ?? facility.closure_date;
+
+  if (budgetRaw !== undefined) {
+    const parseNumberOrNull = (v) => {
+      const n = Number(v);
+      return v !== undefined && v !== null && v !== "" && !isNaN(n) ? n : null;
+    };
+    const b = typeof budgetRaw === "string" ? JSON.parse(budgetRaw) : budgetRaw;
+    facility.budget = {
+      no_of_persons: parseNumberOrNull(b?.no_of_persons),
+      no_planned_site_visits: parseNumberOrNull(b?.no_planned_site_visits),
+      tentative_budget: parseNumberOrNull(b?.tentative_budget),
+      actual_budget: parseNumberOrNull(b?.actual_budget),
+    };
+  }
 
   if (uploadedDocuments.length > 0) {
     facility.documents = [...(facility.documents || []), ...uploadedDocuments];

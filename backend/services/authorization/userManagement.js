@@ -34,9 +34,9 @@ export const sanitizePermissions = (permissions) => {
         new Set(
           Array.isArray(permission?.actions)
             ? permission.actions
-                .map((action) => String(action || "").trim())
-                .filter((action) => allowedActions.has(action))
-                .filter(Boolean)
+              .map((action) => String(action || "").trim())
+              .filter((action) => allowedActions.has(action))
+              .filter(Boolean)
             : [],
         ),
       ),

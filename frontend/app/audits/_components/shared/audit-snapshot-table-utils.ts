@@ -8,6 +8,33 @@ export function humanizeNestedKey(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function extractAllDocuments(obj: any, uan: string, prefix: string = "Utility Account"): any[] {
+  if (!obj || typeof obj !== "object") return [];
+  let docs: any[] = [];
+  
+  if (Array.isArray(obj.documents)) {
+    docs.push(...obj.documents.map((d: any) => ({
+      ...d,
+      utility_account_number: uan,
+      sourceType: prefix
+    })));
+  }
+
+  for (const key of Object.keys(obj)) {
+    if (key === "documents" || key === "utility_account") continue;
+    const val = obj[key];
+    if (Array.isArray(val)) {
+      for (const item of val) {
+        docs.push(...extractAllDocuments(item, uan, humanizeNestedKey(key)));
+      }
+    } else if (typeof val === "object" && val !== null) {
+      docs.push(...extractAllDocuments(val, uan, prefix));
+    }
+  }
+
+  return docs;
+}
+
 /** Hide Mongo/ObjectId-style keys from tables and JSON previews. */
 export function isIdLikeFieldKey(key: string): boolean {
   if (key.startsWith("__")) return true;

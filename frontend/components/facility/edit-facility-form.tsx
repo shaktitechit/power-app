@@ -128,9 +128,8 @@ function TeamMemberMultiSelect({
         >
           <span className="truncate text-left">
             {selectedUsers.length > 0
-              ? `${selectedUsers.length} member${
-                  selectedUsers.length > 1 ? "s" : ""
-                } selected`
+              ? `${selectedUsers.length} member${selectedUsers.length > 1 ? "s" : ""
+              } selected`
               : "Select team members"}
           </span>
           <ChevronDown className="h-4 w-4 opacity-60" />
@@ -229,7 +228,7 @@ export function EditFacilityForm({
 
   const users: AssignableUser[] = auditorsResponse?.data || [];
   const assignableUsers = users.filter(
-    (user) => user.role !== "super_admin" && user.role !== "admin",
+    (user) => user.role !== "super_admin",
   );
   const facility = facilityResponse?.data?.facility;
   const assignedAuditors = facilityResponse?.data?.assignedAuditors || [];
@@ -247,6 +246,12 @@ export function EditFacilityForm({
     status: "active",
     closure_date: "",
     auditor_ids: [] as string[],
+    budget: {
+      no_of_persons: "",
+      no_planned_site_visits: "",
+      tentative_budget: "",
+      actual_budget: "",
+    },
   });
 
   const [existingDocuments, setExistingDocuments] = useState<
@@ -270,19 +275,19 @@ export function EditFacilityForm({
         : "",
       client_representatives:
         facility.client_representatives &&
-        facility.client_representatives.length > 0
+          facility.client_representatives.length > 0
           ? facility.client_representatives.map((rep: any) => ({
-              name: rep?.name || "",
-              contact_number: rep?.contact_number || "",
-              email: rep?.email || "",
-            }))
+            name: rep?.name || "",
+            contact_number: rep?.contact_number || "",
+            email: rep?.email || "",
+          }))
           : [
-              {
-                name: facility.client_representative || "",
-                contact_number: facility.client_contact_number || "",
-                email: facility.client_email || "",
-              },
-            ],
+            {
+              name: facility.client_representative || "",
+              contact_number: facility.client_contact_number || "",
+              email: facility.client_email || "",
+            },
+          ],
       facility_type: facility.facility_type ?? "",
       audit_type: AUDIT_TYPE_OPTIONS.some((x) => x === facility.audit_type)
         ? (facility.audit_type as (typeof AUDIT_TYPE_OPTIONS)[number])
@@ -294,6 +299,12 @@ export function EditFacilityForm({
       auditor_ids: assignedAuditors
         .map((auditor: any) => auditor.user_id?._id)
         .filter(Boolean),
+      budget: {
+        no_of_persons: facility.budget?.no_of_persons != null ? String(facility.budget.no_of_persons) : "",
+        no_planned_site_visits: facility.budget?.no_planned_site_visits != null ? String(facility.budget.no_planned_site_visits) : "",
+        tentative_budget: facility.budget?.tentative_budget != null ? String(facility.budget.tentative_budget) : "",
+        actual_budget: facility.budget?.actual_budget != null ? String(facility.budget.actual_budget) : "",
+      },
     });
 
     setExistingDocuments(facility.documents || []);
@@ -442,6 +453,12 @@ export function EditFacilityForm({
           auditor_ids: formData.auditor_ids,
           documents: newDocuments.map((doc) => doc.file),
           removed_document_ids: removedExistingDocuments,
+          budget: {
+            no_of_persons: formData.budget.no_of_persons !== "" ? Number(formData.budget.no_of_persons) : null,
+            no_planned_site_visits: formData.budget.no_planned_site_visits !== "" ? Number(formData.budget.no_planned_site_visits) : null,
+            tentative_budget: formData.budget.tentative_budget !== "" ? Number(formData.budget.tentative_budget) : null,
+            actual_budget: formData.budget.actual_budget !== "" ? Number(formData.budget.actual_budget) : null,
+          },
         }).unwrap(),
 
       loading: "Updating facility...",
@@ -716,6 +733,60 @@ export function EditFacilityForm({
               >
                 Add Client Representative
               </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium">Budget Information</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit_no_of_persons">No. of Persons</Label>
+                <Input
+                  id="edit_no_of_persons"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 5"
+                  value={formData.budget.no_of_persons}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, no_of_persons: e.target.value } }))}
+                  disabled={isBusy}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_no_planned_site_visits">No. of Planned Site Visits</Label>
+                <Input
+                  id="edit_no_planned_site_visits"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 3"
+                  value={formData.budget.no_planned_site_visits}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, no_planned_site_visits: e.target.value } }))}
+                  disabled={isBusy}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_tentative_budget">Tentative Budget (₹)</Label>
+                <Input
+                  id="edit_tentative_budget"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 50000"
+                  value={formData.budget.tentative_budget}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, tentative_budget: e.target.value } }))}
+                  disabled={isBusy}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_actual_budget">Actual Budget (₹)</Label>
+                <Input
+                  id="edit_actual_budget"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 45000"
+                  value={formData.budget.actual_budget}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, actual_budget: e.target.value } }))}
+                  disabled={isBusy}
+                />
+              </div>
             </div>
           </div>
 

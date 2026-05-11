@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuditorsQuery } from "@/store/slices/userApiSlice";
 import { useAppSelector } from "@/store/hooks";
-import { BarChart3, Search, Shield, UserCheck } from "lucide-react";
+import { BarChart3, Search, Shield, UserCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   canAccessPerformanceHub,
   formatRoleLabel,
@@ -18,6 +18,7 @@ import {
 } from "@/lib/authRoles";
 
 const ADMIN_PERFORMANCE_ROLES: AppUserRole[] = ["manager", "auditor"];
+const PAGE_SIZE = 10;
 
 type RowUser = {
   _id: string;
@@ -31,6 +32,7 @@ export default function PerformanceListPage() {
   const currentUser = useAppSelector((state) => state.auth.user);
   const currentRole = currentUser?.role;
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data, isLoading } = useAuditorsQuery();
 
@@ -62,6 +64,12 @@ export default function PerformanceListPage() {
           .includes(searchQuery.toLowerCase()),
     );
   }, [visibleUsers, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredUsers.slice(start, start + PAGE_SIZE);
+  }, [filteredUsers, currentPage]);
 
   if (currentRole && !canAccessPerformanceHub(currentRole)) {
     return null;
@@ -131,7 +139,10 @@ export default function PerformanceListPage() {
           <Input
             placeholder="Search by name, email, or role…"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="pl-9"
           />
         </div>
@@ -139,16 +150,49 @@ export default function PerformanceListPage() {
 
       <DataTable
         columns={columns}
-        data={filteredUsers}
+        data={paginatedUsers}
         loading={isLoading}
         emptyMessage="No users to show"
       />
 
-      <div className="mt-4 text-sm text-muted-foreground">
-        {currentRole === "admin"
-          ? "Showing managers and auditors only."
-          : "Showing all users."}
+      {/* Pagination controls */}
+      <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-sm text-muted-foreground">
+          Showing {filteredUsers.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} of {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""}
+          {currentRole === "admin" ? " (managers & auditors only)" : ""}
+        </span>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={currentPage <= 1}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+
+          <span className="min-w-[6rem] text-center text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={currentPage >= totalPages}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </DashboardLayout>
   );
 }
+

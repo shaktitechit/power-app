@@ -55,6 +55,12 @@ const userSchema = new mongoose.Schema(
       default: "active",
     },
 
+    created_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     // 🔐 Auth Providers
     googleId: {
       type: String,
