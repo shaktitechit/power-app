@@ -122,7 +122,7 @@ export function Header({
   }, [runLogoutFlow]);
 
   const [timeLeft, setTimeLeft] = useState<string>("");
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(60); // 1 minute for testing (matches your backend change)
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(10 * 60); //10 minute for testing (matches your backend change)
 
   useEffect(() => {
     const getCookie = (name: string) => {
