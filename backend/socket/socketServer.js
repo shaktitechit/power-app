@@ -45,12 +45,20 @@ const setPresenceStatus = async ({ userId, status, ttl = null }) => {
   }
 };
 
-const createPresenceLog = async ({ userId, status, sessionId = null, reason = null }) => {
+const parseCookieMode = (cookieHeader) => {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(/(?:^|;\s*)mode=([^;]*)/);
+  const value = match ? decodeURIComponent(match[1]) : null;
+  return value === "onsite" || value === "offsite" ? value : null;
+};
+
+const createPresenceLog = async ({ userId, status, sessionId = null, reason = null, mode = null }) => {
   await PresenceLog.create({
     userId,
     status,
     sessionId,
     reason,
+    mode,
   });
 };
 
@@ -58,6 +66,8 @@ const socketServer = (io) => {
   io.on("connection", async (socket) => {
     const userId = socket.handshake.auth.userId;
     const sessionId = `${socket.id}:${Date.now()}`;
+    // Read mode cookie from the handshake so presence logs are mode-aware.
+    const cookieMode = parseCookieMode(socket.handshake.headers.cookie || "");
 
     const clearHeartbeatTimeout = () => {
       const timeoutId = heartbeatTimeouts.get(socket.id);
@@ -157,6 +167,7 @@ const socketServer = (io) => {
         status: "online",
         sessionId,
         reason: "connection",
+        mode: cookieMode,
       });
 
       io.emit("user-online", { userId });
@@ -245,6 +256,7 @@ const socketServer = (io) => {
           status: "online",
           sessionId,
           reason: "user-online",
+          mode: cookieMode,
         });
 
         io.emit("user-online", { userId });

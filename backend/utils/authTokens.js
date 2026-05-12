@@ -152,4 +152,5 @@ export const clearAuthCookies = (res) => {
   res.cookie("role", "", expired);
   res.cookie("reportsHub", "", expired);
   res.cookie("usersHub", "", expired);
+  res.cookie("mode", "", expired);
 };

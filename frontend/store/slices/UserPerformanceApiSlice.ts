@@ -119,16 +119,27 @@ export interface UserPerformanceCompletedAuditsResponse {
   data: UserPerformanceCompletedAudit[];
 }
 
+export interface PresenceDaySummary {
+  date: string;
+  first_login_at: string | null;
+  last_logout_at: string | null;
+  onsite_login_at: string | null;
+  offsite_login_at: string | null;
+  screen_time_minutes: number;
+  screen_time_hours: number;
+  onsite_screen_time_minutes: number;
+  onsite_screen_time_hours: number;
+  offsite_screen_time_minutes: number;
+  offsite_screen_time_hours: number;
+  activity_count: number;
+  onsite_activity_count: number;
+  offsite_activity_count: number;
+}
+
 export interface UserPerformancePresenceResponse {
   success: boolean;
   data: {
-    daywise_presence: {
-      date: string;
-      first_login_at: string | null;
-      last_logout_at: string | null;
-      screen_time_minutes: number;
-      screen_time_hours: number;
-    }[];
+    daywise_presence: PresenceDaySummary[];
     presence_filter: {
       filter_type: "date" | "month";
       date: string | null;
@@ -144,13 +155,24 @@ export interface UserPerformancePresenceActivitiesResponse {
     date: string;
     first_login_at: string | null;
     last_logout_at: string | null;
+    onsite_login_at: string | null;
+    offsite_login_at: string | null;
+    screen_time_minutes: number;
+    screen_time_hours: number;
+    onsite_screen_time_minutes: number;
+    onsite_screen_time_hours: number;
+    offsite_screen_time_minutes: number;
+    offsite_screen_time_hours: number;
     activity_count: number;
+    onsite_activity_count: number;
+    offsite_activity_count: number;
     activities: {
       _id: string;
       action: string;
       entity_type: string;
       entity_name: string;
       message: string;
+      mode: "onsite" | "offsite" | null;
       created_at: string | null;
       facility_id: string | null;
       utility_account_id: string | null;

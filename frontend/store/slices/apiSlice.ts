@@ -111,6 +111,7 @@ export const apiSlice = createApi({
     "SafetyPumpCompressorAudit",
     "SafetyAdditionalItemsAudit",
     "AuditSnapshot",
+    "Mode",
   ],
   endpoints: () => ({}),
 });

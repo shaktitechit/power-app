@@ -21,6 +21,7 @@ import { socket } from "@/lib/socket";
 import { toastHandler } from "@/lib/toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FontSizeControl } from "@/components/font-size-control";
+import { ModeToggle } from "@/components/mode-toggle";
 import { toast } from "sonner";
 
 interface HeaderProps {
@@ -35,11 +36,7 @@ export function Header({
   onMenuClick,
 }: HeaderProps) {
   const user = useAppSelector((state) => state.auth.user);
-
-  // read presence map
   const presenceMap = usePresenceMap();
-
-  // get current user status
   const status = presenceMap[user?._id] || "offline";
 
   const router = useRouter();
@@ -54,45 +51,45 @@ export function Header({
     sessionStorage.clear();
   };
 
-  const runLogoutFlow = useCallback(async ({
-    isForced = false,
-    showSuccessToast = true,
-  }: {
-    isForced?: boolean;
-    showSuccessToast?: boolean;
-  } = {}) => {
-    if (isForceLoggingOutRef.current) return;
-    isForceLoggingOutRef.current = true;
+  const runLogoutFlow = useCallback(
+    async ({
+      isForced = false,
+      showSuccessToast = true,
+    }: {
+      isForced?: boolean;
+      showSuccessToast?: boolean;
+    } = {}) => {
+      if (isForceLoggingOutRef.current) return;
+      isForceLoggingOutRef.current = true;
 
-    try {
-      if (!isForced) {
-        socket.emit("user-offline");
-      }
-      socket.disconnect();
-
-      // Server logout clears auth cookies. Proceed with client cleanup even if it fails.
       try {
-        await userLogout().unwrap();
-      } catch (apiError) {
-        console.error("Logout API failed", apiError);
+        if (!isForced) {
+          socket.emit("user-offline");
+        }
+        socket.disconnect();
+
+        try {
+          await userLogout().unwrap();
+        } catch (apiError) {
+          console.error("Logout API failed", apiError);
+        }
+
+        dispatch(logout());
+        clearClientStorage();
+
+        if (showSuccessToast) {
+          toast.success(
+            isForced ? "Logged out due to inactivity." : "Signed out successfully"
+          );
+        }
+
+        router.push("/login");
+      } finally {
+        isForceLoggingOutRef.current = false;
       }
-
-      dispatch(logout());
-      clearClientStorage();
-
-      if (showSuccessToast) {
-        toast.success(
-          isForced
-            ? "Logged out due to inactivity."
-            : "Signed out successfully",
-        );
-      }
-
-      router.push("/login");
-    } finally {
-      isForceLoggingOutRef.current = false;
-    }
-  }, [dispatch, router, userLogout]);
+    },
+    [dispatch, router, userLogout]
+  );
 
   const handleProfile = () => {
     if (user?._id) {
@@ -126,19 +123,14 @@ export function Header({
 
   function getInitials(name?: string | null) {
     if (!name) return "U";
-
     const parts = name.trim().split(" ").filter(Boolean);
     if (parts.length === 0) return "U";
-
-    return parts
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
+    return parts.map((p) => p[0]).join("").slice(0, 2).toUpperCase();
   }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center justify-between gap-2 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:gap-3 sm:px-6">
+      {/* Left: title */}
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         <Button
           variant="ghost"
@@ -163,15 +155,24 @@ export function Header({
         </div>
       </div>
 
+      {/* Right: controls */}
       <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-3 md:gap-4">
         <div className="hidden md:flex">
           <FontSizeControl />
         </div>
+
         <ThemeToggle />
 
+        {/* Mode toggle pill + dialogs */}
+        <ModeToggle />
+
+        {/* User dropdown */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex max-w-[14rem] items-center gap-2 px-2 sm:max-w-[18rem]">
+            <Button
+              variant="ghost"
+              className="flex max-w-[14rem] items-center gap-2 px-2 sm:max-w-[18rem]"
+            >
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-sm text-primary-foreground">
                   {getInitials(user?.name)}

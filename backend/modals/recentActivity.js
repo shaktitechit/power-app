@@ -107,6 +107,13 @@ const recentActivitySchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    mode: {
+      type: String,
+      enum: ["onsite", "offsite", null],
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -117,6 +124,7 @@ recentActivitySchema.index({ createdAt: -1 });
 recentActivitySchema.index({ facility_id: 1, createdAt: -1 });
 recentActivitySchema.index({ utility_account_id: 1, createdAt: -1 });
 recentActivitySchema.index({ entity_type: 1, entity_id: 1, createdAt: -1 });
+recentActivitySchema.index({ mode: 1, createdAt: -1 });
 
 const RecentActivity = mongoose.model("RecentActivity", recentActivitySchema);
 

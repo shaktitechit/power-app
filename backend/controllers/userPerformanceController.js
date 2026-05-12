@@ -363,20 +363,49 @@ const getUserPerformancePresence = asyncHandler(async (req, res) => {
 
     const summaries = await Promise.all(
       days.map(async ({ dayStart, dayEnd }) => {
-        const summary = await PresenceLog.getDailySummary({
-          userId: String(userId),
-          dayStart,
-          dayEnd,
-        });
+        // Run presence summary and mode-split activity counts in parallel
+        const [summary, activityModes] = await Promise.all([
+          PresenceLog.getDailySummary({ userId: String(userId), dayStart, dayEnd }),
+          RecentActivity.aggregate([
+            {
+              $match: {
+                actor_id: new mongoose.Types.ObjectId(String(userId)),
+                createdAt: { $gte: dayStart, $lt: dayEnd },
+              },
+            },
+            { $group: { _id: "$mode", count: { $sum: 1 } } },
+          ]),
+        ]);
+
+        let totalActivities = 0;
+        let onsiteActivities = 0;
+        let offsiteActivities = 0;
+        for (const item of activityModes) {
+          const cnt = item.count || 0;
+          totalActivities += cnt;
+          if (item._id === "onsite") onsiteActivities += cnt;
+          else if (item._id === "offsite") offsiteActivities += cnt;
+        }
+
         return {
           date: getISTDateKey(dayStart),
           first_login_at: summary.firstLoginAt,
           last_logout_at: summary.lastLogoutAt,
+          onsite_login_at: summary.onsiteLoginAt,
+          offsite_login_at: summary.offsiteLoginAt,
           screen_time_minutes: summary.screenTimeMinutes,
           screen_time_hours: summary.screenTimeHours,
+          onsite_screen_time_minutes: summary.onsiteScreenTimeMinutes,
+          onsite_screen_time_hours: summary.onsiteScreenTimeHours,
+          offsite_screen_time_minutes: summary.offsiteScreenTimeMinutes,
+          offsite_screen_time_hours: summary.offsiteScreenTimeHours,
+          activity_count: totalActivities,
+          onsite_activity_count: onsiteActivities,
+          offsite_activity_count: offsiteActivities,
         };
       }),
     );
+
 
     res.status(200).json({
       success: true,
@@ -425,7 +454,17 @@ const getUserPerformancePresenceActivities = asyncHandler(async (req, res) => {
           date: getISTDateKey(dayStart),
           first_login_at: null,
           last_logout_at: null,
+          onsite_login_at: null,
+          offsite_login_at: null,
+          screen_time_minutes: 0,
+          screen_time_hours: 0,
+          onsite_screen_time_minutes: 0,
+          onsite_screen_time_hours: 0,
+          offsite_screen_time_minutes: 0,
+          offsite_screen_time_hours: 0,
           activity_count: 0,
+          onsite_activity_count: 0,
+          offsite_activity_count: 0,
           activities: [],
         },
       });
@@ -442,9 +481,12 @@ const getUserPerformancePresenceActivities = asyncHandler(async (req, res) => {
     })
       .sort({ createdAt: -1 })
       .select(
-        "action entity_type entity_name message createdAt facility_id utility_account_id",
+        "action entity_type entity_name message createdAt facility_id utility_account_id mode",
       )
       .lean();
+
+    const onsiteActivities = activities.filter((a) => a.mode === "onsite").length;
+    const offsiteActivities = activities.filter((a) => a.mode === "offsite").length;
 
     res.status(200).json({
       success: true,
@@ -452,13 +494,24 @@ const getUserPerformancePresenceActivities = asyncHandler(async (req, res) => {
         date: getISTDateKey(dayStart),
         first_login_at: summary.firstLoginAt,
         last_logout_at: summary.lastLogoutAt,
+        onsite_login_at: summary.onsiteLoginAt,
+        offsite_login_at: summary.offsiteLoginAt,
+        screen_time_minutes: summary.screenTimeMinutes,
+        screen_time_hours: summary.screenTimeHours,
+        onsite_screen_time_minutes: summary.onsiteScreenTimeMinutes,
+        onsite_screen_time_hours: summary.onsiteScreenTimeHours,
+        offsite_screen_time_minutes: summary.offsiteScreenTimeMinutes,
+        offsite_screen_time_hours: summary.offsiteScreenTimeHours,
         activity_count: activities.length,
+        onsite_activity_count: onsiteActivities,
+        offsite_activity_count: offsiteActivities,
         activities: activities.map((item) => ({
           _id: String(item._id),
           action: item.action || "",
           entity_type: item.entity_type || "",
           entity_name: item.entity_name || "",
           message: item.message || "",
+          mode: item.mode || null,
           created_at: item.createdAt || null,
           facility_id: item.facility_id ? String(item.facility_id) : null,
           utility_account_id: item.utility_account_id

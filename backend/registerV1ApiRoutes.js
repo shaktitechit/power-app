@@ -51,6 +51,9 @@ import safetyWiringAuditRoutes from "./routes/safety-audit/safetyWiringAuditRout
 import safetyPumpCompressorAuditRoutes from "./routes/safety-audit/safetyPumpCompressorAuditRoutes.js";
 import safetyAdditionalItemsAuditRoutes from "./routes/safety-audit/safetyAdditionalItemsAuditRoutes.js";
 
+import modeRoutes from "./routes/modeRoutes.js";
+
+
 /**
  * Mounts `/api` rate limiter and all `/api/v1/...` routers.
  * @param {import("express").Application} app
@@ -114,4 +117,7 @@ export function registerV1ApiRoutes(app) {
 
   // --- Admin ---
   app.use("/api/v1/admin/users", adminRoutes);
+
+  // --- Mode ---
+  app.use("/api/v1/mode", modeRoutes);
 }
