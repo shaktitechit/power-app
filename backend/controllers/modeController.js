@@ -2,6 +2,7 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import { VALID_MODES } from "../constants/modes.js";
 import PresenceLog from "../modals/presenceLog.js";
 import redisClient from "../lib/redisClient.js";
+import { cookieDefaults } from "../utils/authTokens.js";
 
 /**
  * @desc    Set the operational mode via an httpOnly cookie
@@ -21,11 +22,9 @@ const setMode = asyncHandler(async (req, res) => {
   }
 
   res.cookie("mode", mode, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    ...cookieDefaults(),
     sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: "/",
   });
 
   // If user is currently online, split the presence log session
@@ -85,10 +84,8 @@ const getMode = asyncHandler(async (req, res) => {
  */
 const clearMode = asyncHandler(async (req, res) => {
   res.clearCookie("mode", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    ...cookieDefaults(),
     sameSite: "strict",
-    path: "/",
   });
 
   res.status(200).json({

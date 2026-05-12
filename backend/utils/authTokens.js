@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
  * - Cross-origin API only: set COOKIE_SAMESITE=none and COOKIE_SECURE=true (SameSite=None requires Secure).
  * - Subdomains (app + API): set COOKIE_DOMAIN=.example.com so jwt is sent to both.
  */
-const cookieDefaults = () => {
+export const cookieDefaults = () => {
   const secure =
     process.env.COOKIE_SECURE === "false"
       ? false
