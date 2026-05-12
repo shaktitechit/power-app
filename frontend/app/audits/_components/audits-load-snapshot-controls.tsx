@@ -84,8 +84,10 @@ export function AuditsLoadSnapshotControls({
           <SelectContent>
             {facilitiesForAuditType.map((f) => (
               <SelectItem key={f._id} value={f._id}>
-                {f.name}
-                {f.city ? ` · ${f.city}` : ""}
+                <span className="block truncate max-w-[14rem] sm:max-w-[20rem]" title={`${f.name}${f.city ? ` · ${f.city}` : ""}`}>
+                  {f.name}
+                  {f.city ? ` · ${f.city}` : ""}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>

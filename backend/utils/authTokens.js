@@ -23,7 +23,7 @@ export const cookieDefaults = () => {
 
   const domain = process.env.COOKIE_DOMAIN?.trim();
   const base = {
-    httpOnly: true,
+    httpOnly: process.env.NODE_ENV === "production" ? true : false,
     secure,
     sameSite,
     path: "/",
@@ -143,6 +143,12 @@ export const setAuthCookies = (
       maxAge: refreshMs,
     });
   }
+
+  res.cookie("sessionTimer", String(Date.now() + 10 * 60 * 1000), {
+    ...opts,
+    sameSite: "lax",
+    maxAge: 10 * 60 * 1000,
+  });
 };
 
 export const clearAuthCookies = (res) => {
@@ -153,4 +159,5 @@ export const clearAuthCookies = (res) => {
   res.cookie("reportsHub", "", expired);
   res.cookie("usersHub", "", expired);
   res.cookie("mode", "", expired);
+  res.cookie("sessionTimer", "", expired);
 };

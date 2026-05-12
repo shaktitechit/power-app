@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../modals/user.js";
 import logger from "../config/logger.js";
 import buildLogMeta from "../utils/buildLogMeta.js";
-import { getAccessSecret, getBearerAccessToken } from "../utils/authTokens.js";
+import { getAccessSecret, getBearerAccessToken, cookieDefaults } from "../utils/authTokens.js";
 import asyncHandler from "./asyncHandler.js";
 import { isAdmin as isPlatformAdmin } from "../services/authorization/index.js";
 
@@ -54,6 +54,13 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   req.user = user;
+
+  // // Update session timer cookie on activity
+  // res.cookie("sessionTimer", String(Date.now() + 1 * 60 * 1000), {
+  //   ...cookieDefaults(),
+  //   sameSite: "lax",
+  //   maxAge: 1 * 60 * 1000,
+  // });
 
   // 🔹 keep this as debug (not info to avoid noise)
   logger.debug(
