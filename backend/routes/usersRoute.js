@@ -6,6 +6,7 @@ import {
   getUserProfile,
   refreshAccessToken,
   userLogout,
+  refreshSessionTimer,
   getAuditors,
   updateUser,
   deleteUser,
@@ -22,6 +23,7 @@ router.post("/register", authRateLimiter, registerUser);
 router.post("/login", authRateLimiter, loginUser);
 router.post("/refresh", apiRateLimiter, refreshAccessToken);
 router.post("/logout", userLogout);
+router.post("/refresh-timer", protect, refreshSessionTimer);
 
 // 👤 Profile
 router.get("/profile", protect, getUserProfile);

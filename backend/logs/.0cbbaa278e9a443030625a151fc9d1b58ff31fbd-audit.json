@@ -54,6 +54,11 @@
             "date": 1778562995384,
             "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\application-2026-05-12.log",
             "hash": "080d40c9ddecc2fcf0c56628d9ee9c9c4bc4975adb55f75401953090e463e656"
+        },
+        {
+            "date": 1778611654859,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\application-2026-05-13.log",
+            "hash": "811ff1c6ef67e5086ba28ed1d022dda72a344c9381abe05697939157c465908b"
         }
     ],
     "hashType": "sha256"

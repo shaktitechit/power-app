@@ -44,6 +44,7 @@ export function Header({
 
   const [userLogout, { isLoading }] = useLogoutMutation();
   const isForceLoggingOutRef = useRef(false);
+  const lastPingRef = useRef(0);
 
   const clearClientStorage = () => {
     if (typeof window === "undefined") return;
@@ -140,11 +141,37 @@ export function Header({
       const diff = Math.floor((expiresAt - Date.now()) / 1000);
       if (diff > 0) {
         setSecondsRemaining(diff);
+      } else {
+        runLogoutFlow({ isForced: true, showSuccessToast: false });
+        return;
       }
+    } else {
+      runLogoutFlow({ isForced: true, showSuccessToast: false });
+      return;
     }
 
     const resetTimer = () => {
       setSecondsRemaining(10 * 60); // Reset to 10 minutes on activity
+
+      const now = Date.now();
+      if (now - lastPingRef.current > 60 * 1000) { // 1 minute throttle
+        lastPingRef.current = now;
+        
+        fetch('/api/v1/users/refresh-timer', { 
+          method: 'POST',
+          credentials: 'include'
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.expiresAt) {
+            const diff = Math.floor((data.expiresAt - Date.now()) / 1000);
+            if (diff > 0) {
+              setSecondsRemaining(diff);
+            }
+          }
+        })
+        .catch(err => console.error("Heartbeat failed", err));
+      }
     };
 
     const events = ["mousemove", "keydown", "click", "scroll"];

@@ -9,6 +9,7 @@ import { createRecentActivity } from "../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../helpers/buildActivityMessage.js";
 import {
   clearAuthCookies,
+  cookieDefaults,
   getRefreshExpiresIn,
   getRefreshSecret,
   hashToken,
@@ -50,6 +51,16 @@ const issueTokensForUser = async (req, res, user) => {
       role: user.role,
       permissions: user.permissions || [],
     }),
+  });
+
+  // Set session timer cookie on login
+  const expiresInMs = 10 * 60 * 1000; // 10 minutes
+  const expiresAt = Date.now() + expiresInMs;
+  const opts = cookieDefaults();
+  res.cookie("sessionTimer", expiresAt.toString(), {
+    ...opts,
+    maxAge: expiresInMs,
+    httpOnly: false, // Force false so frontend can read it
   });
 };
 
@@ -193,6 +204,24 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   });
 
   res.json({ ok: true });
+});
+
+//@route POST /api/v1/users/refresh-timer
+//@desc Refresh the session timer cookie
+//@access Private
+const refreshSessionTimer = asyncHandler(async (req, res) => {
+  const expiresInMs = 10 * 60 * 1000; // 10 minutes
+  const expiresAt = Date.now() + expiresInMs;
+
+  const opts = cookieDefaults();
+
+  res.cookie("sessionTimer", expiresAt.toString(), {
+    ...opts,
+    maxAge: expiresInMs,
+    httpOnly: false, // Force false so frontend can read it
+  });
+
+  res.json({ ok: true, expiresAt });
 });
 
 //@route POST /api/v1/users/logout
@@ -420,6 +449,7 @@ export {
   getUserProfile,
   refreshAccessToken,
   userLogout,
+  refreshSessionTimer,
   getAuditors,
   updateUser,
   deleteUser,
