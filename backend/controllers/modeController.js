@@ -1,6 +1,8 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import { VALID_MODES } from "../constants/modes.js";
 import PresenceLog from "../modals/presenceLog.js";
+import UserSession from "../modals/userSession.js";
+import jwt from "jsonwebtoken";
 import redisClient from "../lib/redisClient.js";
 import { cookieDefaults } from "../utils/authTokens.js";
 
@@ -11,7 +13,7 @@ import { cookieDefaults } from "../utils/authTokens.js";
  * @body    { mode: "onsite" | "offsite" }
  */
 const setMode = asyncHandler(async (req, res) => {
-  const { mode } = req.body;
+  const { mode, location } = req.body;
   const userId = req.user?._id;
 
   if (!mode || !VALID_MODES.includes(mode)) {
@@ -53,6 +55,21 @@ const setMode = asyncHandler(async (req, res) => {
     } catch (error) {
       // Log error but don't fail the request
       console.error("Failed to split presence log on mode change:", error);
+    }
+  }
+
+  // Update UserSession with location
+  if (location && typeof location.lat === "number" && typeof location.lng === "number") {
+    const token = req.cookies.jwt;
+    if (token) {
+      try {
+        const decoded = jwt.decode(token);
+        if (decoded && decoded.sid) {
+          await UserSession.findByIdAndUpdate(decoded.sid, { location });
+        }
+      } catch (err) {
+        console.error("Failed to update location in session:", err);
+      }
     }
   }
 

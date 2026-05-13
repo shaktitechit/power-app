@@ -1,9 +1,12 @@
 import PresenceLog from "../modals/presenceLog.js";
 import redisClient from "../lib/redisClient.js";
 import User from "../modals/user.js";
+import UserSession from "../modals/userSession.js";
 import logger from "../config/logger.js";
+import jwt from "jsonwebtoken";
+import { getAccessSecret } from "../utils/authTokens.js";
 
-const onlineUsers = new Map();
+export const onlineUsers = new Map();
 const heartbeatTimeouts = new Map();
 const forcedHeartbeatLogoutSockets = new Set();
 
@@ -45,11 +48,10 @@ const setPresenceStatus = async ({ userId, status, ttl = null }) => {
   }
 };
 
-const parseCookieMode = (cookieHeader) => {
+const parseCookie = (cookieHeader, name) => {
   if (!cookieHeader) return null;
-  const match = cookieHeader.match(/(?:^|;\s*)mode=([^;]*)/);
-  const value = match ? decodeURIComponent(match[1]) : null;
-  return value === "onsite" || value === "offsite" ? value : null;
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
 };
 
 const createPresenceLog = async ({ userId, status, sessionId = null, reason = null, mode = null }) => {
@@ -65,9 +67,41 @@ const createPresenceLog = async ({ userId, status, sessionId = null, reason = nu
 const socketServer = (io) => {
   io.on("connection", async (socket) => {
     const userId = socket.handshake.auth.userId;
-    const sessionId = `${socket.id}:${Date.now()}`;
-    // Read mode cookie from the handshake so presence logs are mode-aware.
-    const cookieMode = parseCookieMode(socket.handshake.headers.cookie || "");
+    
+    const cookieHeader = socket.handshake.headers.cookie || "";
+    const mode = parseCookie(cookieHeader, "mode");
+    const cookieMode = (mode === "onsite" || mode === "offsite") ? mode : null;
+    const token = parseCookie(cookieHeader, "jwt");
+
+    let sessionId = `${socket.id}:${Date.now()}`; // Fallback
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, getAccessSecret());
+        if (decoded.sid) {
+          sessionId = decoded.sid;
+          
+          // Check if session is still valid in DB
+          const session = await UserSession.findById(sessionId);
+          if (!session || session.revokedAt || session.expiresAt.getTime() <= Date.now()) {
+            logger.info("Rejecting socket connection: session expired or revoked", { sessionId });
+            
+            // Explicitly revoke if it was just expired by time
+            if (session && !session.revokedAt && session.expiresAt.getTime() <= Date.now()) {
+              await UserSession.findByIdAndUpdate(sessionId, { revokedAt: new Date() });
+            }
+
+            socket.emit("force-logout", {
+              reason: "session_expired",
+              message: "Your session has expired.",
+            });
+            socket.disconnect(true);
+            return;
+          }
+        }
+      } catch (err) {
+        logger.warn("Failed to verify socket JWT", { error: err.message });
+      }
+    }
 
     const clearHeartbeatTimeout = () => {
       const timeoutId = heartbeatTimeouts.get(socket.id);
@@ -210,6 +244,37 @@ const socketServer = (io) => {
 
     socket.on("heartbeat", async () => {
       try {
+        // Check if session is still valid in DB
+        if (sessionId && /^[0-9a-fA-F]{24}$/.test(sessionId)) {
+          const session = await UserSession.findById(sessionId);
+          if (!session || session.revokedAt || session.expiresAt.getTime() <= Date.now()) {
+            logger.info(
+              "Disconnecting socket: session expired or revoked",
+              buildSocketLogMeta(socket, { event: "heartbeat", sessionId })
+            );
+            
+            // Explicitly revoke if it was just expired by time
+            if (session && !session.revokedAt && session.expiresAt.getTime() <= Date.now()) {
+              await UserSession.findByIdAndUpdate(sessionId, { revokedAt: new Date() });
+            }
+
+            await createPresenceLog({
+              userId,
+              status: "offline",
+              sessionId,
+              reason: "session_expired",
+            });
+            
+            socket.emit("force-logout", {
+              reason: "session_expired",
+              message: "Your session has expired.",
+            });
+            
+            socket.disconnect(true);
+            return;
+          }
+        }
+
         const currentStatus = await redisClient.get(`presence:${userId}`);
 
         const statusToKeep =

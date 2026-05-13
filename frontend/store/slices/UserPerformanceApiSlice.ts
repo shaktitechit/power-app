@@ -180,6 +180,34 @@ export interface UserPerformancePresenceActivitiesResponse {
   };
 }
 
+export interface UserPerformanceSessionSummary {
+  sessionId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  activityCount: number;
+  ip: string | null;
+  userAgent: string | null;
+  location?: {
+    lat: number;
+    lng: number;
+    name?: string;
+  } | null;
+  logs: {
+    status: string;
+    timestamp: string;
+    reason: string | null;
+    mode: string | null;
+  }[];
+}
+
+export interface UserPerformanceSessionsResponse {
+  success: boolean;
+  count: number;
+  data: UserPerformanceSessionSummary[];
+}
+
 export const userPerformanceApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getUserPerformanceSummary: builder.query<UserPerformanceSummaryResponse, string>({
@@ -238,6 +266,28 @@ export const userPerformanceApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["PresenceLog"],
     }),
+    getUserPerformanceSessions: builder.query<
+      UserPerformanceSessionsResponse,
+      {
+        userId: string;
+        filterType?: "date" | "month";
+        date?: string;
+        month?: number;
+        year?: number;
+      }
+    >({
+      query: ({ userId, filterType, date, month, year }) => ({
+        url: `/v1/user-performance/${userId}/sessions`,
+        method: "GET",
+        params: {
+          ...(filterType ? { filter_type: filterType } : {}),
+          ...(date ? { date } : {}),
+          ...(month ? { month } : {}),
+          ...(year ? { year } : {}),
+        },
+      }),
+      providesTags: ["PresenceLog"],
+    }),
     getUserPerformancePresenceActivities: builder.query<
       UserPerformancePresenceActivitiesResponse,
       { userId: string; date: string }
@@ -282,4 +332,5 @@ export const {
   useGetUserPerformanceCompletedAuditsQuery,
   useGetUserPerformancePresenceQuery,
   useLazyGetUserPerformancePresenceActivitiesQuery,
+  useGetUserPerformanceSessionsQuery,
 } = userPerformanceApiSlice;

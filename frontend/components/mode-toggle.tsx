@@ -66,23 +66,76 @@ export function ModeToggle() {
   const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  
+  const [location, setLocation] = useState<{ lat: number; lng: number; name?: string } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
 
-  // Show login-time prompt once per session when no mode is set.
-  // We wait for the fresh fetch (isFetching) to settle so we never
-  // act on stale cached data left over from the previous session.
+  const fetchLocation = useCallback(async () => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      return;
+    }
+
+    setLocationLoading(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        });
+      });
+      
+      const { latitude: lat, longitude: lng } = position.coords;
+      const loc = { lat, lng, name: "" };
+      setLocation(loc);
+
+      // Fetch location name using Nominatim (OpenStreetMap)
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+          {
+            headers: {
+              "User-Agent": "PowerApp/1.0",
+            },
+          }
+        );
+        const data = await res.json();
+        if (data && data.display_name) {
+          setLocation({ ...loc, name: data.display_name });
+        }
+      } catch (err) {
+        console.error("Failed to fetch location name:", err);
+      }
+    } catch (err) {
+      console.error("Geolocation failed:", err);
+      toast.error("Could not get precise location.");
+    } finally {
+      setLocationLoading(false);
+    }
+  }, []);
+
+  // Show prompt if no mode is set.
+  // We wait for the fresh fetch to settle.
   useEffect(() => {
     if (modeResolving || !user) return;
-    const alreadyShown = sessionStorage.getItem(MODE_PROMPT_KEY) === "true";
-    if (!alreadyShown && currentMode === null) {
+    if (currentMode === null) {
       setShowLoginPrompt(true);
-      sessionStorage.setItem(MODE_PROMPT_KEY, "true");
+    } else {
+      setShowLoginPrompt(false);
     }
   }, [modeResolving, currentMode, user]);
+
+  // Fetch location when a modal opens
+  useEffect(() => {
+    if (showConfirm || showLoginPrompt) {
+      fetchLocation();
+    }
+  }, [showConfirm, showLoginPrompt, fetchLocation]);
 
   const applyMode = useCallback(
     async (mode: AppMode) => {
       try {
-        await setModeMutation({ mode }).unwrap();
+        await setModeMutation({ mode, location: location || undefined }).unwrap();
         toast.success(
           `Mode switched to ${mode === "onsite" ? "On-site" : "Off-site"}`
         );
@@ -90,7 +143,7 @@ export function ModeToggle() {
         toast.error("Failed to update mode. Please try again.");
       }
     },
-    [setModeMutation]
+    [setModeMutation, location]
   );
 
   const handleLoginModeSelect = async (mode: AppMode) => {
@@ -132,7 +185,7 @@ export function ModeToggle() {
           onClick={handleToggleClick}
           disabled={isSettingMode}
           title={`Current mode: ${modeConfig.label}. Click to switch.`}
-          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200 hover:opacity-80 disabled:opacity-50 ${modeConfig.className}`}
+          className={`flex items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-all duration-200 hover:opacity-80 disabled:opacity-50 ${modeConfig.className}`}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${modeConfig.dotClass}`} />
           <ModeIcon className="h-3 w-3" />
@@ -167,7 +220,7 @@ export function ModeToggle() {
             <button
               id="login-mode-onsite-btn"
               onClick={() => handleLoginModeSelect("onsite")}
-              disabled={isSettingMode}
+              disabled={isSettingMode || locationLoading || !location}
               className="group flex flex-col items-center gap-3 rounded-xl border-2 border-border bg-card p-5 text-center transition-all duration-200 hover:border-emerald-500 hover:bg-emerald-500/5 disabled:opacity-50"
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 transition-transform duration-200 group-hover:scale-110 dark:text-emerald-400">
@@ -185,7 +238,7 @@ export function ModeToggle() {
             <button
               id="login-mode-offsite-btn"
               onClick={() => handleLoginModeSelect("offsite")}
-              disabled={isSettingMode}
+              disabled={isSettingMode || locationLoading || !location}
               className="group flex flex-col items-center gap-3 rounded-xl border-2 border-border bg-card p-5 text-center transition-all duration-200 hover:border-sky-500 hover:bg-sky-500/5 disabled:opacity-50"
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-500/15 text-sky-600 transition-transform duration-200 group-hover:scale-110 dark:text-sky-400">
@@ -198,6 +251,30 @@ export function ModeToggle() {
                 </p>
               </div>
             </button>
+          </div>
+
+          <div className="border-t pt-3 mt-1 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground uppercase">Location</p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs"
+                onClick={fetchLocation}
+                disabled={locationLoading}
+              >
+                {locationLoading ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+            {location ? (
+              <p className="text-xs text-foreground">
+                {location.name || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {locationLoading ? "Fetching location..." : "Location not available"}
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -234,6 +311,30 @@ export function ModeToggle() {
             </div>
           )}
 
+          <div className="border-t pt-3 mt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground uppercase">Location</p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs"
+                onClick={fetchLocation}
+                disabled={locationLoading}
+              >
+                {locationLoading ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+            {location ? (
+              <p className="text-xs text-foreground">
+                {location.name || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {locationLoading ? "Fetching location..." : "Location not available"}
+              </p>
+            )}
+          </div>
+
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               id="mode-confirm-cancel-btn"
@@ -246,9 +347,9 @@ export function ModeToggle() {
             <Button
               id="mode-confirm-apply-btn"
               onClick={handleConfirmToggle}
-              disabled={isSettingMode}
+              disabled={isSettingMode || locationLoading || !location}
             >
-              {isSettingMode ? "Switching..." : "Confirm"}
+              {isSettingMode ? "Switching..." : locationLoading ? "Fetching Location..." : !location ? "Location Required" : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>

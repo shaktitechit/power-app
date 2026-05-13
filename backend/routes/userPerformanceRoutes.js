@@ -7,6 +7,7 @@ import {
   getUserPerformanceCompletedAudits,
   getUserPerformancePresence,
   getUserPerformancePresenceActivities,
+  getUserPerformanceSessions,
 } from "../controllers/userPerformanceController.js";
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.get("/:userId/facilities", protect, getUserPerformanceFacilities);
 router.get("/:userId/utility-accounts", protect, getUserPerformanceUtilityAccounts);
 router.get("/:userId/completed-audits", protect, getUserPerformanceCompletedAudits);
 router.get("/:userId/presence", protect, getUserPerformancePresence);
+router.get("/:userId/sessions", protect, getUserPerformanceSessions);
 router.get(
   "/:userId/presence/activities",
   protect,

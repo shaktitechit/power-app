@@ -68,10 +68,13 @@ export const parseDurationToMs = (value) => {
 export const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
 
-export const signAccessToken = (userId) =>
-  jwt.sign({ id: userId, typ: "access" }, getAccessSecret(), {
+export const signAccessToken = (userId, sessionId = null) => {
+  const payload = { id: userId, typ: "access" };
+  if (sessionId) payload.sid = String(sessionId);
+  return jwt.sign(payload, getAccessSecret(), {
     expiresIn: getAccessExpiresIn(),
   });
+};
 
 export const signRefreshTokenForSession = (userId, sessionId) =>
   jwt.sign({ id: userId, sid: String(sessionId), typ: "refresh" }, getRefreshSecret(), {

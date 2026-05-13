@@ -26,6 +26,14 @@ const userSessionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    location: {
+      type: {
+        lat: Number,
+        lng: Number,
+        name: String,
+      },
+      default: null,
+    },
     lastUsedAt: {
       type: Date,
       default: Date.now,

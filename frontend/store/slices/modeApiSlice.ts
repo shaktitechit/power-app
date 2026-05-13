@@ -14,6 +14,11 @@ export interface ModeResponse {
 
 export interface SetModeRequest {
   mode: AppMode;
+  location?: {
+    lat: number;
+    lng: number;
+    name?: string;
+  };
 }
 
 // ─── Slice ───────────────────────────────────────────────────────────────────

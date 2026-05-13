@@ -7,12 +7,12 @@ export function FontSizeControl() {
   const { scale, increase, decrease, reset, canIncrease, canDecrease } = useFontScale();
 
   return (
-    <div className="flex items-center gap-1 rounded-md border border-border bg-background/70 px-1 py-1">
+    <div className="flex items-center gap-1 rounded-md border border-border bg-background/70 px-1 ">
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        className="h-7 w-7"
+        className="h-3 w-3"
         onClick={decrease}
         disabled={!canDecrease}
         aria-label="Decrease font size"
@@ -22,7 +22,7 @@ export function FontSizeControl() {
       <Button
         type="button"
         variant="ghost"
-        className="h-7 px-2 text-xs"
+        className="h-3 px-2 text-xs"
         onClick={reset}
         aria-label="Reset font size"
       >
@@ -32,7 +32,7 @@ export function FontSizeControl() {
         type="button"
         variant="ghost"
         size="icon"
-        className="h-7 w-7"
+        className="h-3 w-3"
         onClick={increase}
         disabled={!canIncrease}
         aria-label="Increase font size"

@@ -126,6 +126,11 @@ export function Header({
   const [secondsRemaining, setSecondsRemaining] = useState<number>(10 * 60); //10 minute for testing (matches your backend change)
 
   useEffect(() => {
+    if (!user) {
+      runLogoutFlow({ isForced: true, showSuccessToast: false });
+      return;
+    }
+
     const getCookie = (name: string) => {
       if (typeof document === "undefined") return null;
       const value = `; ${document.cookie}`;
@@ -192,7 +197,7 @@ export function Header({
       events.forEach((event) => window.removeEventListener(event, resetTimer));
       clearInterval(interval);
     };
-  }, [runLogoutFlow]);
+  }, [runLogoutFlow, user]);
 
   useEffect(() => {
     const minutes = Math.floor(secondsRemaining / 60);

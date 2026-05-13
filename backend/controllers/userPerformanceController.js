@@ -6,6 +6,7 @@ import FacilityAuditor from "../modals/facilityAuditor.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import PresenceLog from "../modals/presenceLog.js";
 import RecentActivity from "../modals/recentActivity.js";
+import UserSession from "../modals/userSession.js";
 import { isUtilityAuditCompleted } from "../helpers/auditState.js";
 import { isAdmin as isPlatformAdmin } from "../services/authorization/index.js";
 
@@ -525,6 +526,109 @@ const getUserPerformancePresenceActivities = asyncHandler(async (req, res) => {
   }
 });
 
+const getUserPerformanceSessions = asyncHandler(async (req, res) => {
+  try {
+    const { userId } = req.params;
+    await assertAccessAndGetUser(req.user, userId);
+
+    const { filterType, selectedDateRaw, selectedMonthRaw, selectedYearRaw } =
+      getPresenceFilter(req.query || {});
+    const { days } = buildPresenceDays({
+      filterType,
+      selectedDateRaw,
+      selectedMonthRaw,
+      selectedYearRaw,
+    });
+    
+    const start = days[0].dayStart;
+    const end = days[days.length - 1].dayEnd;
+
+    const logs = await PresenceLog.find({
+      userId: String(userId),
+      timestamp: { $gte: start, $lte: end },
+    })
+      .sort({ timestamp: 1 })
+      .lean();
+
+    const sessionGroups = {};
+    logs.forEach((log) => {
+      const sid = log.sessionId || "unknown";
+      if (!sessionGroups[sid]) {
+        sessionGroups[sid] = [];
+      }
+      sessionGroups[sid].push(log);
+    });
+
+    const sessions = [];
+    
+    for (const [sid, group] of Object.entries(sessionGroups)) {
+      if (sid === "unknown") continue;
+      
+      const firstLog = group[0];
+      const lastLog = group[group.length - 1];
+      
+      let activeSince = null;
+      let totalMs = 0;
+      
+      for (const entry of group) {
+        const ts = new Date(entry.timestamp);
+        if (entry.status === "online") {
+          if (!activeSince) activeSince = ts;
+        } else if (entry.status === "offline" && activeSince) {
+          totalMs += ts.getTime() - activeSince.getTime();
+          activeSince = null;
+        }
+      }
+      if (activeSince && lastLog.timestamp) {
+        totalMs += new Date(lastLog.timestamp).getTime() - activeSince.getTime();
+      }
+
+      sessions.push({
+        sessionId: sid,
+        date: getISTDateKey(new Date(firstLog.timestamp)),
+        startTime: firstLog.timestamp,
+        endTime: lastLog.timestamp,
+        durationMinutes: Number((totalMs / 60000).toFixed(2)),
+        activityCount: group.length,
+        logs: group.map((l) => ({
+          status: l.status,
+          timestamp: l.timestamp,
+          reason: l.reason,
+          mode: l.mode,
+        })),
+      });
+    }
+
+    const sessionIds = sessions.map((s) => s.sessionId).filter(s => mongoose.Types.ObjectId.isValid(s));
+    
+    const userSessions = await UserSession.find({
+      _id: { $in: sessionIds },
+    }).lean();
+
+    const sessionMap = new Map(userSessions.map((s) => [String(s._id), s]));
+
+    const result = sessions.map((s) => {
+      const dbSession = sessionMap.get(s.sessionId);
+      return {
+        ...s,
+        ip: dbSession?.ip || null,
+        userAgent: dbSession?.userAgent || null,
+        location: dbSession?.location || null,
+      };
+    });
+
+    result.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+    res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result,
+    });
+  } catch (error) {
+    applyHttpError(res, error);
+  }
+});
+
 export {
   getUserPerformanceSummary,
   getUserPerformanceFacilities,
@@ -532,4 +636,5 @@ export {
   getUserPerformanceCompletedAudits,
   getUserPerformancePresence,
   getUserPerformancePresenceActivities,
+  getUserPerformanceSessions,
 };

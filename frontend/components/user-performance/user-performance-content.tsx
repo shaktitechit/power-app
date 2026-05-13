@@ -14,6 +14,8 @@ import {
   useGetUserPerformanceCompletedAuditsQuery,
   useGetUserPerformancePresenceQuery,
   useLazyGetUserPerformancePresenceActivitiesQuery,
+  useGetUserPerformanceSessionsQuery,
+  type UserPerformanceSessionSummary,
 } from "@/store/slices/UserPerformanceApiSlice";
 import { Input } from "@/components/ui/input";
 import {
@@ -93,6 +95,20 @@ export function UserPerformanceContent({
   const [getPresenceActivities, { isFetching: activitiesLoading }] =
     useLazyGetUserPerformancePresenceActivitiesQuery();
 
+  const { data: sessionsData, isLoading: sessionsLoading, isError: sessionsError } =
+    useGetUserPerformanceSessionsQuery(
+      {
+        userId,
+        filterType: presenceFilterType,
+        ...(presenceFilterType === "date"
+          ? { date: selectedDate }
+          : { month: selectedMonth, year: selectedYear }),
+      },
+      {
+        skip: !userId,
+      },
+    );
+
   const user = summaryData?.data?.user;
   const widgets = summaryData?.data?.widgets;
   const connectedFacilities = facilitiesData?.data ?? [];
@@ -100,7 +116,12 @@ export function UserPerformanceContent({
   const completedAudits = completedAuditsData?.data ?? [];
   const daywisePresence = (presenceData?.data?.daywise_presence ?? [])
     .filter((entry) => entry.first_login_at !== null);
+  const sessions = sessionsData?.data ?? [];
   const [activitiesOpen, setActivitiesOpen] = useState(false);
+  const [sessionsModalOpen, setSessionsModalOpen] = useState(false);
+  const [selectedSessionDate, setSelectedSessionDate] = useState("");
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [selectedDaySessions, setSelectedDaySessions] = useState<UserPerformanceSessionSummary[]>([]);
   const [selectedDayActivities, setSelectedDayActivities] = useState<{
     date: string;
     first_login_at: string | null;
@@ -179,13 +200,15 @@ export function UserPerformanceContent({
     facilitiesLoading ||
     utilitiesLoading ||
     completedLoading ||
-    presenceLoading;
+    presenceLoading ||
+    sessionsLoading;
   const isError =
     summaryError ||
     facilitiesError ||
     utilitiesError ||
     completedError ||
-    presenceError;
+    presenceError ||
+    sessionsError;
 
   useEffect(() => {
     if (!user?.role || !allowedRoles?.length) return;
@@ -584,37 +607,50 @@ export function UserPerformanceContent({
                           )}
                         </div>
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="mt-2 print:hidden"
-                          onClick={async () => {
-                            const result = await getPresenceActivities({
-                              userId,
-                              date: entry.date,
-                            }).unwrap();
-                            setSelectedDayActivities({
-                              date: result.data.date,
-                              first_login_at: result.data.first_login_at,
-                              last_logout_at: result.data.last_logout_at,
-                              onsite_login_at: result.data.onsite_login_at,
-                              offsite_login_at: result.data.offsite_login_at,
-                              screen_time_hours: result.data.screen_time_hours,
-                              screen_time_minutes: result.data.screen_time_minutes,
-                              onsite_screen_time_hours: result.data.onsite_screen_time_hours,
-                              onsite_screen_time_minutes: result.data.onsite_screen_time_minutes,
-                              offsite_screen_time_hours: result.data.offsite_screen_time_hours,
-                              offsite_screen_time_minutes: result.data.offsite_screen_time_minutes,
-                              activity_count: result.data.activity_count,
-                              onsite_activity_count: result.data.onsite_activity_count,
-                              offsite_activity_count: result.data.offsite_activity_count,
-                              activities: result.data.activities,
-                            });
-                            setActivitiesOpen(true);
-                          }}
-                        >
-                          View Activities
-                        </Button>
+                        <div className="flex gap-2 mt-2 print:hidden">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              const result = await getPresenceActivities({
+                                userId,
+                                date: entry.date,
+                              }).unwrap();
+                              setSelectedDayActivities({
+                                date: result.data.date,
+                                first_login_at: result.data.first_login_at,
+                                last_logout_at: result.data.last_logout_at,
+                                onsite_login_at: result.data.onsite_login_at,
+                                offsite_login_at: result.data.offsite_login_at,
+                                screen_time_hours: result.data.screen_time_hours,
+                                screen_time_minutes: result.data.screen_time_minutes,
+                                onsite_screen_time_hours: result.data.onsite_screen_time_hours,
+                                onsite_screen_time_minutes: result.data.onsite_screen_time_minutes,
+                                offsite_screen_time_hours: result.data.offsite_screen_time_hours,
+                                offsite_screen_time_minutes: result.data.offsite_screen_time_minutes,
+                                activity_count: result.data.activity_count,
+                                onsite_activity_count: result.data.onsite_activity_count,
+                                offsite_activity_count: result.data.offsite_activity_count,
+                                activities: result.data.activities,
+                              });
+                              setActivitiesOpen(true);
+                            }}
+                          >
+                            View Activities
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const daySessions = sessions.filter((s) => s.date === entry.date);
+                              setSelectedDaySessions(daySessions);
+                              setSelectedSessionDate(entry.date);
+                              setSessionsModalOpen(true);
+                            }}
+                          >
+                            Work Sessions
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -721,6 +757,88 @@ export function UserPerformanceContent({
                   <p className="text-xs text-muted-foreground">
                     {formatDateTime(activity.created_at)}
                   </p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sessionsModalOpen} onOpenChange={setSessionsModalOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              Work Sessions for {selectedSessionDate || "-"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="max-h-[420px] space-y-3 overflow-y-auto">
+            {selectedDaySessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No session data available for this day.</p>
+            ) : (
+              selectedDaySessions.map((session) => (
+                <div
+                  key={session.sessionId}
+                  className="rounded-md border p-3 space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm">Session: {session.sessionId}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Start: {formatDateTime(session.startTime)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        End: {formatDateTime(session.endTime)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        IP: {session.ip || "N/A"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[400px]" title={session.userAgent || ""}>
+                        Device: {session.userAgent || "N/A"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[400px]" title={session.location?.name || ""}>
+                        Location: {session.location?.name || (session.location?.lat ? `${session.location.lat.toFixed(4)}, ${session.location.lng.toFixed(4)}` : "N/A")}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duration</p>
+                      <p className="font-semibold text-sm">
+                        {session.durationMinutes < 1 
+                          ? `${Math.round(session.durationMinutes)} min` 
+                          : `${(session.durationMinutes / 60).toFixed(2)} hr`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Logs: {session.activityCount}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 mt-1"
+                        onClick={() => setExpandedSessionId(expandedSessionId === session.sessionId ? null : session.sessionId)}
+                      >
+                        {expandedSessionId === session.sessionId ? "Hide Logs" : "Show Logs"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {expandedSessionId === session.sessionId && (
+                    <div className="mt-2 border-t pt-2 space-y-1">
+                      {session.logs?.map((log, idx) => (
+                        <div key={idx} className="text-xs flex justify-between items-center">
+                          <span>
+                            <Badge variant={log.status === "online" ? "default" : log.status === "away" ? "secondary" : "outline"} className="text-[10px] px-1 py-0 h-4">
+                              {log.status}
+                            </Badge>
+                            <span className="ml-2 text-muted-foreground">{log.reason || ""}</span>
+                            {log.mode && (
+                              <span className="ml-2 text-xs text-muted-foreground">({log.mode})</span>
+                            )}
+                          </span>
+                          <span className="text-muted-foreground">{formatDateTime(log.timestamp)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}

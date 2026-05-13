@@ -3,6 +3,7 @@ import User from "../modals/user.js";
 import UserSession from "../modals/userSession.js";
 import PresenceLog from "../modals/presenceLog.js";
 import jwt from "jsonwebtoken";
+import { onlineUsers } from "../socket/socketServer.js";
 // import passport from "passport";
 // import { emailQueue } from "../queues/emailQueue.js";
 import { createRecentActivity } from "../helpers/createRecentActivity.js";
@@ -29,7 +30,6 @@ const extractIp = (req) => {
 };
 
 const issueTokensForUser = async (req, res, user) => {
-  const accessToken = signAccessToken(user._id);
   const session = new UserSession({
     userId: user._id,
     tokenHash: "",
@@ -38,6 +38,8 @@ const issueTokensForUser = async (req, res, user) => {
     expiresAt: new Date(Date.now() + parseDurationToMs(getRefreshExpiresIn())),
     lastUsedAt: new Date(),
   });
+
+  const accessToken = signAccessToken(user._id, session._id);
 
   const refreshToken = signRefreshTokenForSession(user._id, session._id);
   session.tokenHash = hashToken(refreshToken);
@@ -185,7 +187,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Refresh token revoked" });
   }
 
-  const accessToken = signAccessToken(user._id);
+  const accessToken = signAccessToken(user._id, session._id);
   const newRefreshToken = signRefreshTokenForSession(user._id, session._id);
   session.previousTokenHash = session.tokenHash;
   session.tokenHash = hashToken(newRefreshToken);
@@ -210,6 +212,55 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 //@desc Refresh the session timer cookie
 //@access Private
 const refreshSessionTimer = asyncHandler(async (req, res) => {
+  const sessionTimer = req.cookies.sessionTimer;
+  
+  if (!sessionTimer || Number(sessionTimer) < Date.now()) {
+    // Session expired!
+    
+    // Extract session ID from refresh token to revoke it
+    const refreshToken = req.cookies.refreshToken;
+    let sessionId = null;
+    if (refreshToken) {
+      try {
+        const decoded = jwt.verify(refreshToken, getRefreshSecret());
+        if (decoded?.sid && String(decoded?.id) === String(req.user._id)) {
+          sessionId = decoded.sid;
+          await UserSession.findOneAndUpdate(
+            { _id: decoded.sid, userId: req.user._id, revokedAt: null },
+            { revokedAt: new Date() },
+          );
+        }
+      } catch (err) {
+        // Ignore invalid token
+      }
+    }
+
+    // Update Presence Log
+    await PresenceLog.create({
+      userId: req.user._id,
+      status: "offline",
+      sessionId: sessionId,
+      reason: "session_expired",
+    });
+
+    clearAuthCookies(res);
+    res.clearCookie("sessionTimer", cookieDefaults());
+    
+    // Disconnect socket
+    const io = req.app.get("io");
+    if (io) {
+      const socketId = onlineUsers.get(String(req.user._id));
+      if (socketId) {
+        const socket = io.sockets.sockets.get(socketId);
+        if (socket) {
+          socket.disconnect(true);
+        }
+      }
+    }
+    
+    return res.status(401).json({ message: "Session expired" });
+  }
+
   const expiresInMs = 10 * 60 * 1000; // 10 minutes
   const expiresAt = Date.now() + expiresInMs;
 
