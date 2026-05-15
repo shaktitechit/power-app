@@ -467,7 +467,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   const role = user.role;
   const status = user.status;
 
-  await user.deleteOne();
+  await user.softDelete();
 
   await createRecentActivity({
     actor: req.user,

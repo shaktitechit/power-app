@@ -68,6 +68,8 @@ const baseQueryWithReauth: BaseQueryFn<
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,
+  keepUnusedDataFor: 0,
+  refetchOnMountOrArgChange: true,
   tagTypes: [
     "User",
     "Facility",
@@ -89,6 +91,9 @@ export const apiSlice = createApi({
     "ACAuditRecord",
     "FanAuditRecord",
     "Report",
+    "Enquiry",
+    "FollowUp",
+    "Quotation",
     "Dashboard",
     "RecentActivity",
     "PresenceLog",
@@ -112,6 +117,7 @@ export const apiSlice = createApi({
     "SafetyAdditionalItemsAudit",
     "AuditSnapshot",
     "Mode",
+    "Notification",
   ],
   endpoints: () => ({}),
 });

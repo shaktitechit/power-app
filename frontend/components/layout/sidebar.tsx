@@ -17,11 +17,22 @@ import {
   Phone,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   X,
   ClipboardList,
+  MessageSquare,
+  CircleCheck,
+  Hourglass,
+  ListChecks,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   hasPermissionStrict,
   type UserPermission,
@@ -43,14 +54,33 @@ type NavAccess =
   | "reportsHub"
   | "dashboardRead"
   | "facilityRead"
-  | "analyticsRead";
+  | "analyticsRead"
+  | "superAdmin";
 
 interface NavItem {
   title: string;
-  href: string;
+  /** Present for plain links only */
+  href?: string;
   icon: React.ElementType;
   /** Default: visible to all logged-in users */
   access?: NavAccess;
+  /** Accordion submenu (super-admin hubs) */
+  children?: {
+    title: string;
+    href: string;
+    icon: React.ElementType;
+  }[];
+}
+
+const SUBMITTED_OR_PENDING_ROUTE_PREFIXES = [
+  "/submited-enquiries",
+  "/pending-quotation",
+] as const;
+
+function isSubmittedOrPendingPath(pathname: string) {
+  return SUBMITTED_OR_PENDING_ROUTE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
 }
 
 const navItems: NavItem[] = [
@@ -65,6 +95,29 @@ const navItems: NavItem[] = [
     href: "/facilities",
     icon: Building2,
     access: "facilityRead",
+  },
+  {
+    title: "Enquiries",
+    href: "/enquiries",
+    icon: MessageSquare,
+    access: "facilityRead",
+  },
+  {
+    title: "Pending approval",
+    icon: ListChecks,
+    access: "superAdmin",
+    children: [
+      {
+        title: "Submitted enquiries",
+        href: "/submited-enquiries",
+        icon: CircleCheck,
+      },
+      {
+        title: "Pending quotations",
+        href: "/pending-quotation",
+        icon: Hourglass,
+      },
+    ],
   },
   {
     title: "Audits",
@@ -98,6 +151,11 @@ export function Sidebar({
   userPermissions = [],
 }: SidebarProps) {
   const pathname = usePathname();
+  const iconsOnlyCollapsed = isCollapsed && !isMobileOpen;
+  const [pendingApprovalExpanded, setPendingApprovalExpanded] = useState(() =>
+    isSubmittedOrPendingPath(pathname),
+  );
+
   const isAdminHubRole = userRole === "super_admin" || userRole === "admin";
   const isManagerRole = userRole === "manager";
   const isAuditorRole = userRole === "auditor";
@@ -120,6 +178,12 @@ export function Sidebar({
     }
   }, []);
 
+  useEffect(() => {
+    if (isSubmittedOrPendingPath(pathname)) {
+      setPendingApprovalExpanded(true);
+    }
+  }, [pathname]);
+
   if (!mounted) return null;
 
   /* -------------------------------- */
@@ -129,6 +193,9 @@ export function Sidebar({
   const filteredNavItems = navItems.filter((item) => {
     if (item.access === "performanceHub") {
       return userRole === "super_admin" || userRole === "admin";
+    }
+    if (item.access === "superAdmin") {
+      return userRole === "super_admin";
     }
     if (isAdminHubRole) return true;
     if (!item.access || item.access === "all") return true;
@@ -231,17 +298,141 @@ export function Sidebar({
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {filteredNavItems.map((item) => {
+            if (item.children?.length) {
+              const Icon = item.icon;
+              const anyChildActive = item.children.some(
+                (c) =>
+                  pathname === c.href ||
+                  pathname.startsWith(`${c.href}/`),
+              );
+
+              const subLinkClasses = (childHref: string) => {
+                const active =
+                  pathname === childHref ||
+                  pathname.startsWith(`${childHref}/`);
+                return cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                  active
+                    ? "bg-sidebar-accent font-medium text-sidebar-primary"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                );
+              };
+
+              if (iconsOnlyCollapsed) {
+                return (
+                  <DropdownMenu key={item.title}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        title={item.title}
+                        aria-label={item.title}
+                        className={cn(
+                          "flex w-full items-center justify-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:justify-start",
+                          anyChildActive
+                            ? "bg-sidebar-accent text-sidebar-primary"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                        )}
+                      >
+                        <Icon
+                          className={cn(
+                            "h-5 w-5 shrink-0",
+                            anyChildActive && "text-primary",
+                          )}
+                        />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="right" align="start" className="w-56">
+                      {item.children.map((child) => {
+                        const ChildIcon = child.icon;
+                        return (
+                          <DropdownMenuItem key={child.href} asChild>
+                            <Link
+                              href={child.href}
+                              className={cn(subLinkClasses(child.href), "cursor-pointer")}
+                              onClick={handleLinkClick}
+                            >
+                              <ChildIcon className="h-4 w-4 shrink-0" />
+                              {child.title}
+                            </Link>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              }
+
+              return (
+                <div key={item.title} className="space-y-0.5">
+                  <button
+                    type="button"
+                    aria-expanded={pendingApprovalExpanded}
+                    onClick={() => setPendingApprovalExpanded((prev) => !prev)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                      anyChildActive
+                        ? "bg-sidebar-accent text-sidebar-primary"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-5 w-5 shrink-0",
+                        anyChildActive && "text-primary",
+                      )}
+                    />
+                    <span className="flex-1 truncate">{item.title}</span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-transform",
+                        pendingApprovalExpanded && "rotate-180",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                  {pendingApprovalExpanded && (
+                    <div className="ml-5 space-y-0.5 border-l border-sidebar-border py-0.5 pl-3">
+                      {item.children.map((child) => {
+                        const ChildIcon = child.icon;
+                        const childRouteActive =
+                          pathname === child.href ||
+                          pathname.startsWith(`${child.href}/`);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={handleLinkClick}
+                            className={subLinkClasses(child.href)}
+                          >
+                            <ChildIcon
+                              className={cn(
+                                "h-4 w-4 shrink-0",
+                                childRouteActive && "text-primary",
+                              )}
+                            />
+                            {child.title}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const href = item.href;
+            if (!href) return null;
             const Icon = item.icon;
 
             const isActive =
-              pathname === item.href ||
-              pathname.startsWith(item.href + "/") ||
-              (item.href === "/facilities" && pathname.startsWith("/facility"));
+              pathname === href ||
+              pathname.startsWith(`${href}/`) ||
+              (href === "/facilities" && pathname.startsWith("/facility"));
 
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={href}
+                href={href}
                 onClick={handleLinkClick}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -255,7 +446,7 @@ export function Sidebar({
                   className={cn("h-5 w-5 shrink-0", isActive && "text-primary")}
                 />
 
-                {(!isCollapsed || isMobileOpen) && <span>{item.title}</span>}
+                {!iconsOnlyCollapsed && <span>{item.title}</span>}
               </Link>
             );
           })}

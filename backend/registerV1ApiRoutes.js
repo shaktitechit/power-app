@@ -3,6 +3,7 @@ import { apiRateLimiter } from "./middlewares/rateLimitLoggerMiddleware.js";
 // Core & shared
 import usersRoute from "./routes/usersRoute.js";
 import facilityRoute from "./routes/facilityRoute.js";
+import enquiryRoute from "./routes/enquiryRoute.js";
 import auditRoutes from "./routes/auditRoutes.js";
 import utilityRoutes from "./routes/utilityRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
@@ -13,6 +14,7 @@ import userPerformanceRoutes from "./routes/userPerformanceRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import fileManagementRoute from "./routes/fileManagementRoute.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 // Electrical audit (utility account domain)
 import utilityTarrifRoutes from "./routes/electrical-audit/utilityTarrifRoutes.js";
@@ -68,8 +70,10 @@ export function registerV1ApiRoutes(app) {
   // --- Users, facilities, utilities (root shared) ---
   app.use("/api/v1/users", usersRoute);
   app.use("/api/v1/facilities", facilityRoute);
+  app.use("/api/v1/enquiries", enquiryRoute);
   app.use("/api/v1/audits", auditRoutes);
   app.use("/api/v1/utilities", utilityRoutes);
+  app.use("/api/v1/notifications", notificationRoutes);
 
   // --- Electrical audit (`routes/electrical-audit`): tariffs, billing, equipment, records ---
   app.use("/api/v1/utility-tariffs", utilityTarrifRoutes);

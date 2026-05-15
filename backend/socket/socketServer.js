@@ -73,7 +73,7 @@ const socketServer = (io) => {
     const cookieMode = (mode === "onsite" || mode === "offsite") ? mode : null;
     const token = parseCookie(cookieHeader, "jwt");
 
-    let sessionId = `${socket.id}:${Date.now()}`; // Fallback
+    let sessionId = null; // Removed random fallback for consistency
     if (token) {
       try {
         const decoded = jwt.verify(token, getAccessSecret());
@@ -189,6 +189,13 @@ const socketServer = (io) => {
       );
 
       onlineUsers.set(userId, socket.id);
+
+      // Join super-admins room if user is super_admin
+      const dbUser = await User.findById(userId);
+      if (dbUser && dbUser.role === "super_admin") {
+        socket.join("super-admins");
+        logger.info(`User ${userId} joined super-admins room`);
+      }
 
       await setPresenceStatus({
         userId,

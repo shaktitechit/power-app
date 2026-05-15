@@ -1,6 +1,8 @@
 // modals/report.js
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "./plugins/softDelete.js";
+
 import { SAFETY_GRANULAR_REPORT_TYPES } from "../services/report/builders/safety-audit/reportModelRegistry.js";
 
 const reportFileSchema = new mongoose.Schema(
@@ -87,5 +89,7 @@ const reportSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+reportSchema.plugin(softDeletePlugin);
 
 export default mongoose.models.Report || mongoose.model("Report", reportSchema);

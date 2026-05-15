@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const dgSetSchema = new mongoose.Schema(
   {
     facility_id: {
@@ -97,8 +99,13 @@ const dgSetSchema = new mongoose.Schema(
   },
 );
 
-// 🔒 Prevent duplicate DG number within same utility account
-dgSetSchema.index({ utility_account_id: 1, dg_number: 1 }, { unique: true });
+dgSetSchema.plugin(softDeletePlugin);
+
+// 🔒 Prevent duplicate DG number within same utility account (among non-deleted rows)
+dgSetSchema.index(
+  { utility_account_id: 1, dg_number: 1 },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
+);
 
 // 🔍 Indexes
 dgSetSchema.index({ facility_id: 1 });

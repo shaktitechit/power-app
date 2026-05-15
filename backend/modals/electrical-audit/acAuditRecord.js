@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const acAuditRecordSchema = new mongoose.Schema(
   {
     facility_id: {
@@ -225,6 +227,8 @@ const acAuditRecordSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+acAuditRecordSchema.plugin(softDeletePlugin);
 
 const ACAuditRecord = mongoose.model("ACAuditRecord", acAuditRecordSchema);
 

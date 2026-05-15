@@ -517,7 +517,7 @@ const deleteReport = asyncHandler(async (req, res) => {
   const reportType = report.report_type;
   const reportStatus = report.status;
 
-  await report.deleteOne();
+  await report.softDelete();
 
   await createRecentActivity({
     actor: req.user,

@@ -464,7 +464,7 @@ const deleteTransformerAuditRecord = asyncHandler(async (req, res) => {
   const averageLoad = transformerAuditRecord.average_load_kVA;
   const percentLoading = transformerAuditRecord.percent_loading;
 
-  await transformerAuditRecord.deleteOne();
+  await transformerAuditRecord.softDelete();
 
   await createRecentActivity({
     actor: req.user,

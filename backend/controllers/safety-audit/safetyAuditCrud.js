@@ -348,7 +348,7 @@ export function createSafetyAuditCrudController(Model, options) {
     const facilityId = record.facility_id;
     const utilityId = record.utility_account_id;
 
-    await record.deleteOne();
+    await record.softDelete();
 
     await createRecentActivity({
       actor: req.user,

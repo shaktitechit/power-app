@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const fanAuditRecordSchema = new mongoose.Schema(
   {
     facility_id: {
@@ -128,6 +130,8 @@ const fanAuditRecordSchema = new mongoose.Schema(
     },
   },
 );
+
+fanAuditRecordSchema.plugin(softDeletePlugin);
 
 fanAuditRecordSchema.index({ facility_id: 1 });
 fanAuditRecordSchema.index({ utility_account_id: 1 });

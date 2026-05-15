@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const pumpAuditRecordSchema = new mongoose.Schema(
   {
     pump_id: {
@@ -106,6 +108,8 @@ const pumpAuditRecordSchema = new mongoose.Schema(
     },
   },
 );
+
+pumpAuditRecordSchema.plugin(softDeletePlugin);
 
 // 🔍 Indexes
 pumpAuditRecordSchema.index({ pump_id: 1 });

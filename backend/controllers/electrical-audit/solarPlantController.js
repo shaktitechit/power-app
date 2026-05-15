@@ -332,7 +332,7 @@ const deleteSolarPlant = asyncHandler(async (req, res) => {
   const utilityId = solarPlant.utility_account_id;
   const rating = solarPlant.rating_kWp;
 
-  await solarPlant.deleteOne();
+  await solarPlant.softDelete();
 
   // ✅ ACTIVITY
   await createRecentActivity({

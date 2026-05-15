@@ -491,7 +491,7 @@ const deleteDGAuditRecord = asyncHandler(async (req, res) => {
   const facilityId = dgAuditRecord.facility_id;
   const utilityId = dgAuditRecord.utility_account_id;
 
-  await dgAuditRecord.deleteOne();
+  await dgAuditRecord.softDelete();
 
   // ✅ Recent Activity
   await createRecentActivity({

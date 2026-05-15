@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const dgAuditRecordSchema = new mongoose.Schema(
   {
     dg_set_id: {
@@ -118,6 +120,8 @@ const dgAuditRecordSchema = new mongoose.Schema(
     },
   },
 );
+
+dgAuditRecordSchema.plugin(softDeletePlugin);
 
 // 🔍 Indexes
 dgAuditRecordSchema.index({ dg_set_id: 1 });

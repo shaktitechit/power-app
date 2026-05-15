@@ -29,7 +29,11 @@ import {
 } from "@/components/ui/select";
 
 import { useAssignableUsersQuery } from "@/store/slices/userApiSlice";
-import { useCreateFacilityMutation } from "@/store/slices/facilityApiSlice";
+import type { Enquiry } from "@/store/slices/enquiryApiSlice";
+import {
+  useCreateFacilityMutation,
+  useCreateFacilityFromEnquiryMutation,
+} from "@/store/slices/facilityApiSlice";
 import { toastHandler } from "@/lib/toast";
 import { AUDIT_TYPE_OPTIONS } from "@/lib/facilityConstants";
 
@@ -37,6 +41,11 @@ interface CreateFacilityFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete: () => void;
+  /**
+   * Submitted (won) enquiry: opens the same UI prefilled and POSTs to
+   * `/v1/enquiries/:id/facility` (super_admin only on the server).
+   */
+  fromEnquiry?: Enquiry | null;
 }
 
 type FacilityDocument = {
@@ -199,12 +208,17 @@ export function CreateFacilityForm({
   open,
   onOpenChange,
   onComplete,
+  fromEnquiry = null,
 }: CreateFacilityFormProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data, isLoading: auditorsLoading } = useAssignableUsersQuery();
   const [createFacility, { isLoading: creatingFacility }] =
     useCreateFacilityMutation();
+  const [createFacilityFromEnquiry, { isLoading: creatingFromEnquiry }] =
+    useCreateFacilityFromEnquiryMutation();
+
+  const isSavingFacility = creatingFacility || creatingFromEnquiry;
 
   const users: AssignableUser[] = data?.data || [];
   const assignableUsers = users.filter(
@@ -269,6 +283,61 @@ export function CreateFacilityForm({
     }
   };
 
+  useEffect(() => {
+    if (!open || !fromEnquiry) return;
+
+    const optionSet = new Set<string>(
+      AUDIT_TYPE_OPTIONS as unknown as string[],
+    );
+
+    const repsFromEnquiry = (fromEnquiry.client_representatives ?? []).filter(
+      (r) =>
+        String(r?.name || "").trim() ||
+        String(r?.contact_number || "").trim() ||
+        String(r?.email || "").trim(),
+    );
+
+    const clientRepresentativesMapped: ClientRepresentative[] =
+      repsFromEnquiry.length > 0
+        ? repsFromEnquiry.map((r) => ({
+            name: r.name ?? "",
+            contact_number: r.contact_number ?? "",
+            email: r.email ?? "",
+          }))
+        : [
+            {
+              name: fromEnquiry.client_representative ?? "",
+              contact_number: fromEnquiry.client_contact_number ?? "",
+              email: fromEnquiry.client_email ?? "",
+            },
+          ];
+
+    const preferredAuditRaw =
+      fromEnquiry.requested_audit_types?.find((t) => optionSet.has(t)) ??
+      AUDIT_TYPE_OPTIONS[0];
+
+    setFormData((prev) => ({
+      ...prev,
+      name: fromEnquiry.name ?? "",
+      city: fromEnquiry.city ?? "",
+      address: fromEnquiry.address ?? "",
+      client_representatives:
+        clientRepresentativesMapped.some(
+          (r) => r.name || r.contact_number || r.email,
+        )
+          ? clientRepresentativesMapped
+          : [{ name: "", contact_number: "", email: "" }],
+      audit_type:
+        typeof preferredAuditRaw === "string" &&
+        AUDIT_TYPE_OPTIONS.includes(
+          preferredAuditRaw as (typeof AUDIT_TYPE_OPTIONS)[number],
+        )
+          ? (preferredAuditRaw as (typeof AUDIT_TYPE_OPTIONS)[number])
+          : AUDIT_TYPE_OPTIONS[0],
+      start_date: getTodayLocalDateString(),
+    }));
+  }, [open, fromEnquiry]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -328,39 +397,65 @@ export function CreateFacilityForm({
       .filter((rep) => rep.name || rep.contact_number || rep.email);
     const primaryRep = sanitizedReps[0];
 
-    await toastHandler({
-      action: () =>
-        createFacility({
-          name: formData.name.trim(),
-          city: formData.city.trim(),
-          address: formData.address.trim() || undefined,
-          start_date: formData.start_date || undefined,
-          client_representatives: sanitizedReps,
-          // Backward compatible payload (existing backend consumers may still use old fields)
-          client_representative: primaryRep?.name || undefined,
-          client_contact_number: primaryRep?.contact_number || undefined,
-          client_email: primaryRep?.email || undefined,
-          facility_type: formData.facility_type.trim(),
-          audit_type: formData.audit_type,
-          status: formData.status as "active" | "inactive",
-          auditor_ids: formData.auditor_ids,
-          closure_date: formData.closure_date || undefined,
-          documents: documents.map((doc) => doc.file),
-          budget: {
-            no_of_persons: formData.budget.no_of_persons !== "" ? Number(formData.budget.no_of_persons) : null,
-            no_planned_site_visits: formData.budget.no_planned_site_visits !== "" ? Number(formData.budget.no_planned_site_visits) : null,
-            tentative_budget: formData.budget.tentative_budget !== "" ? Number(formData.budget.tentative_budget) : null,
-            actual_budget: formData.budget.actual_budget !== "" ? Number(formData.budget.actual_budget) : null,
-          },
-        }).unwrap(),
+    const requestBody = {
+      name: formData.name.trim(),
+      city: formData.city.trim(),
+      address: formData.address.trim() || undefined,
+      start_date: formData.start_date || undefined,
+      client_representatives: sanitizedReps,
+      client_representative: primaryRep?.name || undefined,
+      client_contact_number: primaryRep?.contact_number || undefined,
+      client_email: primaryRep?.email || undefined,
+      facility_type: formData.facility_type.trim(),
+      audit_type: formData.audit_type,
+      status: formData.status as "active" | "inactive",
+      auditor_ids: formData.auditor_ids,
+      closure_date: formData.closure_date || undefined,
+      documents: documents.map((doc) => doc.file),
+      budget: {
+        no_of_persons:
+          formData.budget.no_of_persons !== ""
+            ? Number(formData.budget.no_of_persons)
+            : null,
+        no_planned_site_visits:
+          formData.budget.no_planned_site_visits !== ""
+            ? Number(formData.budget.no_planned_site_visits)
+            : null,
+        tentative_budget:
+          formData.budget.tentative_budget !== ""
+            ? Number(formData.budget.tentative_budget)
+            : null,
+        actual_budget:
+          formData.budget.actual_budget !== ""
+            ? Number(formData.budget.actual_budget)
+            : null,
+      },
+    };
 
-      loading: "Creating facility...",
-      success: "Facility created successfully",
-    });
+    try {
+      await toastHandler({
+        action: () =>
+          fromEnquiry
+            ? createFacilityFromEnquiry({
+                enquiryId: fromEnquiry._id,
+                ...requestBody,
+              }).unwrap()
+            : createFacility(requestBody).unwrap(),
 
-    onComplete();
-    resetForm();
-    onOpenChange(false);
+        loading: fromEnquiry
+          ? "Creating facility from enquiry…"
+          : "Creating facility...",
+        success: fromEnquiry
+          ? "Facility created and linked to the enquiry."
+          : "Facility created successfully",
+      });
+
+      onComplete();
+      resetForm();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to create facility:", error);
+    }
   };
 
   return (
@@ -373,7 +468,11 @@ export function CreateFacilityForm({
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Create New Facility</DialogTitle>
+          <DialogTitle>
+            {fromEnquiry
+              ? "Create facility from submitted enquiry"
+              : "Create New Facility"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-2">
@@ -387,7 +486,7 @@ export function CreateFacilityForm({
                 placeholder="Enter facility name"
                 value={formData.name}
                 onChange={(e) => updateField("name", e.target.value)}
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               />
             </div>
 
@@ -400,7 +499,7 @@ export function CreateFacilityForm({
                 placeholder="Enter city"
                 value={formData.city}
                 onChange={(e) => updateField("city", e.target.value)}
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               />
             </div>
 
@@ -411,7 +510,7 @@ export function CreateFacilityForm({
                 placeholder="e.g. hospital, factory, data center"
                 value={formData.facility_type}
                 onChange={(e) => updateField("facility_type", e.target.value)}
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               />
             </div>
 
@@ -420,7 +519,7 @@ export function CreateFacilityForm({
               <Select
                 value={formData.audit_type}
                 onValueChange={(value) => updateField("audit_type", value)}
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select audit type" />
@@ -440,7 +539,7 @@ export function CreateFacilityForm({
               <Select
                 value={formData.status}
                 onValueChange={(value) => updateField("status", value)}
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -460,7 +559,7 @@ export function CreateFacilityForm({
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => updateField("start_date", e.target.value)}
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               />
             </div>
 
@@ -470,7 +569,7 @@ export function CreateFacilityForm({
                 type="date"
                 value={formData.closure_date}
                 onChange={(e) => updateField("closure_date", e.target.value)}
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               />
             </div>
 
@@ -484,7 +583,7 @@ export function CreateFacilityForm({
                   users={assignableUsers}
                   selectedIds={formData.auditor_ids}
                   onChange={(ids) => updateField("auditor_ids", ids)}
-                  disabled={creatingFacility}
+                  disabled={isSavingFacility}
                 />
               )}
             </div>
@@ -496,7 +595,7 @@ export function CreateFacilityForm({
                 placeholder="Enter full address"
                 value={formData.address}
                 onChange={(e) => updateField("address", e.target.value)}
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               />
             </div>
           </div>
@@ -527,7 +626,7 @@ export function CreateFacilityForm({
                               ),
                           }))
                         }
-                        disabled={creatingFacility}
+                        disabled={isSavingFacility}
                       >
                         Remove
                       </Button>
@@ -548,7 +647,7 @@ export function CreateFacilityForm({
                               ),
                           }))
                         }
-                        disabled={creatingFacility}
+                        disabled={isSavingFacility}
                       />
                     </div>
                     <div className="space-y-2">
@@ -568,7 +667,7 @@ export function CreateFacilityForm({
                               ),
                           }))
                         }
-                        disabled={creatingFacility}
+                        disabled={isSavingFacility}
                       />
                     </div>
                     <div className="space-y-2 sm:col-span-2">
@@ -586,7 +685,7 @@ export function CreateFacilityForm({
                               ),
                           }))
                         }
-                        disabled={creatingFacility}
+                        disabled={isSavingFacility}
                       />
                     </div>
                   </div>
@@ -604,7 +703,7 @@ export function CreateFacilityForm({
                     ],
                   }))
                 }
-                disabled={creatingFacility}
+                disabled={isSavingFacility}
               >
                 Add Client Representative
               </Button>
@@ -623,7 +722,7 @@ export function CreateFacilityForm({
                   placeholder="e.g. 5"
                   value={formData.budget.no_of_persons}
                   onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, no_of_persons: e.target.value } }))}
-                  disabled={creatingFacility}
+                  disabled={isSavingFacility}
                 />
               </div>
               <div className="space-y-2">
@@ -635,7 +734,7 @@ export function CreateFacilityForm({
                   placeholder="e.g. 3"
                   value={formData.budget.no_planned_site_visits}
                   onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, no_planned_site_visits: e.target.value } }))}
-                  disabled={creatingFacility}
+                  disabled={isSavingFacility}
                 />
               </div>
               <div className="space-y-2">
@@ -647,7 +746,7 @@ export function CreateFacilityForm({
                   placeholder="e.g. 50000"
                   value={formData.budget.tentative_budget}
                   onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, tentative_budget: e.target.value } }))}
-                  disabled={creatingFacility}
+                  disabled={isSavingFacility}
                 />
               </div>
               <div className="space-y-2">
@@ -659,7 +758,7 @@ export function CreateFacilityForm({
                   placeholder="e.g. 45000"
                   value={formData.budget.actual_budget}
                   onChange={(e) => setFormData((prev) => ({ ...prev, budget: { ...prev.budget, actual_budget: e.target.value } }))}
-                  disabled={creatingFacility}
+                  disabled={isSavingFacility}
                 />
               </div>
             </div>
@@ -694,7 +793,7 @@ export function CreateFacilityForm({
                   accept="image/*,.pdf,application/pdf"
                   onChange={handleFileUpload}
                   className="hidden"
-                  disabled={creatingFacility}
+                  disabled={isSavingFacility}
                 />
               </div>
             </div>
@@ -728,7 +827,7 @@ export function CreateFacilityForm({
                       variant="ghost"
                       size="icon"
                       onClick={() => removeDocument(index)}
-                      disabled={creatingFacility}
+                      disabled={isSavingFacility}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -750,16 +849,22 @@ export function CreateFacilityForm({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={creatingFacility}
+            disabled={isSavingFacility}
           >
             Cancel
           </Button>
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={!isFormValid || creatingFacility}
+            disabled={!isFormValid || isSavingFacility}
           >
-            {creatingFacility ? "Creating..." : "Create Facility"}
+            {isSavingFacility
+              ? fromEnquiry
+                ? "Creating…"
+                : "Creating..."
+              : fromEnquiry
+                ? "Create facility & link"
+                : "Create Facility"}
           </Button>
         </DialogFooter>
       </DialogContent>

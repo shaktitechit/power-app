@@ -45,6 +45,17 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
+  if (
+    pathname.startsWith("/submited-enquiries") &&
+    role !== "super_admin"
+  ) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  if (pathname.startsWith("/pending-quotation") && role !== "super_admin") {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
   return NextResponse.next();
 }
 
@@ -54,6 +65,12 @@ export const config = {
     "/dashboard",
     "/facilities",
     "/facility/:path*",
+    "/enquiries",
+    "/enquiries/:path*",
+    "/submited-enquiries",
+    "/submited-enquiries/:path*",
+    "/pending-quotation",
+    "/pending-quotation/:path*",
     "/settings",
     "/reports",
     "/audits",

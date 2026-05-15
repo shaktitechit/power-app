@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const utilityBillingRecordSchema = new mongoose.Schema(
   {
     utility_account_id: {
@@ -128,10 +130,12 @@ const utilityBillingRecordSchema = new mongoose.Schema(
   },
 );
 
-// 🔒 Prevent duplicate billing record for same period
+utilityBillingRecordSchema.plugin(softDeletePlugin);
+
+// 🔒 Prevent duplicate billing record for same period (among non-deleted rows)
 utilityBillingRecordSchema.index(
   { utility_account_id: 1, billing_period_start: 1, billing_period_end: 1 },
-  { unique: true },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
 );
 
 // 🔍 Indexes

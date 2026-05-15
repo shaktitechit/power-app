@@ -497,7 +497,7 @@ const deleteSolarGenerationRecord = asyncHandler(async (req, res) => {
     net_kWh: solarGenerationRecord.net_kWh,
   };
 
-  await solarGenerationRecord.deleteOne();
+  await solarGenerationRecord.softDelete();
 
   // ✅ ACTIVITY
   await createRecentActivity({

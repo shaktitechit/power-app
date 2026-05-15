@@ -36,6 +36,7 @@ import {
   hasOrgWideUtilityAccountRead,
   resolveAccessibleFacility,
 } from "../services/authorization/index.js";
+import { createNotification } from "../services/notificationService.js";
 
 // helper: upload documents
 const uploadUtilityDocuments = async (files = [], utilityAccountId) => {
@@ -441,6 +442,19 @@ const submitUtilityAuditStep = asyncHandler(async (req, res) => {
       audit_step: step,
     },
   });
+
+  if (step === "preview-and-submit" || step === "safety-preview-and-submit") {
+      const io = req.app.get("io");
+      
+      await createNotification(io, {
+          recipient: facility.owner_user_id,
+          sender: req.user._id,
+          title: "Utility Account Submitted",
+          message: `Utility account ${updated.account_number} has been submitted for facility: ${facility.name}`,
+          type: "utility",
+          referenceId: updated._id,
+      });
+  }
 
   res.status(200).json({
     success: true,
@@ -852,7 +866,7 @@ const deleteUtilityAccount = asyncHandler(async (req, res) => {
   const entityName = utilityAccount.account_number;
   const facilityId = utilityAccount.facility_id;
 
-  await utilityAccount.deleteOne();
+  await utilityAccount.softDelete();
 
   // ✅ ACTIVITY
   await createRecentActivity({

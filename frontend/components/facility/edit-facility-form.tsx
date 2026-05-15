@@ -297,7 +297,10 @@ export function EditFacilityForm({
         ? new Date(facility.closure_date).toISOString().split("T")[0]
         : "",
       auditor_ids: assignedAuditors
-        .map((auditor: any) => auditor.user_id?._id)
+        .map((auditor: any) => {
+          const u = auditor.user_id;
+          return typeof u === "object" ? u?._id : u;
+        })
         .filter(Boolean),
       budget: {
         no_of_persons: facility.budget?.no_of_persons != null ? String(facility.budget.no_of_persons) : "",
@@ -430,43 +433,47 @@ export function EditFacilityForm({
       .filter((rep) => rep.name || rep.contact_number || rep.email);
     const primaryRep = sanitizedReps[0];
 
-    await toastHandler({
-      action: () =>
-        updateFacility({
-          id: facilityId,
-          name: formData.name.trim(),
-          city: formData.city.trim(),
-          address: formData.address.trim() || undefined,
-          start_date: formData.start_date || undefined,
-          client_representatives: sanitizedReps,
-          // Backward compatible payload (existing backend consumers may still use old fields)
-          client_representative: primaryRep?.name || undefined,
-          client_contact_number: primaryRep?.contact_number || undefined,
-          client_email: primaryRep?.email || undefined,
-          facility_type: formData.facility_type.trim(),
-          audit_type: formData.audit_type,
-          status: formData.status as "active" | "inactive",
-          closure_date:
-            formData.status === "inactive"
-              ? formData.closure_date || undefined
-              : undefined,
-          auditor_ids: formData.auditor_ids,
-          documents: newDocuments.map((doc) => doc.file),
-          removed_document_ids: removedExistingDocuments,
-          budget: {
-            no_of_persons: formData.budget.no_of_persons !== "" ? Number(formData.budget.no_of_persons) : null,
-            no_planned_site_visits: formData.budget.no_planned_site_visits !== "" ? Number(formData.budget.no_planned_site_visits) : null,
-            tentative_budget: formData.budget.tentative_budget !== "" ? Number(formData.budget.tentative_budget) : null,
-            actual_budget: formData.budget.actual_budget !== "" ? Number(formData.budget.actual_budget) : null,
-          },
-        }).unwrap(),
+    try {
+      await toastHandler({
+        action: () =>
+          updateFacility({
+            id: facilityId,
+            name: formData.name.trim(),
+            city: formData.city.trim(),
+            address: formData.address.trim() || undefined,
+            start_date: formData.start_date || undefined,
+            client_representatives: sanitizedReps,
+            // Backward compatible payload (existing backend consumers may still use old fields)
+            client_representative: primaryRep?.name || undefined,
+            client_contact_number: primaryRep?.contact_number || undefined,
+            client_email: primaryRep?.email || undefined,
+            facility_type: formData.facility_type.trim(),
+            audit_type: formData.audit_type,
+            status: formData.status as "active" | "inactive",
+            closure_date:
+              formData.status === "inactive"
+                ? formData.closure_date || undefined
+                : undefined,
+            auditor_ids: formData.auditor_ids,
+            documents: newDocuments.map((doc) => doc.file),
+            removed_document_ids: removedExistingDocuments,
+            budget: {
+              no_of_persons: formData.budget.no_of_persons !== "" ? Number(formData.budget.no_of_persons) : null,
+              no_planned_site_visits: formData.budget.no_planned_site_visits !== "" ? Number(formData.budget.no_planned_site_visits) : null,
+              tentative_budget: formData.budget.tentative_budget !== "" ? Number(formData.budget.tentative_budget) : null,
+              actual_budget: formData.budget.actual_budget !== "" ? Number(formData.budget.actual_budget) : null,
+            },
+          }).unwrap(),
 
-      loading: "Updating facility...",
-      success: "Facility updated successfully",
-    });
+        loading: "Updating facility...",
+        success: "Facility updated successfully",
+      });
 
-    onComplete();
-    handleClose();
+      onComplete();
+      handleClose();
+    } catch (error) {
+      console.error("Failed to update facility:", error);
+    }
   };
   const isBusy = updatingFacility || facilityLoading || facilityFetching;
 

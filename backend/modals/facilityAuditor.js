@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { softDeletePlugin } from "./plugins/softDelete.js";
 
 const facilityAuditorSchema = new mongoose.Schema(
   {
@@ -36,8 +37,13 @@ const facilityAuditorSchema = new mongoose.Schema(
   },
 );
 
-// 🔒 Prevent duplicate assignments (same user in same facility)
-facilityAuditorSchema.index({ facility_id: 1, user_id: 1 }, { unique: true });
+facilityAuditorSchema.plugin(softDeletePlugin);
+
+// 🔒 Prevent duplicate assignments (same user in same facility, among non-deleted rows)
+facilityAuditorSchema.index(
+  { facility_id: 1, user_id: 1 },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
+);
 
 // 🔍 Indexes for performance
 facilityAuditorSchema.index({ facility_id: 1 });

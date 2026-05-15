@@ -374,7 +374,7 @@ const deleteTransformer = asyncHandler(async (req, res) => {
   const utilityId = transformer.utility_account_id;
   const ratedCapacity = transformer.rated_capacity_kVA;
 
-  await transformer.deleteOne();
+  await transformer.softDelete();
 
   // ✅ ACTIVITY
   await createRecentActivity({

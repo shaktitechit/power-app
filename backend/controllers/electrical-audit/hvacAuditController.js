@@ -641,7 +641,7 @@ const deleteHVACAudit = asyncHandler(async (req, res) => {
   const facilityId = hvacAudit.facility_id;
   const utilityId = hvacAudit.utility_account_id;
 
-  await hvacAudit.deleteOne();
+  await hvacAudit.softDelete();
 
   await createRecentActivity({
     actor: req.user,

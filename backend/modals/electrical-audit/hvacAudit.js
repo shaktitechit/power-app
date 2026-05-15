@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const hvacAuditSchema = new mongoose.Schema(
   {
     facility_id: {
@@ -139,6 +141,8 @@ const hvacAuditSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+hvacAuditSchema.plugin(softDeletePlugin);
 
 const HVACAudit = mongoose.model("HVACAudit", hvacAuditSchema);
 

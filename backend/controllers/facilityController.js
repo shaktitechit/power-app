@@ -1,6 +1,7 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import Facility from "../modals/facility.js";
+import Enquiry from "../modals/enquiry.js";
 import FacilityAuditor from "../modals/facilityAuditor.js";
 import UtilityAccount from "../modals/utilityAccount.js";
 import { uploadBufferToFileManagement } from "../utils/fileManagementUpload.js";
@@ -15,6 +16,7 @@ import {
 } from "../services/authorization/index.js";
 import { RESOURCES } from "../constants/resources.js";
 import { ACTIONS } from "../constants/actions.js";
+import { createNotification } from "../services/notificationService.js";
 
 // helper: parse auditor ids safely
 const parseAuditorIds = (auditor_ids) => {
@@ -32,7 +34,7 @@ const parseAuditorIds = (auditor_ids) => {
     }
   }
 
-  return parsedAuditorIds;
+  return [...new Set(parsedAuditorIds.map(id => String(id).trim()).filter(Boolean))];
 };
 
 const parseClientRepresentatives = (client_representatives) => {
@@ -176,6 +178,18 @@ const createFacility = asyncHandler(async (req, res) => {
 
     await FacilityAuditor.insertMany(facilityAuditorDocs, { ordered: false });
 
+    const io = req.app.get("io");
+    for (const auditorId of parsedAuditorIds) {
+        await createNotification(io, {
+            recipient: auditorId,
+            sender: req.user._id,
+            title: "New Facility Assignment",
+            message: `You have been assigned to facility: ${facility.name}`,
+            type: "facility",
+            referenceId: facility._id,
+        });
+    }
+
     await createRecentActivity({
       actor: req.user,
       action: "assigned",
@@ -213,6 +227,194 @@ const createFacility = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: "Facility created successfully",
+    data: facility,
+  });
+});
+
+// @route POST /api/v1/enquiries/:enquiryId/facility
+// @desc Create Facility from submitted (won) enquiry and link them
+// @access super_admin only
+const createFacilityFromEnquiry = asyncHandler(async (req, res) => {
+  if (!isAdmin(req.user)) {
+    res.status(403);
+    throw new Error(
+      "Only super administrators can create a facility from a submitted enquiry",
+    );
+  }
+
+  const enquiryIdRaw = req.params.enquiryId;
+  if (
+    !enquiryIdRaw ||
+    !mongoose.Types.ObjectId.isValid(String(enquiryIdRaw))
+  ) {
+    res.status(400);
+    throw new Error("Invalid enquiry id");
+  }
+
+  const enquiry = await Enquiry.findById(enquiryIdRaw).exec();
+  if (!enquiry) {
+    res.status(404);
+    throw new Error("Enquiry not found");
+  }
+
+  if (enquiry.enquiry_status !== "won") {
+    res.status(400);
+    throw new Error(
+      "Only submitted (won) enquiries can be converted to a facility",
+    );
+  }
+
+  if (
+    enquiry.is_converted_to_facility ||
+    (enquiry.converted_facility_id != null &&
+      String(enquiry.converted_facility_id).length > 0)
+  ) {
+    res.status(409);
+    throw new Error("This enquiry already has an associated facility");
+  }
+
+  const {
+    name,
+    city,
+    address,
+    client_representative,
+    client_contact_number,
+    client_email,
+    facility_type,
+    audit_type,
+    status,
+    start_date,
+    closure_date,
+    auditor_ids,
+    client_representatives,
+    budget: budgetRaw,
+  } = req.body;
+
+  if (!name || !city) {
+    res.status(400);
+    throw new Error("Name and city are required");
+  }
+
+  const parsedAuditorIds = parseAuditorIds(auditor_ids);
+  const parsedClientRepresentatives = parseClientRepresentatives(
+    client_representatives,
+  );
+  const fallbackClientRepresentatives = parsedClientRepresentatives.length
+    ? parsedClientRepresentatives
+    : client_representative || client_contact_number || client_email
+      ? [
+          {
+            name: String(client_representative || "").trim(),
+            contact_number: String(client_contact_number || "").trim(),
+            email: String(client_email || "").trim(),
+          },
+        ]
+      : [];
+  const facilityId = new mongoose.Types.ObjectId();
+  const uploadedDocuments = await uploadFacilityDocuments(req.files, facilityId);
+
+  const parseNumberOrNull = (v) => {
+    const n = Number(v);
+    return v !== undefined && v !== null && v !== "" && !isNaN(n) ? n : null;
+  };
+  let parsedBudget = undefined;
+  if (budgetRaw !== undefined) {
+    const b = typeof budgetRaw === "string" ? JSON.parse(budgetRaw) : budgetRaw;
+    parsedBudget = {
+      no_of_persons: parseNumberOrNull(b?.no_of_persons),
+      no_planned_site_visits: parseNumberOrNull(b?.no_planned_site_visits),
+      tentative_budget: parseNumberOrNull(b?.tentative_budget),
+      actual_budget: parseNumberOrNull(b?.actual_budget),
+    };
+  }
+
+  const facility = await Facility.create({
+    _id: facilityId,
+    owner_user_id: req.user._id,
+    created_by: req.user._id,
+    name,
+    city,
+    address,
+    client_representative,
+    client_contact_number,
+    client_email,
+    client_representatives: fallbackClientRepresentatives,
+    facility_type:
+      facility_type !== undefined && facility_type !== null
+        ? String(facility_type).trim()
+        : "",
+    audit_type,
+    status,
+    start_date,
+    closure_date,
+    documents: uploadedDocuments,
+    ...(parsedBudget !== undefined && { budget: parsedBudget }),
+  });
+
+  enquiry.is_converted_to_facility = true;
+  enquiry.converted_facility_id = facility._id;
+  await enquiry.save();
+
+  if (parsedAuditorIds.length > 0) {
+    const facilityAuditorDocs = parsedAuditorIds.map((auditorId) => ({
+      facility_id: facility._id,
+      user_id: auditorId,
+      assigned_by: req.user._id,
+    }));
+
+    await FacilityAuditor.insertMany(facilityAuditorDocs, { ordered: false });
+
+    await createRecentActivity({
+      actor: req.user,
+      action: "assigned",
+      entity_type: "facility",
+      entity_id: facility._id,
+      entity_name: facility.name,
+      facility_id: facility._id,
+      message: `${req.user?.name || "User"} assigned auditors to facility "${facility.name}"`,
+      meta: {
+        auditor_ids: parsedAuditorIds,
+      },
+    });
+  }
+
+  await createRecentActivity({
+    actor: req.user,
+    action: "created",
+    entity_type: "facility",
+    entity_id: facility._id,
+    entity_name: facility.name,
+    facility_id: facility._id,
+    message: buildActivityMessage({
+      actorName: req.user?.name || "User",
+      action: "created",
+      entityLabel: "facility",
+      entityName: facility.name,
+    }),
+    meta: {
+      city: facility.city,
+      facility_type: facility.facility_type,
+      assigned_auditors_count: parsedAuditorIds.length,
+      from_enquiry_id: enquiry._id?.toString(),
+    },
+  });
+
+  await createRecentActivity({
+    actor: req.user,
+    action: "updated",
+    entity_type: "enquiry",
+    entity_id: enquiry._id,
+    entity_name: enquiry.name,
+    message: `${req.user?.name || "User"} linked enquiry "${enquiry.name}" to new facility`,
+    meta: {
+      enquiry_id: enquiry._id?.toString(),
+      facility_id: facility._id?.toString(),
+    },
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Facility created from enquiry successfully",
     data: facility,
   });
 });
@@ -378,7 +580,7 @@ const updateFacility = asyncHandler(async (req, res) => {
   const updatedFacility = await facility.save();
 
   if (auditor_ids !== undefined) {
-    await FacilityAuditor.deleteMany({ facility_id: facility._id });
+    await FacilityAuditor.softDeleteMany({ facility_id: facility._id });
 
     if (parsedAuditorIds.length > 0) {
       const facilityAuditorDocs = parsedAuditorIds.map((auditorId) => ({
@@ -388,6 +590,18 @@ const updateFacility = asyncHandler(async (req, res) => {
       }));
 
       await FacilityAuditor.insertMany(facilityAuditorDocs, { ordered: false });
+
+      const io = req.app.get("io");
+      for (const auditorId of parsedAuditorIds) {
+          await createNotification(io, {
+              recipient: auditorId,
+              sender: req.user._id,
+              title: "Facility Assignment Updated",
+              message: `You have been assigned to facility: ${facility.name}`,
+              type: "facility",
+              referenceId: facility._id,
+          });
+      }
     }
 
     await createRecentActivity({
@@ -455,8 +669,8 @@ const deleteFacility = asyncHandler(async (req, res) => {
   const name = facility.name;
   const city = facility.city;
 
-  await FacilityAuditor.deleteMany({ facility_id: facility._id });
-  await facility.deleteOne();
+  await FacilityAuditor.softDeleteMany({ facility_id: facility._id });
+  await facility.softDelete();
 
   await createRecentActivity({
     actor: req.user,
@@ -524,6 +738,28 @@ const closeFacilityAudit = asyncHandler(async (req, res) => {
     closed_by: req.user._id,
   };
   await facility.save();
+
+  const io = req.app.get("io");
+  await createNotification(io, {
+      recipient: facility.owner_user_id,
+      sender: req.user._id,
+      title: "Facility Audit Closed",
+      message: `Facility audit closed for: ${facility.name}`,
+      type: "facility",
+      referenceId: facility._id,
+  });
+
+  const auditors = await FacilityAuditor.find({ facility_id: facility._id });
+  for (const auditor of auditors) {
+      await createNotification(io, {
+          recipient: auditor.user_id,
+          sender: req.user._id,
+          title: "Facility Audit Closed",
+          message: `Facility audit closed for: ${facility.name}`,
+          type: "facility",
+          referenceId: facility._id,
+      });
+  }
 
   await createRecentActivity({
     actor: req.user,
@@ -605,6 +841,7 @@ const openFacilityAudit = asyncHandler(async (req, res) => {
 
 export {
   createFacility,
+  createFacilityFromEnquiry,
   getFacilities,
   getFacilityById,
   updateFacility,

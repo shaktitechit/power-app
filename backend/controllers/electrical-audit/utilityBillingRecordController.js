@@ -427,7 +427,7 @@ const deleteUtilityBillingRecord = asyncHandler(async (req, res) => {
   const billingStart = billingRecord.billing_period_start;
   const billingEnd = billingRecord.billing_period_end;
 
-  await billingRecord.deleteOne();
+  await billingRecord.softDelete();
 
   await createRecentActivity({
     actor: req.user,

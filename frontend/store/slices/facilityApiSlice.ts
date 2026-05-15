@@ -139,6 +139,11 @@ export interface CreateFacilityResponse {
   data: Facility;
 }
 
+/** POST /v1/enquiries/:enquiryId/facility — same body as create; super_admin + won enquiry */
+export interface CreateFacilityFromEnquiryRequest extends CreateFacilityRequest {
+  enquiryId: string;
+}
+
 export interface GetFacilitiesResponse {
   success: boolean;
   count: number;
@@ -251,6 +256,22 @@ export const facilityApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["Facility"],
     }),
 
+    createFacilityFromEnquiry: builder.mutation<
+      CreateFacilityResponse,
+      CreateFacilityFromEnquiryRequest
+    >({
+      query: ({ enquiryId, ...data }) => ({
+        url: `/v1/enquiries/${enquiryId}/facility`,
+        method: "POST",
+        body: buildFacilityFormData(data),
+      }),
+      invalidatesTags: (_r, _e, { enquiryId }) => [
+        "Facility",
+        { type: "Enquiry" as const, id: enquiryId },
+        { type: "Enquiry" as const, id: "LIST" },
+      ],
+    }),
+
     getFacilities: builder.query<GetFacilitiesResponse, void>({
       query: () => ({
         url: "/v1/facilities",
@@ -319,6 +340,7 @@ export const facilityApiSlice = apiSlice.injectEndpoints({
 
 export const {
   useCreateFacilityMutation,
+  useCreateFacilityFromEnquiryMutation,
   useGetFacilitiesQuery,
   useGetFacilityByIdQuery,
   useUpdateFacilityMutation,

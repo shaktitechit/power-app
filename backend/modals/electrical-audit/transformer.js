@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const transformerSchema = new mongoose.Schema(
   {
     facility_id: {
@@ -107,10 +109,12 @@ const transformerSchema = new mongoose.Schema(
   },
 );
 
-// 🔒 Prevent duplicate transformer tag per utility account
+transformerSchema.plugin(softDeletePlugin);
+
+// 🔒 Prevent duplicate transformer tag per utility account (among non-deleted rows)
 transformerSchema.index(
   { utility_account_id: 1, transformer_tag: 1 },
-  { unique: true },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
 );
 
 // 🔍 Indexes

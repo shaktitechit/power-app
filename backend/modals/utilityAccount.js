@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { softDeletePlugin } from "./plugins/softDelete.js";
 
 const utilityAccountSchema = new mongoose.Schema(
   {
@@ -127,10 +128,12 @@ const utilityAccountSchema = new mongoose.Schema(
   },
 );
 
-// 🔒 Prevent duplicate account per facility
+utilityAccountSchema.plugin(softDeletePlugin);
+
+// 🔒 Prevent duplicate account per facility (among non-deleted rows)
 utilityAccountSchema.index(
   { facility_id: 1, account_number: 1 },
-  { unique: true },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
 );
 
 // 🔍 Indexes

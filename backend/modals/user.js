@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import { softDeletePlugin } from "./plugins/softDelete.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -12,7 +13,6 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       match: [/.+\@.+\..+/, "Please enter a valid email address"],
     },
@@ -91,6 +91,12 @@ const userSchema = new mongoose.Schema(
       updatedAt: "updated_at",
     },
   },
+);
+
+userSchema.plugin(softDeletePlugin);
+userSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
 );
 
 // 🔐 Password Hash Middleware

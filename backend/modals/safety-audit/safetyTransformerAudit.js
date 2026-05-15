@@ -1,4 +1,6 @@
 import mongoose from "mongoose";
+
+import { softDeletePlugin } from "../plugins/softDelete.js";
 import safetyAuditChecklistItemSchema from "./safetyAuditChecklistItem.js";
 import safetyAuditDocumentSchema from "./safetyAuditDocuments.js";
 
@@ -52,6 +54,8 @@ const safetyTransformerAuditSchema = new mongoose.Schema(
     },
   }
 );
+
+safetyTransformerAuditSchema.plugin(softDeletePlugin);
 
 safetyTransformerAuditSchema.index({
   facility_id: 1,

@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const pumpSchema = new mongoose.Schema(
   {
     facility_id: {
@@ -97,10 +99,12 @@ const pumpSchema = new mongoose.Schema(
   },
 );
 
-// 🔒 Prevent duplicate pump tag per utility account
+pumpSchema.plugin(softDeletePlugin);
+
+// 🔒 Prevent duplicate pump tag per utility account (among non-deleted rows)
 pumpSchema.index(
   { utility_account_id: 1, pump_tag_number: 1 },
-  { unique: true },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
 );
 
 // 🔍 Indexes

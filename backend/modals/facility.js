@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { softDeletePlugin } from "./plugins/softDelete.js";
 
 const facilitySchema = new mongoose.Schema(
   {
@@ -177,6 +178,8 @@ const facilitySchema = new mongoose.Schema(
     },
   },
 );
+
+facilitySchema.plugin(softDeletePlugin);
 
 // 🔍 Indexes
 facilitySchema.index({ owner_user_id: 1 });

@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const transformerAuditRecordSchema = new mongoose.Schema(
   {
     transformer_id: {
@@ -111,6 +113,8 @@ const transformerAuditRecordSchema = new mongoose.Schema(
     },
   },
 );
+
+transformerAuditRecordSchema.plugin(softDeletePlugin);
 
 // 🔍 Indexes
 transformerAuditRecordSchema.index({ transformer_id: 1 });

@@ -323,7 +323,7 @@ const deleteUtilityTariff = asyncHandler(async (req, res) => {
   );
   const facilityId = utility.facility_id;
 
-  await tariff.deleteOne();
+  await tariff.softDelete();
 
   // ✅ ACTIVITY
   await createRecentActivity({

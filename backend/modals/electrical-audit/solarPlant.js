@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const solarPlantSchema = new mongoose.Schema(
   {
     facility_id: {
@@ -84,6 +86,8 @@ const solarPlantSchema = new mongoose.Schema(
     },
   },
 );
+
+solarPlantSchema.plugin(softDeletePlugin);
 
 // 🔍 Indexes
 solarPlantSchema.index({ facility_id: 1 });

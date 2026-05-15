@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const solarGenerationRecordSchema = new mongoose.Schema(
   {
     solar_plant_id: {
@@ -65,9 +67,11 @@ const solarGenerationRecordSchema = new mongoose.Schema(
   },
 );
 
+solarGenerationRecordSchema.plugin(softDeletePlugin);
+
 solarGenerationRecordSchema.index(
   { solar_plant_id: 1, billing_period_start: 1, billing_period_end: 1 },
-  { unique: true },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
 );
 solarGenerationRecordSchema.index({ utility_account_id: 1 });
 solarGenerationRecordSchema.index({ facility_id: 1 });

@@ -354,7 +354,7 @@ const deleteDGSet = asyncHandler(async (req, res) => {
   const facilityId = dgSet.facility_id;
   const utilityId = dgSet.utility_account_id;
 
-  await dgSet.deleteOne();
+  await dgSet.softDelete();
 
   // ✅ Recent Activity
   await createRecentActivity({

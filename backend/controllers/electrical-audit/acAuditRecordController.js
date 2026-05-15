@@ -332,7 +332,7 @@ const deleteACAuditRecord = asyncHandler(async (req, res) => {
   const facilityId = record.facility_id;
   const utilityId = record.utility_account_id;
 
-  await record.deleteOne();
+  await record.softDelete();
   // ✅ Recent Activity
   await createRecentActivity({
     actor: req.user,

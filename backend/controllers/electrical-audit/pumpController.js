@@ -356,7 +356,7 @@ const deletePump = asyncHandler(async (req, res) => {
   const ratedFlow = pump.rated_flow_m3_per_hr;
   const ratedHead = pump.rated_head_m;
 
-  await pump.deleteOne();
+  await pump.softDelete();
 
   await createRecentActivity({
     actor: req.user,

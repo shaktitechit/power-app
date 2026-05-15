@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { softDeletePlugin } from "../plugins/softDelete.js";
+
 const utilityTariffSchema = new mongoose.Schema(
   {
     utility_account_id: {
@@ -107,10 +109,12 @@ const utilityTariffSchema = new mongoose.Schema(
   },
 );
 
-// 🔒 Ensure only one active tariff per utility account
+utilityTariffSchema.plugin(softDeletePlugin);
+
+// 🔒 Ensure only one active tariff per utility account (among non-deleted rows)
 utilityTariffSchema.index(
   { utility_account_id: 1, effective_from: 1 },
-  { unique: true },
+  { unique: true, partialFilterExpression: { deleted_at: null } },
 );
 
 // 🔍 Indexes

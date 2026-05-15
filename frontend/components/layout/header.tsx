@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { User, ChevronDown, Menu, Clock } from "lucide-react";
+import { User, ChevronDown, Menu, Clock, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,6 +18,15 @@ import { useLogoutMutation } from "@/store/slices/userApiSlice";
 import { logout } from "@/store/slices/authSlice";
 import { usePresenceMap } from "@/hooks/presenceMap";
 import { socket } from "@/lib/socket";
+import { NotificationDropdown } from "./notification-dropdown";
+
+const getCookie = (name: string) => {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift();
+  return null;
+};
 import { toastHandler } from "@/lib/toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FontSizeControl } from "@/components/font-size-control";
@@ -156,6 +165,12 @@ export function Header({
     }
 
     const resetTimer = () => {
+      const sessionTimer = getCookie("sessionTimer");
+      if (!sessionTimer || Number(sessionTimer) < Date.now()) {
+        runLogoutFlow({ isForced: true, showSuccessToast: false });
+        return;
+      }
+
       setSecondsRemaining(10 * 60); // Reset to 10 minutes on activity
 
       const now = Date.now();
@@ -269,6 +284,9 @@ export function Header({
         <div className="hidden sm:flex items-center gap-1.5 sm:gap-3 md:gap-4">
           {controls}
         </div>
+
+        {/* Notification bell */}
+        <NotificationDropdown />
 
         {/* User dropdown */}
         <DropdownMenu modal={false}>
