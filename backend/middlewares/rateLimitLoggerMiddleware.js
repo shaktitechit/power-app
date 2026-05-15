@@ -4,7 +4,7 @@ import buildLogMeta from "../utils/buildLogMeta.js";
 
 export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: 50000000,
   standardHeaders: true,
   legacyHeaders: false,
 
@@ -13,7 +13,7 @@ export const apiRateLimiter = rateLimit({
       ...buildLogMeta(req, {
         statusCode: 429,
         windowMs: 15 * 60 * 1000,
-        maxRequests: 500,
+        maxRequests: 50000000,
         userAgent: req.get("user-agent"),
         logCategory: "security",
         abuseDetection: true,
@@ -29,7 +29,7 @@ export const apiRateLimiter = rateLimit({
 
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 5000,
   standardHeaders: true,
   legacyHeaders: false,
 
@@ -38,7 +38,7 @@ export const authRateLimiter = rateLimit({
       ...buildLogMeta(req, {
         statusCode: 429,
         windowMs: 15 * 60 * 1000,
-        maxRequests: 50,
+        maxRequests: 5000,
         userAgent: req.get("user-agent"),
         email: req.body?.email || null,
         logCategory: "security",
