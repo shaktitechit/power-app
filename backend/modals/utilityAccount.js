@@ -35,6 +35,15 @@ const utilityAccountSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+    sanctioned_demand_value: {
+      type: Number,
+      min: 0,
+    },
+    sanctioned_demand_unit: {
+      type: String,
+      enum: ["kVA", "kW", "BHP"],
+      default: "kVA",
+    },
     // ⚡ Connections
     is_solar_connected: {
       type: Boolean,

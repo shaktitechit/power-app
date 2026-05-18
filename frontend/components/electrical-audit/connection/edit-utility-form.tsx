@@ -42,12 +42,14 @@ interface UtilityAccountDocument {
 
 interface UtilityAccount {
   _id: string;
-  facility_id?: string;
+  facility_id?: string | { _id?: string; name?: string };
   account_number: string;
   connection_type: "LT" | "HT";
   category?: string;
   location?: string;
   sanctioned_demand_kVA?: number;
+  sanctioned_demand_value?: number;
+  sanctioned_demand_unit?: "kVA" | "kW" | "BHP";
   provider?: string;
   billing_cycle?: string;
   is_solar_connected?: boolean;
@@ -100,7 +102,8 @@ export function EditUtilityAccountForm({
     connection_type: "",
     category: "",
     location: "",
-    sanctioned_demand_kVA: "",
+    sanctioned_demand_value: "",
+    sanctioned_demand_unit: "kVA",
     provider: "",
     billing_cycle: "",
     is_solar_connected: false,
@@ -125,11 +128,12 @@ export function EditUtilityAccountForm({
       connection_type: utilityAccount.connection_type || "",
       category: utilityAccount.category || "",
       location: utilityAccount.location || "",
-      sanctioned_demand_kVA:
-        utilityAccount.sanctioned_demand_kVA !== undefined &&
-        utilityAccount.sanctioned_demand_kVA !== null
-          ? String(utilityAccount.sanctioned_demand_kVA)
+      sanctioned_demand_value:
+        utilityAccount.sanctioned_demand_value !== undefined &&
+        utilityAccount.sanctioned_demand_value !== null
+          ? String(utilityAccount.sanctioned_demand_value)
           : "",
+      sanctioned_demand_unit: utilityAccount.sanctioned_demand_unit || "kVA",
       provider: utilityAccount.provider || "",
       billing_cycle: utilityAccount.billing_cycle || "",
       is_solar_connected: utilityAccount.is_solar_connected || false,
@@ -172,7 +176,8 @@ export function EditUtilityAccountForm({
       connection_type: "",
       category: "",
       location: "",
-      sanctioned_demand_kVA: "",
+      sanctioned_demand_value: "",
+      sanctioned_demand_unit: "kVA",
       provider: "",
       billing_cycle: "",
       is_solar_connected: false,
@@ -255,9 +260,10 @@ export function EditUtilityAccountForm({
           connection_type: formData.connection_type as "LT" | "HT",
           category: formData.category.trim() || undefined,
           location: formData.location.trim() || undefined,
-          sanctioned_demand_kVA: formData.sanctioned_demand_kVA
-            ? Number(formData.sanctioned_demand_kVA)
+          sanctioned_demand_value: formData.sanctioned_demand_value
+            ? Number(formData.sanctioned_demand_value)
             : undefined,
+          sanctioned_demand_unit: formData.sanctioned_demand_unit as "kVA" | "kW" | "BHP",
           provider: formData.provider.trim() || undefined,
           billing_cycle: formData.billing_cycle || undefined,
           is_solar_connected: formData.is_solar_connected,
@@ -354,19 +360,35 @@ export function EditUtilityAccountForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sanctioned_demand_kVA">
-                Sanctioned Demand (kVA)
+              <Label htmlFor="sanctioned_demand_value">
+                Sanctioned Demand
               </Label>
-              <Input
-                id="sanctioned_demand_kVA"
-                type="number"
-                min="0"
-                placeholder="Enter sanctioned demand"
-                value={formData.sanctioned_demand_kVA}
-                onChange={(e) =>
-                  updateField("sanctioned_demand_kVA", e.target.value)
-                }
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="sanctioned_demand_value"
+                  type="number"
+                  min="0"
+                  placeholder="Enter value"
+                  value={formData.sanctioned_demand_value}
+                  onChange={(e) =>
+                    updateField("sanctioned_demand_value", e.target.value)
+                  }
+                  className="flex-1"
+                />
+                <Select
+                  value={formData.sanctioned_demand_unit}
+                  onValueChange={(value) => updateField("sanctioned_demand_unit", value)}
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kVA">kVA</SelectItem>
+                    <SelectItem value="kW">kW</SelectItem>
+                    <SelectItem value="BHP">BHP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -523,7 +545,7 @@ export function EditUtilityAccountForm({
                       <div className="min-w-0 flex-1">
                         <p
                           className={cn(
-                            AUDIT_DOC_NEW_FILENAME_SPAN,
+                              AUDIT_DOC_NEW_FILENAME_SPAN,
                             "font-medium text-foreground",
                           )}
                         >
@@ -586,7 +608,7 @@ export function EditUtilityAccountForm({
                       <div className="min-w-0 flex-1">
                         <p
                           className={cn(
-                            AUDIT_DOC_NEW_FILENAME_SPAN,
+                              AUDIT_DOC_NEW_FILENAME_SPAN,
                             "font-medium text-foreground",
                           )}
                         >

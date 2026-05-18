@@ -184,6 +184,14 @@ const parseBoolean = (value, defaultValue = false) => {
   return Boolean(value);
 };
 
+const calculateKVA = (value, unit) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  const val = Number(value);
+  if (unit === "kW") return val / 0.9;
+  if (unit === "BHP") return (val * 0.746) / 0.9;
+  return val; // kVA
+};
+
 // @route POST
 const createUtilityAccount = asyncHandler(async (req, res) => {
   const {
@@ -192,7 +200,8 @@ const createUtilityAccount = asyncHandler(async (req, res) => {
     connection_type,
     category,
     location,
-    sanctioned_demand_kVA,
+    sanctioned_demand_value,
+    sanctioned_demand_unit,
     provider,
     billing_cycle,
     audit_date,
@@ -242,10 +251,12 @@ const createUtilityAccount = asyncHandler(async (req, res) => {
     connection_type,
     category,
     location,
-    sanctioned_demand_kVA:
-      sanctioned_demand_kVA !== undefined && sanctioned_demand_kVA !== ""
-        ? Number(sanctioned_demand_kVA)
+    sanctioned_demand_value:
+      sanctioned_demand_value !== undefined && sanctioned_demand_value !== ""
+        ? Number(sanctioned_demand_value)
         : undefined,
+    sanctioned_demand_unit: sanctioned_demand_unit || "kVA",
+    sanctioned_demand_kVA: calculateKVA(sanctioned_demand_value, sanctioned_demand_unit),
     provider,
     billing_cycle,
     audit_date: audit_date || undefined,
@@ -704,7 +715,8 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
     connection_type,
     category,
     location,
-    sanctioned_demand_kVA,
+    sanctioned_demand_value,
+    sanctioned_demand_unit,
     provider,
     billing_cycle,
     audit_date,
@@ -768,10 +780,14 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
   utilityAccount.category = category ?? utilityAccount.category;
   utilityAccount.location = location ?? utilityAccount.location;
 
-  utilityAccount.sanctioned_demand_kVA =
-    sanctioned_demand_kVA !== undefined && sanctioned_demand_kVA !== ""
-      ? Number(sanctioned_demand_kVA)
-      : utilityAccount.sanctioned_demand_kVA;
+  if (sanctioned_demand_value !== undefined) {
+    utilityAccount.sanctioned_demand_value = sanctioned_demand_value !== "" ? Number(sanctioned_demand_value) : undefined;
+    utilityAccount.sanctioned_demand_unit = sanctioned_demand_unit || utilityAccount.sanctioned_demand_unit || "kVA";
+    utilityAccount.sanctioned_demand_kVA = calculateKVA(utilityAccount.sanctioned_demand_value, utilityAccount.sanctioned_demand_unit);
+  } else if (sanctioned_demand_unit !== undefined) {
+    utilityAccount.sanctioned_demand_unit = sanctioned_demand_unit;
+    utilityAccount.sanctioned_demand_kVA = calculateKVA(utilityAccount.sanctioned_demand_value, utilityAccount.sanctioned_demand_unit);
+  }
 
   utilityAccount.provider = provider ?? utilityAccount.provider;
   utilityAccount.billing_cycle = billing_cycle ?? utilityAccount.billing_cycle;

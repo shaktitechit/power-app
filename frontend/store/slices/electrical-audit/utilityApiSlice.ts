@@ -31,6 +31,8 @@ export interface UtilityAccount {
   category?: string;
   location?: string;
   sanctioned_demand_kVA?: number;
+  sanctioned_demand_value?: number;
+  sanctioned_demand_unit?: "kVA" | "kW" | "BHP";
 
   is_solar_connected: boolean;
   is_dg_connected: boolean;
@@ -64,7 +66,8 @@ export interface CreateUtilityAccountRequest {
   connection_type: "LT" | "HT";
   category?: string;
   location?: string;
-  sanctioned_demand_kVA?: number | string;
+  sanctioned_demand_value?: number | string;
+  sanctioned_demand_unit?: "kVA" | "kW" | "BHP";
 
   is_solar_connected?: boolean;
   is_dg_connected?: boolean;
@@ -87,7 +90,8 @@ export interface UpdateUtilityAccountRequest {
   connection_type?: "LT" | "HT";
   category?: string;
   location?: string;
-  sanctioned_demand_kVA?: number | string;
+  sanctioned_demand_value?: number | string;
+  sanctioned_demand_unit?: "kVA" | "kW" | "BHP";
 
   is_solar_connected?: boolean;
   is_dg_connected?: boolean;
@@ -164,11 +168,11 @@ const buildUtilityFormData = (
     formData.append("location", data.location);
   }
 
-  if (data.sanctioned_demand_kVA !== undefined) {
-    formData.append(
-      "sanctioned_demand_kVA",
-      String(data.sanctioned_demand_kVA)
-    );
+  if ("sanctioned_demand_value" in data && data.sanctioned_demand_value !== undefined) {
+    formData.append("sanctioned_demand_value", String(data.sanctioned_demand_value));
+  }
+  if ("sanctioned_demand_unit" in data && data.sanctioned_demand_unit !== undefined) {
+    formData.append("sanctioned_demand_unit", data.sanctioned_demand_unit);
   }
 
   if (data.provider !== undefined) {
