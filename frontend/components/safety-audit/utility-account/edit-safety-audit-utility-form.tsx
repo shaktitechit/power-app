@@ -107,7 +107,7 @@ export function EditSafetyAuditUtilityForm({
       location: utilityAccount.location || "",
       sanctioned_demand_kVA:
         utilityAccount.sanctioned_demand_kVA !== undefined &&
-        utilityAccount.sanctioned_demand_kVA !== null
+          utilityAccount.sanctioned_demand_kVA !== null
           ? String(utilityAccount.sanctioned_demand_kVA)
           : "",
       provider: utilityAccount.provider || "",

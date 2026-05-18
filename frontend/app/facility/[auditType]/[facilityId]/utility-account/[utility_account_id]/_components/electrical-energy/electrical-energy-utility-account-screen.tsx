@@ -7,12 +7,20 @@ import { useElectricalEnergyUtilityAccountWorkspace } from "./use-electrical-ene
 import type { Facility } from "@/store/slices/facilityApiSlice";
 import type { UtilityAccount } from "@/store/slices/electrical-audit/utilityApiSlice";
 
-export function ElectricalEnergyUtilityAccountScreen() {
+interface ScreenProps {
+  isFullscreen: boolean;
+  onFullscreenToggle: () => void;
+}
+
+export function ElectricalEnergyUtilityAccountScreen({
+  isFullscreen,
+  onFullscreenToggle,
+}: ScreenProps) {
   const model = useElectricalEnergyUtilityAccountWorkspace();
 
   if (model.utilityAccountLoading || model.facilityLoading) {
     return (
-      <DashboardLayout title="Loading Connection...">
+      <DashboardLayout title="Loading Connection..." isFullscreen={isFullscreen}>
         <div className="flex items-center justify-center py-12">
           <p className="text-muted-foreground">Loading...</p>
         </div>
@@ -37,6 +45,8 @@ export function ElectricalEnergyUtilityAccountScreen() {
       model={model}
       facility={facility}
       utilityAccount={utilityAccount}
+      isFullscreen={isFullscreen}
+      onFullscreenToggle={onFullscreenToggle}
     />
   );
 }

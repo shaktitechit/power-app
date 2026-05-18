@@ -121,8 +121,10 @@ function utilityAccountSearchHaystack(account: UtilityAccount): string {
     : "";
 
   const demand =
-    account.sanctioned_demand_kVA != null
-      ? String(account.sanctioned_demand_kVA)
+    account.sanctioned_demand_value != null
+      ? `${account.sanctioned_demand_value} ${account.sanctioned_demand_unit || "kVA"}`
+      : account.sanctioned_demand_kVA != null
+      ? `${account.sanctioned_demand_kVA} kVA`
       : "";
 
   const auditWords = hasUtilityFinalAuditSubmission(
@@ -420,9 +422,21 @@ export default function FacilityWorkspacePage() {
       key: "sanctioned_demand_kVA",
       header: "Sanctioned Demand",
       hideOnMobile: true,
-      render: (row) => (
-        <span className="text-foreground">{row.sanctioned_demand_kVA} kVA</span>
-      ),
+      render: (row) => {
+        const hasNewDemand = row.sanctioned_demand_value !== undefined && row.sanctioned_demand_value !== null;
+        if (hasNewDemand) {
+          return (
+            <span className="text-foreground">
+              {row.sanctioned_demand_value} {row.sanctioned_demand_unit || "kVA"}
+            </span>
+          );
+        }
+        return (
+          <span className="text-foreground">
+            {row.sanctioned_demand_kVA != null ? `${row.sanctioned_demand_kVA} kVA` : "-"}
+          </span>
+        );
+      },
     },
     {
       key: "location",

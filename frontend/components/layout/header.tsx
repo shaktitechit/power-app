@@ -37,12 +37,14 @@ interface HeaderProps {
   title?: string;
   subtitle?: string;
   onMenuClick?: () => void;
+  isFullscreen?: boolean;
 }
 
 export function Header({
   title = "Dashboard",
   subtitle,
   onMenuClick,
+  isFullscreen = false,
 }: HeaderProps) {
   const user = useAppSelector((state) => state.auth.user);
   const presenceMap = usePresenceMap();
@@ -250,15 +252,17 @@ export function Header({
     <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center justify-between gap-2 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:gap-3 sm:px-6">
       {/* Left: title & subtitle & controls (mobile) */}
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onMenuClick}
-          className="shrink-0 text-muted-foreground hover:text-foreground lg:hidden"
-        >
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Open menu</span>
-        </Button>
+        {!isFullscreen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMenuClick}
+            className="shrink-0 text-muted-foreground hover:text-foreground lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Open menu</span>
+          </Button>
+        )}
 
         <div className="min-w-0 flex flex-col">
           <h1 className="truncate text-base font-semibold text-foreground sm:text-sm">

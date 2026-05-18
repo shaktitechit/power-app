@@ -142,7 +142,21 @@ const normalizeUtilityAccount = (
   index = 0,
   omitEnergyConnectionFields = false,
 ) => {
-  const sanctionedDemand = normalizeNumber(account?.sanctioned_demand_kVA);
+  const getKva = (val, unit) => {
+    if (val === undefined || val === null || val === "") return null;
+    const valueNum = Number(val);
+    if (Number.isNaN(valueNum)) return null;
+    if (unit === "kW") return valueNum / 0.9;
+    if (unit === "BHP") return (valueNum * 0.746) / 0.9;
+    return valueNum;
+  };
+
+  const rawDemandValue = account?.sanctioned_demand_value !== undefined && account?.sanctioned_demand_value !== null
+    ? account.sanctioned_demand_value
+    : account?.sanctioned_demand_kVA;
+  const rawDemandUnit = account?.sanctioned_demand_unit || "kVA";
+  const hasNewDemand = account?.sanctioned_demand_value !== undefined && account?.sanctioned_demand_value !== null;
+  const sanctionedDemand = hasNewDemand ? null : normalizeNumber(getKva(rawDemandValue, rawDemandUnit));
 
   const normalized = {
     id: getId(account),
@@ -154,10 +168,18 @@ const normalizeUtilityAccount = (
     account_number: normalizeText(account?.account_number),
     connection_type: normalizeText(account?.connection_type),
     category: normalizeText(account?.category),
+    location: normalizeText(account?.location),
+    provider: normalizeText(account?.provider),
+    billing_cycle: normalizeText(account?.billing_cycle),
 
     sanctioned_demand_kVA: sanctionedDemand,
     sanctioned_demand_kVA_label:
       sanctionedDemand !== null ? formatNumber(sanctionedDemand) : "",
+    sanctioned_demand_value: normalizeNumber(account?.sanctioned_demand_value),
+    sanctioned_demand_unit: normalizeText(account?.sanctioned_demand_unit) || "kVA",
+    sanctioned_demand_label: hasNewDemand
+      ? `${formatNumber(account.sanctioned_demand_value)} ${account.sanctioned_demand_unit || "kVA"}`
+      : sanctionedDemand !== null ? `${formatNumber(sanctionedDemand)} kVA` : "",
 
     is_solar_connected: normalizeBoolean(account?.is_solar_connected),
     is_dg_connected: normalizeBoolean(account?.is_dg_connected),
@@ -230,9 +252,26 @@ const normalizeUtilityAccount = (
       value: normalized.category,
     },
     {
-      label: "Sanctioned Demand (kVA)",
-      value: normalized.sanctioned_demand_kVA ?? "",
+      label: "Location",
+      value: normalized.location,
     },
+    {
+      label: "Provider",
+      value: normalized.provider,
+    },
+    {
+      label: "Billing Cycle",
+      value: normalized.billing_cycle,
+    },
+    hasNewDemand
+      ? {
+          label: `Sanctioned Demand (${normalized.sanctioned_demand_unit})`,
+          value: normalized.sanctioned_demand_value !== null ? formatNumber(normalized.sanctioned_demand_value) : "",
+        }
+      : {
+          label: "Sanctioned Demand (kVA)",
+          value: normalized.sanctioned_demand_kVA !== null ? formatNumber(normalized.sanctioned_demand_kVA) : "",
+        },
     {
       label: "Solar Connected",
       value: normalized.is_solar_connected ? "Yes" : "No",
@@ -283,12 +322,23 @@ const normalizeUtilityAccount = (
       value: normalized.category || "-",
     },
     {
+      key: "provider",
+      label: "Provider",
+      value: normalized.provider || "-",
+    },
+    {
+      key: "billing_cycle",
+      label: "Billing Cycle",
+      value: normalized.billing_cycle || "-",
+    },
+    {
       key: "sanctioned_demand_kVA",
-      label: "Sanctioned Demand (kVA)",
-      value:
-        normalized.sanctioned_demand_kVA !== null
-          ? normalized.sanctioned_demand_kVA
-          : "-",
+      label: hasNewDemand
+        ? `Sanctioned Demand (${normalized.sanctioned_demand_unit})`
+        : "Sanctioned Demand (kVA)",
+      value: hasNewDemand
+        ? (normalized.sanctioned_demand_value !== null ? formatNumber(normalized.sanctioned_demand_value) : "-")
+        : (normalized.sanctioned_demand_kVA !== null ? formatNumber(normalized.sanctioned_demand_kVA) : "-"),
     },
   ];
 
@@ -369,14 +419,28 @@ const buildGroupedSections = (
   const sections = [];
 
   accounts.forEach((item) => {
+    const hasNewDemand = item.sanctioned_demand_value !== null && item.sanctioned_demand_value !== undefined;
+
     const accountDetailRows = [
       { field: "Account Number", value: item.account_number || "" },
       { field: "Connection Type", value: item.connection_type || "" },
       { field: "Category", value: item.category || "" },
-      {
-        field: "Sanctioned Demand (kVA)",
-        value: item.sanctioned_demand_kVA ?? "",
-      },
+      { field: "Location", value: item.location || "" },
+      { field: "Provider", value: item.provider || "" },
+      { field: "Billing Cycle", value: item.billing_cycle || "" },
+      ...(hasNewDemand
+        ? [
+            {
+              field: `Sanctioned Demand (${item.sanctioned_demand_unit || "kVA"})`,
+              value: item.sanctioned_demand_value !== null ? formatNumber(item.sanctioned_demand_value) : "",
+            }
+          ]
+        : [
+            {
+              field: "Sanctioned Demand (kVA)",
+              value: item.sanctioned_demand_kVA !== null ? formatNumber(item.sanctioned_demand_kVA) : "",
+            }
+          ]),
       {
         field: "Solar Connected",
         value: item.is_solar_connected ? "Yes" : "No",
@@ -553,7 +617,10 @@ export const buildUtilityAccountsPayload = async ({
     { key: "account_number", label: "Account Number" },
     { key: "connection_type", label: "Connection Type" },
     { key: "category", label: "Category" },
-    { key: "sanctioned_demand_kVA", label: "Sanctioned Demand (kVA)" },
+    { key: "location", label: "Location" },
+    { key: "provider", label: "Provider" },
+    { key: "billing_cycle", label: "Billing Cycle" },
+    { key: "sanctioned_demand_label", label: "Sanctioned Demand" },
   ];
   const energyConnectionColumns = [
     { key: "is_solar_connected", label: "Solar Connected" },
@@ -588,7 +655,10 @@ export const buildUtilityAccountsPayload = async ({
         account_number: item.account_number,
         connection_type: item.connection_type,
         category: item.category,
-        sanctioned_demand_kVA: item.sanctioned_demand_kVA ?? null,
+        location: item.location,
+        provider: item.provider,
+        billing_cycle: item.billing_cycle,
+        sanctioned_demand_label: item.sanctioned_demand_label || "",
         is_active: item.is_active ? "Active" : "Inactive",
       };
       if (!omitEnergyConnectionFields) {

@@ -229,8 +229,23 @@ const buildEnergySourceDistribution = ({
   solarPlants = [],
   dgSets = [],
 }) => {
+  const getKva = (val, unit) => {
+    if (val === undefined || val === null || val === "") return 0;
+    const valueNum = Number(val);
+    if (Number.isNaN(valueNum)) return 0;
+    if (unit === "kW") return valueNum / 0.9;
+    if (unit === "BHP") return (valueNum * 0.746) / 0.9;
+    return valueNum;
+  };
+
   const gridCapacity = utilityAccounts.reduce(
-    (sum, u) => sum + toNumber(u.sanctioned_demand_kVA),
+    (sum, u) => {
+      const val = u.sanctioned_demand_value !== undefined && u.sanctioned_demand_value !== null
+        ? u.sanctioned_demand_value
+        : u.sanctioned_demand_kVA;
+      const unit = u.sanctioned_demand_unit || "kVA";
+      return sum + getKva(val, unit);
+    },
     0,
   );
 
@@ -397,7 +412,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
 
     UtilityAccount.find(
       { facility_id: { $in: accessibleFacilityIds } },
-      "facility_id account_number sanctioned_demand_kVA audit_step_submissions createdAt updatedAt created_at updated_at",
+      "facility_id account_number sanctioned_demand_value sanctioned_demand_unit sanctioned_demand_kVA audit_step_submissions createdAt updatedAt created_at updated_at",
     ).lean(),
 
     SolarPlant.find(

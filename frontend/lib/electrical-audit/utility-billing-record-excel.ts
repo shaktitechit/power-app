@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 
 /** Editable billing fields only; auto-calculated values are derived after import. */
 export type UtilityBillingRecordExcelPayload = {
@@ -12,6 +11,7 @@ export type UtilityBillingRecordExcelPayload = {
   energy_charges_rs: string;
   taxes_and_rent_rs: string;
   other_charges_rs: string;
+  other_charges_remark: string;
   rebate_subsidy_rs: string;
 };
 
@@ -29,6 +29,7 @@ export const UTILITY_BILLING_RECORD_EXCEL_FIELDS: {
   { key: "energy_charges_rs", label: "Energy Charges (₹)" },
   { key: "taxes_and_rent_rs", label: "Taxes and Rent (₹)" },
   { key: "other_charges_rs", label: "Other Charges (₹)" },
+  { key: "other_charges_remark", label: "Other Charges Remark" },
   { key: "rebate_subsidy_rs", label: "Rebate / Subsidy (₹)" },
 ];
 
@@ -41,7 +42,7 @@ export function getBulkRecordCountForBillingCycle(
     case "bi-monthly":
       return 6;
     case "quarterly":
-      return 4;
+      return 3;
     case "monthly":
     default:
       return 12;
@@ -137,7 +138,7 @@ function slotKeyForTemplateRow(
   return buildUtilityBillingDraftLocalId(ua, draftOrd);
 }
 
-export function downloadUtilityBillingRecordTemplate(options: {
+export async function downloadUtilityBillingRecordTemplate(options: {
   billingCycle: BillingCycleKind;
   utilityAccountId: string;
   recordCount?: number;
@@ -154,14 +155,12 @@ export function downloadUtilityBillingRecordTemplate(options: {
     `utility-billing-bulk-${cycle}-${count}-records.xlsx`;
 
   const headers = [
-    RECORD_NUM_HEADER,
-    SLOT_KEY_HEADER,
     ...UTILITY_BILLING_RECORD_EXCEL_FIELDS.map((f) => f.label),
   ];
 
   const rows: (string | number)[][] = [
     [
-      "One row per billing record. Row order matches Billing Record 1…N (newest first). Slot key matches app row id; do not edit. Dates as YYYY-MM-DD.",
+      "One row per billing record. Enter billing period dates as YYYY-MM-DD.",
       ...Array(headers.length - 1).fill(""),
     ],
     headers,
@@ -171,7 +170,7 @@ export function downloadUtilityBillingRecordTemplate(options: {
 
   for (let i = 0; i < count; i += 1) {
     const pre = prefills[i];
-    const row: (string | number)[] = [i + 1, slotKeyForTemplateRow(ua, i, prefills)];
+    const row: (string | number)[] = [];
 
     for (const field of UTILITY_BILLING_RECORD_EXCEL_FIELDS) {
       if (
@@ -191,6 +190,7 @@ export function downloadUtilityBillingRecordTemplate(options: {
     rows.push(row);
   }
 
+  const XLSX = await import("xlsx");
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Billing records");
@@ -244,8 +244,10 @@ function parseDataRow(
 export function parseUtilityBillingRecordExcelBulk(
   file: File,
 ): Promise<(Partial<UtilityBillingRecordExcelPayload> | null)[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+  return new Promise(async (resolve, reject) => {
+    try {
+      const XLSX = await import("xlsx");
+      const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
@@ -280,11 +282,12 @@ export function parseUtilityBillingRecordExcelBulk(
           const keys = parseHeaderToColumnKeys(row);
           const mapped = keys.filter((k) => k !== null).length;
           const first = cellToString(row[0]);
-          const hasRecordCol =
-            isRecordNumColumn(first) ||
-            normalizeKey(first) === normalizeKey(RECORD_NUM_HEADER);
-          if (hasRecordCol && mapped >= 2) return true;
-          if (mapped >= 5) return true;
+          const isKnownFirstCol =
+            normalizeKey(first) === "billing period start" ||
+            normalizeKey(first) === "bill no" ||
+            isRecordNumColumn(first);
+          if (isKnownFirstCol && mapped >= 1) return true;
+          if (mapped >= 3) return true;
           return false;
         };
 
@@ -295,7 +298,7 @@ export function parseUtilityBillingRecordExcelBulk(
         if (headerRowIndex < 0) {
           reject(
             new Error(
-              "Could not find a header row. Use the downloaded template (columns: Record #, Slot key, dates…).",
+              "Could not find a header row. Use the downloaded template (e.g. starting with column 'Billing Period Start').",
             ),
           );
           return;
@@ -330,6 +333,9 @@ export function parseUtilityBillingRecordExcelBulk(
     };
     reader.onerror = () => reject(new Error("Failed to read file."));
     reader.readAsArrayBuffer(file);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -337,8 +343,10 @@ export function parseUtilityBillingRecordExcelBulk(
 export function parseUtilityBillingRecordExcel(
   file: File,
 ): Promise<Partial<UtilityBillingRecordExcelPayload>> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+  return new Promise(async (resolve, reject) => {
+    try {
+      const XLSX = await import("xlsx");
+      const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
@@ -402,5 +410,8 @@ export function parseUtilityBillingRecordExcel(
     };
     reader.onerror = () => reject(new Error("Failed to read file."));
     reader.readAsArrayBuffer(file);
+    } catch (err) {
+      reject(err);
+    }
   });
 }

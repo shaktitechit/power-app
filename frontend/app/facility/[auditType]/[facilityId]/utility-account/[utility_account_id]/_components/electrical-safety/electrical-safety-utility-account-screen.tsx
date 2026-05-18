@@ -7,12 +7,20 @@ import { useElectricalSafetyUtilityAccountWorkspace } from "./use-electrical-saf
 import type { Facility } from "@/store/slices/facilityApiSlice";
 import type { UtilityAccount } from "@/store/slices/electrical-audit/utilityApiSlice";
 
-export function ElectricalSafetyUtilityAccountScreen() {
+interface ScreenProps {
+  isFullscreen: boolean;
+  onFullscreenToggle: () => void;
+}
+
+export function ElectricalSafetyUtilityAccountScreen({
+  isFullscreen,
+  onFullscreenToggle,
+}: ScreenProps) {
   const model = useElectricalSafetyUtilityAccountWorkspace();
 
   if (model.utilityAccountLoading || model.facilityLoading) {
     return (
-      <DashboardLayout title="Loading Connection...">
+      <DashboardLayout title="Loading Connection..." isFullscreen={isFullscreen}>
         <div className="flex items-center justify-center py-12">
           <p className="text-muted-foreground">Loading...</p>
         </div>
@@ -37,6 +45,8 @@ export function ElectricalSafetyUtilityAccountScreen() {
       model={model}
       facility={facility}
       utilityAccount={utilityAccount}
+      isFullscreen={isFullscreen}
+      onFullscreenToggle={onFullscreenToggle}
     />
   );
 }

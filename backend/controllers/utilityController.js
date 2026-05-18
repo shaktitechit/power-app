@@ -184,13 +184,6 @@ const parseBoolean = (value, defaultValue = false) => {
   return Boolean(value);
 };
 
-const calculateKVA = (value, unit) => {
-  if (value === undefined || value === null || value === "") return undefined;
-  const val = Number(value);
-  if (unit === "kW") return val / 0.9;
-  if (unit === "BHP") return (val * 0.746) / 0.9;
-  return val; // kVA
-};
 
 // @route POST
 const createUtilityAccount = asyncHandler(async (req, res) => {
@@ -256,7 +249,6 @@ const createUtilityAccount = asyncHandler(async (req, res) => {
         ? Number(sanctioned_demand_value)
         : undefined,
     sanctioned_demand_unit: sanctioned_demand_unit || "kVA",
-    sanctioned_demand_kVA: calculateKVA(sanctioned_demand_value, sanctioned_demand_unit),
     provider,
     billing_cycle,
     audit_date: audit_date || undefined,
@@ -328,8 +320,8 @@ const getUtilityAccounts = asyncHandler(async (req, res) => {
       facility_id: {
         $in: facility_id
           ? accessibleFacilityIds.filter(
-              (id) => id.toString() === facility_id.toString(),
-            )
+            (id) => id.toString() === facility_id.toString(),
+          )
           : accessibleFacilityIds,
       },
     };
@@ -417,8 +409,8 @@ const submitUtilityAuditStep = asyncHandler(async (req, res) => {
 
   const prev =
     utilityAccount.audit_step_submissions &&
-    typeof utilityAccount.audit_step_submissions === "object" &&
-    !Array.isArray(utilityAccount.audit_step_submissions)
+      typeof utilityAccount.audit_step_submissions === "object" &&
+      !Array.isArray(utilityAccount.audit_step_submissions)
       ? { ...utilityAccount.audit_step_submissions }
       : {};
 
@@ -455,16 +447,16 @@ const submitUtilityAuditStep = asyncHandler(async (req, res) => {
   });
 
   if (step === "preview-and-submit" || step === "safety-preview-and-submit") {
-      const io = req.app.get("io");
-      
-      await createNotification(io, {
-          recipient: facility.owner_user_id,
-          sender: req.user._id,
-          title: "Utility Account Submitted",
-          message: `Utility account ${updated.account_number} has been submitted for facility: ${facility.name}`,
-          type: "utility",
-          referenceId: updated._id,
-      });
+    const io = req.app.get("io");
+
+    await createNotification(io, {
+      recipient: facility.owner_user_id,
+      sender: req.user._id,
+      title: "Utility Account Submitted",
+      message: `Utility account ${updated.account_number} has been submitted for facility: ${facility.name}`,
+      type: "utility",
+      referenceId: updated._id,
+    });
   }
 
   res.status(200).json({
@@ -501,8 +493,8 @@ const allowUtilityAuditStep = asyncHandler(async (req, res) => {
 
   const prev =
     utilityAccount.audit_step_submissions &&
-    typeof utilityAccount.audit_step_submissions === "object" &&
-    !Array.isArray(utilityAccount.audit_step_submissions)
+      typeof utilityAccount.audit_step_submissions === "object" &&
+      !Array.isArray(utilityAccount.audit_step_submissions)
       ? { ...utilityAccount.audit_step_submissions }
       : {};
 
@@ -592,8 +584,8 @@ const declareAuditStepNoData = asyncHandler(async (req, res) => {
 
   const prev =
     utilityAccount.audit_step_no_data &&
-    typeof utilityAccount.audit_step_no_data === "object" &&
-    !Array.isArray(utilityAccount.audit_step_no_data)
+      typeof utilityAccount.audit_step_no_data === "object" &&
+      !Array.isArray(utilityAccount.audit_step_no_data)
       ? { ...utilityAccount.audit_step_no_data }
       : {};
 
@@ -670,8 +662,8 @@ const clearAuditStepNoData = asyncHandler(async (req, res) => {
 
   const prev =
     utilityAccount.audit_step_no_data &&
-    typeof utilityAccount.audit_step_no_data === "object" &&
-    !Array.isArray(utilityAccount.audit_step_no_data)
+      typeof utilityAccount.audit_step_no_data === "object" &&
+      !Array.isArray(utilityAccount.audit_step_no_data)
       ? { ...utilityAccount.audit_step_no_data }
       : {};
 
@@ -783,10 +775,8 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
   if (sanctioned_demand_value !== undefined) {
     utilityAccount.sanctioned_demand_value = sanctioned_demand_value !== "" ? Number(sanctioned_demand_value) : undefined;
     utilityAccount.sanctioned_demand_unit = sanctioned_demand_unit || utilityAccount.sanctioned_demand_unit || "kVA";
-    utilityAccount.sanctioned_demand_kVA = calculateKVA(utilityAccount.sanctioned_demand_value, utilityAccount.sanctioned_demand_unit);
   } else if (sanctioned_demand_unit !== undefined) {
     utilityAccount.sanctioned_demand_unit = sanctioned_demand_unit;
-    utilityAccount.sanctioned_demand_kVA = calculateKVA(utilityAccount.sanctioned_demand_value, utilityAccount.sanctioned_demand_unit);
   }
 
   utilityAccount.provider = provider ?? utilityAccount.provider;

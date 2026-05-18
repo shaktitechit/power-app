@@ -83,13 +83,27 @@ const buildMetaSnapshot = ({ meta, facility, utilityAccount }) => {
 const buildUtilityAccountMini = (utilityAccount) => {
   if (!utilityAccount) return null;
 
+  const getKva = (val, unit) => {
+    if (val === undefined || val === null || val === "") return null;
+    const valueNum = Number(val);
+    if (Number.isNaN(valueNum)) return null;
+    if (unit === "kW") return valueNum / 0.9;
+    if (unit === "BHP") return (valueNum * 0.746) / 0.9;
+    return valueNum;
+  };
+
+  const rawDemandValue = utilityAccount?.sanctioned_demand_value !== undefined && utilityAccount?.sanctioned_demand_value !== null
+    ? utilityAccount.sanctioned_demand_value
+    : utilityAccount?.sanctioned_demand_kVA;
+  const rawDemandUnit = utilityAccount?.sanctioned_demand_unit || "kVA";
+
   return {
     id: getId(utilityAccount),
     account_number: normalizeText(utilityAccount?.account_number),
     connection_type: normalizeText(utilityAccount?.connection_type),
     category: normalizeText(utilityAccount?.category),
     sanctioned_demand_kVA: normalizeNumber(
-      utilityAccount?.sanctioned_demand_kVA,
+      getKva(rawDemandValue, rawDemandUnit),
     ),
 
     is_solar_connected: Boolean(utilityAccount?.is_solar_connected),

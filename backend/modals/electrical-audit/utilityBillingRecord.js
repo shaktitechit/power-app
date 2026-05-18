@@ -70,6 +70,11 @@ const utilityBillingRecordSchema = new mongoose.Schema(
       min: 0,
     },
 
+    other_charges_remark: {
+      type: String,
+      trim: true,
+    },
+
     rebate_subsidy_rs: {
       type: Number,
       min: 0,

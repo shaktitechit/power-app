@@ -47,7 +47,6 @@ interface UtilityAccount {
   connection_type: "LT" | "HT";
   category?: string;
   location?: string;
-  sanctioned_demand_kVA?: number;
   sanctioned_demand_value?: number;
   sanctioned_demand_unit?: "kVA" | "kW" | "BHP";
   provider?: string;

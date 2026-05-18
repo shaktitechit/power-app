@@ -2,6 +2,7 @@
 const backendUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://backend:5000";
 
 const nextConfig = {
+  optimizeFonts: false,
   typescript: {
     ignoreBuildErrors: true,
   },

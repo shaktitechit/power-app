@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, FileSpreadsheet, Pencil, Save, Trash2, X } from "lucide-react";
+import { Download, FileSpreadsheet, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   useCreateUtilityBillingRecordMutation,
   useDeleteUtilityBillingRecordMutation,
@@ -60,6 +61,7 @@ type BillingFormState = {
   energy_charges_rs: string;
   taxes_and_rent_rs: string;
   other_charges_rs: string;
+  other_charges_remark: string;
   rebate_subsidy_rs: string;
   monthly_electricity_bill_rs: string;
   unit_consumption_per_day_kVAh: string;
@@ -92,6 +94,7 @@ function createEmptyDraftSlot(): BillingFormState {
     energy_charges_rs: "",
     taxes_and_rent_rs: "",
     other_charges_rs: "",
+    other_charges_remark: "",
     rebate_subsidy_rs: "",
     monthly_electricity_bill_rs: "",
     unit_consumption_per_day_kVAh: "",
@@ -118,6 +121,7 @@ function emptyDraftPreservingLocalId(localId: string): BillingFormState {
     energy_charges_rs: "",
     taxes_and_rent_rs: "",
     other_charges_rs: "",
+    other_charges_remark: "",
     rebate_subsidy_rs: "",
     monthly_electricity_bill_rs: "",
     unit_consumption_per_day_kVAh: "",
@@ -127,7 +131,13 @@ function emptyDraftPreservingLocalId(localId: string): BillingFormState {
 
 function toDateInput(value?: string | null) {
   if (!value) return "";
-  return new Date(value).toISOString().split("T")[0];
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().split("T")[0];
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -166,6 +176,7 @@ function recordToForm(record: any): BillingFormState {
     energy_charges_rs: record.energy_charges_rs?.toString() || "",
     taxes_and_rent_rs: record.taxes_and_rent_rs?.toString() || "",
     other_charges_rs: record.other_charges_rs?.toString() || "",
+    other_charges_remark: record.other_charges_remark || "",
     rebate_subsidy_rs: record.rebate_subsidy_rs?.toString() || "",
     monthly_electricity_bill_rs:
       record.monthly_electricity_bill_rs?.toString() || "",
@@ -284,20 +295,61 @@ const recalculateBillingForm = (form: BillingFormState): BillingFormState => {
 function mergeBulkImportIntoForms(
   prev: BillingFormState[],
   rowPayloads: (Partial<UtilityBillingRecordExcelPayload> | null)[],
-): { next: BillingFormState[]; updatedCount: number } {
+): { next: BillingFormState[]; updatedCount: number; skippedCount: number } {
   let updatedCount = 0;
-  const next = prev.map((form, index) => {
-    if (index >= rowPayloads.length) return form;
-    const partial = rowPayloads[index];
-    if (partial === null || Object.keys(partial).length === 0) return form;
-    updatedCount += 1;
-    return recalculateBillingForm({
-      ...form,
-      ...partial,
-      isEditing: true,
-    });
-  });
-  return { next, updatedCount };
+  let skippedCount = 0;
+  const finalForms: BillingFormState[] = [];
+  let cumulativeDays = 0;
+
+  const maxPayloadLength = Math.max(prev.length, rowPayloads.length);
+
+  for (let i = 0; i < maxPayloadLength; i += 1) {
+    const hasExcelRow = i < rowPayloads.length;
+    const partial = hasExcelRow ? rowPayloads[i] : null;
+
+    if (hasExcelRow && partial !== null && Object.keys(partial).length > 0) {
+      const normalizedPartial = { ...partial };
+      if (partial.billing_period_start) {
+        normalizedPartial.billing_period_start = toDateInput(partial.billing_period_start);
+      }
+      if (partial.billing_period_end) {
+        normalizedPartial.billing_period_end = toDateInput(partial.billing_period_end);
+      }
+
+      const baseForm = i < prev.length ? prev[i] : createEmptyDraftSlot();
+      const tempForm = recalculateBillingForm({
+        ...baseForm,
+        ...normalizedPartial,
+        isEditing: true,
+      });
+
+      const rowDays = toNumber(tempForm.billing_days) || 0;
+      if (cumulativeDays + rowDays <= 365) {
+        finalForms.push(tempForm);
+        cumulativeDays += rowDays;
+        updatedCount += 1;
+      } else {
+        skippedCount += 1;
+        if (i < prev.length && prev[i].id) {
+          finalForms.push(prev[i]);
+          cumulativeDays += toNumber(prev[i].billing_days) || 0;
+        }
+      }
+    } else {
+      if (i < prev.length) {
+        const rowDays = toNumber(prev[i].billing_days) || 0;
+        if (prev[i].id) {
+          finalForms.push(prev[i]);
+          cumulativeDays += rowDays;
+        } else if (cumulativeDays + rowDays <= 365) {
+          finalForms.push(prev[i]);
+          cumulativeDays += rowDays;
+        }
+      }
+    }
+  }
+
+  return { next: finalForms, updatedCount, skippedCount };
 }
 
 function buildBillingMatchKey(form: BillingFormState): string {
@@ -447,7 +499,22 @@ function mergeBillingServerWithLocalEdits(
   for (let i = 0; i < prev.length; i += 1) {
     if (usedPrev.has(i)) continue;
     if (!prev[i].id) {
-      orphanDrafts.push(recalculateBillingForm(prev[i]));
+      const isEmpty =
+        !prev[i].billing_period_start &&
+        !prev[i].billing_period_end &&
+        !prev[i].bill_no &&
+        !prev[i].mdi_kVA &&
+        !prev[i].units_kWh &&
+        !prev[i].units_kVAh &&
+        !prev[i].fixed_charges_rs &&
+        !prev[i].energy_charges_rs &&
+        !prev[i].taxes_and_rent_rs &&
+        !prev[i].other_charges_rs &&
+        !prev[i].rebate_subsidy_rs;
+
+      if (!isEmpty) {
+        orphanDrafts.push(recalculateBillingForm(prev[i]));
+      }
     }
   }
 
@@ -483,8 +550,12 @@ export function UtilityBillingRecordSection({
   const user = useAppSelector((state) => state.auth.user);
   const canDeleteRecords =
     user?.role === "super_admin" || user?.role === "admin";
+  const [page, setPage] = useState(1);
+
   const { data, isLoading, refetch } = useGetUtilityBillingRecordsQuery({
     utility_account_id: utilityAccountId,
+    page,
+    limit: 1000,
   });
 
   const [createUtilityBillingRecord, { isLoading: isCreating }] =
@@ -496,15 +567,19 @@ export function UtilityBillingRecordSection({
     useDeleteUtilityBillingRecordMutation();
 
   const billingRecords = useMemo(() => data?.data || [], [data]);
-  const requiredFormCount = useMemo(
-    () => getBulkRecordCountForBillingCycle(billingCycle),
-    [billingCycle],
-  );
 
   const [forms, setForms] = useState<BillingFormState[]>([]);
   const [excelImporting, setExcelImporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<BillingFormState | null>(null);
+
+  const totalBillingDays = useMemo(() => {
+    return forms.reduce((sum, f) => sum + (toNumber(f.billing_days) || 0), 0);
+  }, [forms]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [utilityAccountId]);
 
   useEffect(() => {
     if (!auditStepLocked) return;
@@ -519,15 +594,7 @@ export function UtilityBillingRecordSection({
 
   useEffect(() => {
     const mapped = sortBillingRecordsStable(billingRecords).map(recordToForm);
-
     const finalForms = [...mapped];
-
-    if (mapped.length < requiredFormCount) {
-      const remaining = requiredFormCount - mapped.length;
-      for (let j = 0; j < remaining; j += 1) {
-        finalForms.push(createEmptyDraftSlot());
-      }
-    }
 
     // Avoid merging local state from a previous utility account into this list.
     if (lastMergedAccountIdRef.current !== utilityAccountId) {
@@ -537,13 +604,22 @@ export function UtilityBillingRecordSection({
     }
 
     setForms((prev) => mergeBillingServerWithLocalEdits(prev, finalForms));
-  }, [billingRecords, requiredFormCount, utilityAccountId]);
+  }, [billingRecords, utilityAccountId]);
 
-  const handleDownloadBillingExcelTemplate = () => {
-    downloadUtilityBillingRecordTemplate({
+  const handleAddRecord = () => {
+    if (totalBillingDays >= 365) {
+      toast.error(`Cannot add more billing records. The total sum of billing days has reached ${totalBillingDays} / 365 days.`);
+      return;
+    }
+    setForms((prev) => [...prev, createEmptyDraftSlot()]);
+  };
+
+  const handleDownloadBillingExcelTemplate = async () => {
+    const recordCount = forms.length || 12;
+    await downloadUtilityBillingRecordTemplate({
       billingCycle,
       utilityAccountId,
-      recordCount: requiredFormCount,
+      recordCount,
       rowPrefills: forms.map((f) => ({
         billing_period_start: f.billing_period_start,
         billing_period_end: f.billing_period_end,
@@ -576,14 +652,16 @@ export function UtilityBillingRecordSection({
       }
 
       const prev = formsRef.current;
-      const { next, updatedCount } = mergeBulkImportIntoForms(
+      const { next, updatedCount, skippedCount } = mergeBulkImportIntoForms(
         prev,
         rowPayloads,
       );
 
       if (updatedCount === 0) {
         toast.error(
-          "No values found in data rows. Enter data in the template and try again.",
+          skippedCount > 0
+            ? "No rows imported because they all exceed the 365-day cumulative limit."
+            : "No values found in data rows. Enter data in the template and try again.",
           { id: "utility-billing-bulk-import" },
         );
         return;
@@ -591,10 +669,10 @@ export function UtilityBillingRecordSection({
 
       setForms(next);
 
-      if (rowPayloads.length > prev.length) {
-        toast.success(
-          `Imported ${updatedCount} row(s). Rows after billing record ${prev.length} were ignored.`,
-          { id: "utility-billing-bulk-import" },
+      if (skippedCount > 0) {
+        toast.warning(
+          `Imported ${updatedCount} row(s). ${skippedCount} row(s) were ignored because they would exceed the 365-day limit.`,
+          { id: "utility-billing-bulk-import", duration: 8000 },
         );
       } else {
         toast.success(
@@ -676,7 +754,7 @@ export function UtilityBillingRecordSection({
 
   const handleCancel = (form: BillingFormState) => {
     if (form.isNew) {
-      replaceForm(form.localId, emptyDraftPreservingLocalId(form.localId));
+      setForms((prev) => prev.filter((f) => f.localId !== form.localId));
       return;
     }
 
@@ -687,10 +765,29 @@ export function UtilityBillingRecordSection({
   };
 
   const handleSave = async (form: BillingFormState) => {
+    if (!form.billing_period_start.trim() || !form.billing_period_end.trim()) {
+      toast.error("Billing period start and end dates are required.");
+      return;
+    }
+
+    const currentDays = toNumber(form.billing_days) || 0;
+    const savedRecordsDays = forms
+      .filter((f) => f.id && f.id !== form.id)
+      .reduce((sum, f) => sum + (toNumber(f.billing_days) || 0), 0);
+    const totalDays = savedRecordsDays + currentDays;
+
+    if (totalDays > 365) {
+      toast.error(
+        `The sum of billing days across records (${totalDays} days) cannot exceed 365 days. ` +
+        `(Previous saved records: ${savedRecordsDays} days, current record: ${currentDays} days)`
+      );
+      return;
+    }
+
     const payload = {
       utility_account_id: utilityAccountId,
-      billing_period_start: form.billing_period_start || undefined,
-      billing_period_end: form.billing_period_end || undefined,
+      billing_period_start: form.billing_period_start.trim(),
+      billing_period_end: form.billing_period_end.trim(),
 
       billing_days: toNumber(form.billing_days),
       bill_no: form.bill_no || undefined,
@@ -704,6 +801,7 @@ export function UtilityBillingRecordSection({
       energy_charges_rs: toNumber(form.energy_charges_rs),
       taxes_and_rent_rs: toNumber(form.taxes_and_rent_rs),
       other_charges_rs: toNumber(form.other_charges_rs),
+      other_charges_remark: form.other_charges_remark || undefined,
       rebate_subsidy_rs: toNumber(form.rebate_subsidy_rs),
 
       monthly_electricity_bill_rs: toNumber(form.monthly_electricity_bill_rs),
@@ -795,17 +893,24 @@ export function UtilityBillingRecordSection({
       <div className="relative">
         <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h3 className="text-lg font-medium text-foreground">
-            Utility Billing Records
-          </h3>
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 id="utility-billing-records-heading" className="text-lg font-medium text-foreground">
+              Utility Billing Records
+            </h3>
+            <div className={cn(
+              "flex items-center gap-2 rounded-full px-2.5 py-0.5 text-xs font-semibold border transition shadow-sm",
+              totalBillingDays > 365
+                ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60"
+                : totalBillingDays === 365
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60"
+                  : "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60"
+            )}>
+              Total Days: {totalBillingDays} / 365
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground">
-            Billing cycle: <span className="font-medium">{billingCycle}</span> ·
-            Required records:{" "}
-            <span className="font-medium">{requiredFormCount}</span>
-            {" · "}
-            Download the Excel template for {requiredFormCount} rows (bulk import
-            fills Billing Record 1…{requiredFormCount} in order).
+            Add your billing records dynamically. The sum of all record billing days must not exceed 365 days.
           </p>
         </div>
 
@@ -823,6 +928,19 @@ export function UtilityBillingRecordSection({
             onChange={handleExcelFileChange}
             disabled={excelImporting}
           />
+          {!auditStepLocked && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddRecord}
+              disabled={totalBillingDays >= 365}
+              className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Billing Record
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -830,7 +948,7 @@ export function UtilityBillingRecordSection({
             onClick={handleDownloadBillingExcelTemplate}
           >
             <Download className="mr-2 h-4 w-4" />
-            Excel template ({requiredFormCount} rows)
+            Excel template ({forms.length || 12} rows)
           </Button>
           <Button
             type="button"
@@ -849,8 +967,21 @@ export function UtilityBillingRecordSection({
 
       {forms.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-sm text-muted-foreground">
-            No billing records available.
+          <CardContent className="py-12 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">No billing records available.</p>
+            {!auditStepLocked && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddRecord}
+                disabled={totalBillingDays >= 365}
+                className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 mx-auto"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add First Billing Record
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -1081,6 +1212,23 @@ export function UtilityBillingRecordSection({
               </div>
 
               <div className="space-y-2">
+                <Label>Other Charges Remark</Label>
+                <Input
+                  value={form.other_charges_remark}
+                  onChange={(e) =>
+                    updateForm(
+                      form.localId,
+                      "other_charges_remark",
+                      e.target.value,
+                    )
+                  }
+                  disabled={!form.isEditing}
+                  className={editableInputClass}
+                  placeholder="Enter other charges remark"
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label>Rebate / Subsidy (₹)</Label>
                 <Input
                   type="number"
@@ -1133,7 +1281,56 @@ export function UtilityBillingRecordSection({
           </Card>
         ))
       )}
+      {!auditStepLocked && forms.length > 0 && (
+        <div className="flex justify-center pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddRecord}
+            disabled={totalBillingDays >= 365}
+            className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 w-full sm:w-auto"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Billing Record
+          </Button>
         </div>
+      )}
+        </div>
+
+        {/* Pagination Controls */}
+        {data && data.pages !== undefined && data.pages > 1 && (
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-border pt-4 sm:flex-row">
+            <p className="text-sm text-muted-foreground">
+              Showing page <span className="font-medium text-foreground">{page}</span> of{" "}
+              <span className="font-medium text-foreground">{data.pages}</span> (Total {data.total ?? 0} records)
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setPage((p) => Math.max(1, p - 1));
+                  document.getElementById("utility-billing-records-heading")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                disabled={page === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setPage((p) => Math.min(data.pages || 1, p + 1));
+                  document.getElementById("utility-billing-records-heading")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                disabled={page === data.pages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
       <AlertDialog
         open={deleteDialogOpen}

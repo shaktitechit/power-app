@@ -71,7 +71,9 @@ export function UtilityAccountDetailsEnergy({
               <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Sanctioned Demand</span>
                 <span className="text-right text-foreground">
-                  {utilityAccount.sanctioned_demand_kVA != null
+                  {utilityAccount.sanctioned_demand_value != null
+                    ? `${utilityAccount.sanctioned_demand_value} ${utilityAccount.sanctioned_demand_unit || "kVA"}`
+                    : utilityAccount.sanctioned_demand_kVA != null
                     ? `${utilityAccount.sanctioned_demand_kVA} kVA`
                     : "-"}
                 </span>

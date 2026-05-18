@@ -26,6 +26,7 @@ export interface UtilityBillingRecord {
   energy_charges_rs?: number;
   taxes_and_rent_rs?: number;
   other_charges_rs?: number;
+  other_charges_remark?: string;
   rebate_subsidy_rs?: number;
   monthly_electricity_bill_rs?: number;
 
@@ -61,6 +62,7 @@ export interface CreateUtilityBillingRecordRequest {
   energy_charges_rs?: number | string;
   taxes_and_rent_rs?: number | string;
   other_charges_rs?: number | string;
+  other_charges_remark?: string;
   rebate_subsidy_rs?: number | string;
   monthly_electricity_bill_rs?: number | string;
 
@@ -91,6 +93,7 @@ export interface UpdateUtilityBillingRecordRequest {
   energy_charges_rs?: number | string;
   taxes_and_rent_rs?: number | string;
   other_charges_rs?: number | string;
+  other_charges_remark?: string;
   rebate_subsidy_rs?: number | string;
   monthly_electricity_bill_rs?: number | string;
 
@@ -112,6 +115,9 @@ export interface CreateUtilityBillingRecordResponse {
 export interface GetUtilityBillingRecordsResponse {
   success: boolean;
   count: number;
+  total?: number;
+  pages?: number;
+  currentPage?: number;
   data: UtilityBillingRecord[];
 }
 
@@ -190,6 +196,10 @@ const buildUtilityBillingRecordFormData = (
     formData.append("other_charges_rs", String(data.other_charges_rs));
   }
 
+  if (data.other_charges_remark !== undefined) {
+    formData.append("other_charges_remark", data.other_charges_remark);
+  }
+
   if (data.rebate_subsidy_rs !== undefined) {
     formData.append("rebate_subsidy_rs", String(data.rebate_subsidy_rs));
   }
@@ -248,15 +258,25 @@ export const utilityBillingRecordApiSlice = apiSlice.injectEndpoints({
 
     getUtilityBillingRecords: builder.query<
       GetUtilityBillingRecordsResponse,
-      { utility_account_id?: string } | void
+      { utility_account_id?: string; page?: number; limit?: number } | void
     >({
-      query: (params) => ({
-        url: "/v1/utility-billing-records",
-        method: "GET",
-        params: params?.utility_account_id
-          ? { utility_account_id: params.utility_account_id }
-          : {},
-      }),
+      query: (params) => {
+        const queryParams: Record<string, string | number> = {};
+        if (params?.utility_account_id) {
+          queryParams.utility_account_id = params.utility_account_id;
+        }
+        if (params?.page) {
+          queryParams.page = params.page;
+        }
+        if (params?.limit) {
+          queryParams.limit = params.limit;
+        }
+        return {
+          url: "/v1/utility-billing-records",
+          method: "GET",
+          params: queryParams,
+        };
+      },
       providesTags: ["UtilityBillingRecord"],
     }),
 

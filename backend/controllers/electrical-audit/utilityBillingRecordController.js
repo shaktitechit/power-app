@@ -57,6 +57,7 @@ const createUtilityBillingRecord = asyncHandler(async (req, res) => {
     energy_charges_rs,
     taxes_and_rent_rs,
     other_charges_rs,
+    other_charges_remark,
     rebate_subsidy_rs,
     monthly_electricity_bill_rs,
     unit_consumption_per_day_kVAh,
@@ -114,6 +115,7 @@ const createUtilityBillingRecord = asyncHandler(async (req, res) => {
     energy_charges_rs: parseNumber(energy_charges_rs),
     taxes_and_rent_rs: parseNumber(taxes_and_rent_rs),
     other_charges_rs: parseNumber(other_charges_rs),
+    other_charges_remark: other_charges_remark?.trim(),
     rebate_subsidy_rs: parseNumber(rebate_subsidy_rs),
     monthly_electricity_bill_rs: parseNumber(monthly_electricity_bill_rs),
     unit_consumption_per_day_kVAh: parseNumber(unit_consumption_per_day_kVAh),
@@ -158,17 +160,12 @@ const createUtilityBillingRecord = asyncHandler(async (req, res) => {
 // @desc Get all Utility Billing Records
 // @access Protected
 const getUtilityBillingRecords = asyncHandler(async (req, res) => {
-  const { utility_account_id } = req.query;
+  const { utility_account_id, page, limit } = req.query;
 
-  let billingRecords = [];
+  let query = {};
 
   if (isAdmin(req.user)) {
-    const query = utility_account_id ? { utility_account_id } : {};
-
-    billingRecords = await UtilityBillingRecord.find(query)
-      .populate("utility_account_id", "account_number facility_id")
-      .populate("auditor_id", "name email")
-      .sort({ billing_period_start: -1 });
+    query = utility_account_id ? { utility_account_id } : {};
   } else {
     const utilities = await UtilityAccount.find();
     const allowedIds = [];
@@ -180,7 +177,7 @@ const getUtilityBillingRecords = asyncHandler(async (req, res) => {
       }
     }
 
-    const query = {
+    query = {
       utility_account_id: utility_account_id
         ? {
             $in: allowedIds.filter(
@@ -189,15 +186,30 @@ const getUtilityBillingRecords = asyncHandler(async (req, res) => {
           }
         : { $in: allowedIds },
     };
-
-    billingRecords = await UtilityBillingRecord.find(query)
-      .populate("utility_account_id", "account_number facility_id")
-      .populate("auditor_id", "name email")
-      .sort({ billing_period_start: -1 });
   }
+
+  // Count total records matching search conditions
+  const total = await UtilityBillingRecord.countDocuments(query);
+
+  let q = UtilityBillingRecord.find(query)
+    .populate("utility_account_id", "account_number facility_id")
+    .populate("auditor_id", "name email")
+    .sort({ billing_period_start: -1 });
+
+  if (page && limit) {
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.max(1, parseInt(limit, 10));
+    const skip = (pageNum - 1) * limitNum;
+    q = q.skip(skip).limit(limitNum);
+  }
+
+  const billingRecords = await q;
 
   res.status(200).json({
     success: true,
+    total,
+    pages: limit ? Math.ceil(total / parseInt(limit, 10)) : 1,
+    currentPage: page ? parseInt(page, 10) : 1,
     count: billingRecords.length,
     data: billingRecords,
   });
@@ -249,6 +261,7 @@ const updateUtilityBillingRecord = asyncHandler(async (req, res) => {
     energy_charges_rs,
     taxes_and_rent_rs,
     other_charges_rs,
+    other_charges_remark,
     rebate_subsidy_rs,
     monthly_electricity_bill_rs,
     unit_consumption_per_day_kVAh,
@@ -334,6 +347,10 @@ const updateUtilityBillingRecord = asyncHandler(async (req, res) => {
     other_charges_rs !== undefined
       ? parseNumber(other_charges_rs)
       : billingRecord.other_charges_rs;
+  billingRecord.other_charges_remark =
+    other_charges_remark !== undefined
+      ? other_charges_remark?.trim()
+      : billingRecord.other_charges_remark;
   billingRecord.rebate_subsidy_rs =
     rebate_subsidy_rs !== undefined
       ? parseNumber(rebate_subsidy_rs)
