@@ -180,14 +180,14 @@ const createFacility = asyncHandler(async (req, res) => {
 
     const io = req.app.get("io");
     for (const auditorId of parsedAuditorIds) {
-        await createNotification(io, {
-            recipient: auditorId,
-            sender: req.user._id,
-            title: "New Facility Assignment",
-            message: `You have been assigned to facility: ${facility.name}`,
-            type: "facility",
-            referenceId: facility._id,
-        });
+      await createNotification(io, {
+        recipient: auditorId,
+        sender: req.user._id,
+        title: "New Facility Assignment",
+        message: `You have been assigned to facility: ${facility.name}`,
+        type: "facility",
+        referenceId: facility._id,
+      });
     }
 
     await createRecentActivity({
@@ -303,12 +303,12 @@ const createFacilityFromEnquiry = asyncHandler(async (req, res) => {
     ? parsedClientRepresentatives
     : client_representative || client_contact_number || client_email
       ? [
-          {
-            name: String(client_representative || "").trim(),
-            contact_number: String(client_contact_number || "").trim(),
-            email: String(client_email || "").trim(),
-          },
-        ]
+        {
+          name: String(client_representative || "").trim(),
+          contact_number: String(client_contact_number || "").trim(),
+          email: String(client_email || "").trim(),
+        },
+      ]
       : [];
   const facilityId = new mongoose.Types.ObjectId();
   const uploadedDocuments = await uploadFacilityDocuments(req.files, facilityId);
@@ -580,7 +580,7 @@ const updateFacility = asyncHandler(async (req, res) => {
   const updatedFacility = await facility.save();
 
   if (auditor_ids !== undefined) {
-    await FacilityAuditor.softDeleteMany({ facility_id: facility._id });
+    await FacilityAuditor.deleteMany({ facility_id: facility._id });
 
     if (parsedAuditorIds.length > 0) {
       const facilityAuditorDocs = parsedAuditorIds.map((auditorId) => ({
@@ -593,14 +593,14 @@ const updateFacility = asyncHandler(async (req, res) => {
 
       const io = req.app.get("io");
       for (const auditorId of parsedAuditorIds) {
-          await createNotification(io, {
-              recipient: auditorId,
-              sender: req.user._id,
-              title: "Facility Assignment Updated",
-              message: `You have been assigned to facility: ${facility.name}`,
-              type: "facility",
-              referenceId: facility._id,
-          });
+        await createNotification(io, {
+          recipient: auditorId,
+          sender: req.user._id,
+          title: "Facility Assignment Updated",
+          message: `You have been assigned to facility: ${facility.name}`,
+          type: "facility",
+          referenceId: facility._id,
+        });
       }
     }
 
@@ -669,7 +669,7 @@ const deleteFacility = asyncHandler(async (req, res) => {
   const name = facility.name;
   const city = facility.city;
 
-  await FacilityAuditor.softDeleteMany({ facility_id: facility._id });
+  await FacilityAuditor.deleteMany({ facility_id: facility._id });
   await facility.softDelete();
 
   await createRecentActivity({
@@ -741,24 +741,24 @@ const closeFacilityAudit = asyncHandler(async (req, res) => {
 
   const io = req.app.get("io");
   await createNotification(io, {
-      recipient: facility.owner_user_id,
+    recipient: facility.owner_user_id,
+    sender: req.user._id,
+    title: "Facility Audit Closed",
+    message: `Facility audit closed for: ${facility.name}`,
+    type: "facility",
+    referenceId: facility._id,
+  });
+
+  const auditors = await FacilityAuditor.find({ facility_id: facility._id });
+  for (const auditor of auditors) {
+    await createNotification(io, {
+      recipient: auditor.user_id,
       sender: req.user._id,
       title: "Facility Audit Closed",
       message: `Facility audit closed for: ${facility.name}`,
       type: "facility",
       referenceId: facility._id,
-  });
-
-  const auditors = await FacilityAuditor.find({ facility_id: facility._id });
-  for (const auditor of auditors) {
-      await createNotification(io, {
-          recipient: auditor.user_id,
-          sender: req.user._id,
-          title: "Facility Audit Closed",
-          message: `Facility audit closed for: ${facility.name}`,
-          type: "facility",
-          referenceId: facility._id,
-      });
+    });
   }
 
   await createRecentActivity({
