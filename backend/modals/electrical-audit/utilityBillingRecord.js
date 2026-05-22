@@ -72,7 +72,6 @@ const utilityBillingRecordSchema = new mongoose.Schema(
 
     other_charges_rs: {
       type: Number,
-      min: 0,
     },
 
     other_charges_remark: {
