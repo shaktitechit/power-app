@@ -48,7 +48,7 @@ export function Header({
 }: HeaderProps) {
   const user = useAppSelector((state) => state.auth.user);
   const presenceMap = usePresenceMap();
-  const status = presenceMap[user?._id] || "offline";
+  const status = (user?._id && presenceMap[user._id]) || "offline";
 
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -176,7 +176,7 @@ export function Header({
       setSecondsRemaining(10 * 60); // Reset to 10 minutes on activity
 
       const now = Date.now();
-      if (now - lastPingRef.current > 60 * 1000) { // 1 minute throttle
+      if (now - lastPingRef.current > 20 * 1000) { // 20 seconds throttle
         lastPingRef.current = now;
         
         fetch('/api/v1/users/refresh-timer', { 

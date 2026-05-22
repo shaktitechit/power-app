@@ -151,6 +151,7 @@ export const setAuthCookies = (
     ...opts,
     sameSite: "lax",
     maxAge: 10 * 60 * 1000,
+    httpOnly: false, // Force false so frontend can read it
   });
 };
 
