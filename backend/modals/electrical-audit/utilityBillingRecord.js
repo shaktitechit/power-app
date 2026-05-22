@@ -91,7 +91,6 @@ const utilityBillingRecordSchema = new mongoose.Schema(
 
     monthly_electricity_bill_rs: {
       type: Number,
-      min: 0,
     },
 
     unit_consumption_per_day_kVAh: {
