@@ -100,7 +100,6 @@ const utilityBillingRecordSchema = new mongoose.Schema(
 
     average_per_unit_cost_rs: {
       type: Number,
-      min: 0,
     },
     // 🔍 Audit metadata (recommended)
     audit_date: {
