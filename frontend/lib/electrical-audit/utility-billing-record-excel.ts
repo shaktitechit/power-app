@@ -8,9 +8,11 @@ export type UtilityBillingRecordExcelPayload = {
   units_kWh: string;
   units_kVAh: string;
   fixed_charges_rs: string;
+  demand_charges_rs: string;
   energy_charges_rs: string;
   taxes_and_rent_rs: string;
   other_charges_rs: string;
+  penalty_rs: string;
   other_charges_remark: string;
   rebate_subsidy_rs: string;
 };
@@ -26,9 +28,11 @@ export const UTILITY_BILLING_RECORD_EXCEL_FIELDS: {
   { key: "units_kWh", label: "Units (kWh)" },
   { key: "units_kVAh", label: "Units (kVAh)" },
   { key: "fixed_charges_rs", label: "Fixed Charges (₹)" },
+  { key: "demand_charges_rs", label: "Demand Charges (₹)" },
   { key: "energy_charges_rs", label: "Energy Charges (₹)" },
   { key: "taxes_and_rent_rs", label: "Taxes and Rent (₹)" },
   { key: "other_charges_rs", label: "Other Charges (₹)" },
+  { key: "penalty_rs", label: "Penalty (₹)" },
   { key: "other_charges_remark", label: "Other Charges Remark" },
   { key: "rebate_subsidy_rs", label: "Rebate / Subsidy (₹)" },
 ];

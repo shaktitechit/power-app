@@ -97,10 +97,15 @@ type DGAuditFormState = {
 
   fuel_consumption_during_test_lph: string;
   units_generated_during_test_kWh: string;
+  time_duration_of_the_test_hours: string;
+  units_generated_per_hour_kWh_during_test: string;
+  fuel_consumption_per_hour_liters_during_test: string;
+  specific_fuel_consumption_l_per_kWh_during_test: string;
 
   specific_fuel_consumption_l_per_kWh: string;
   manufacturer_sfc_l_per_kWh: string;
   sfc_deviation_percent: string;
+  sfc_deviation_percent_during_test: string;
 
   fuel_cost_rs_per_liter: string;
   annual_fuel_cost_rs: string;
@@ -175,16 +180,30 @@ const calculatePowerFactor = (
 
 const calculateLoadFactor = (
   averageLoading: string,
-  minimumLoadObserved: string,
+  maxLoadObserved: string,
 ): string => {
   const avgNum = toNumber(averageLoading);
-  const minNum = toNumber(minimumLoadObserved);
+  const maxNum = toNumber(maxLoadObserved);
 
-  if (avgNum === undefined || minNum === undefined || minNum === 0) {
+  if (avgNum === undefined || maxNum === undefined || maxNum === 0) {
     return "";
   }
 
-  return String(Number(((avgNum / minNum) * 100).toFixed(2)));
+  return String(Number(((avgNum / maxNum) * 100).toFixed(2)));
+};
+
+const calculateAverageLoading = (
+  maxLoadObserved: string,
+  minLoadObserved: string,
+): string => {
+  const maxNum = toNumber(maxLoadObserved);
+  const minNum = toNumber(minLoadObserved);
+
+  if (maxNum === undefined || minNum === undefined) {
+    return "";
+  }
+
+  return String(Number(((maxNum + minNum) / 2).toFixed(2)));
 };
 
 const calculateUnitsGeneratedPerHour = (
@@ -221,6 +240,48 @@ const calculateSpecificFuelConsumption = (
 ): string => {
   const fuelNum = toNumber(annualFuelConsumption);
   const unitsNum = toNumber(unitsGeneratedPerYear);
+
+  if (fuelNum === undefined || unitsNum === undefined || unitsNum === 0) {
+    return "";
+  }
+
+  return String(Number((fuelNum / unitsNum).toFixed(4)));
+};
+
+const calculateTestUnitsPerHour = (
+  unitsDuringTest: string,
+  timeDuration: string,
+): string => {
+  const unitsNum = toNumber(unitsDuringTest);
+  const timeNum = toNumber(timeDuration);
+
+  if (unitsNum === undefined || timeNum === undefined || timeNum === 0) {
+    return "";
+  }
+
+  return String(Number((unitsNum / timeNum).toFixed(2)));
+};
+
+const calculateTestFuelPerHour = (
+  fuelDuringTest: string,
+  timeDuration: string,
+): string => {
+  const fuelNum = toNumber(fuelDuringTest);
+  const timeNum = toNumber(timeDuration);
+
+  if (fuelNum === undefined || timeNum === undefined || timeNum === 0) {
+    return "";
+  }
+
+  return String(Number((fuelNum / timeNum).toFixed(2)));
+};
+
+const calculateTestSpecificFuelConsumption = (
+  fuelDuringTest: string,
+  unitsDuringTest: string,
+): string => {
+  const fuelNum = toNumber(fuelDuringTest);
+  const unitsNum = toNumber(unitsDuringTest);
 
   if (fuelNum === undefined || unitsNum === undefined || unitsNum === 0) {
     return "";
@@ -323,9 +384,14 @@ function applyDGAuditDerivedCalculations(
     updated.measured_kW_output,
   );
 
+  updated.average_loading_percent = calculateAverageLoading(
+    updated.max_load_observed_kW,
+    updated.min_load_observed_kW,
+  );
+
   updated.load_factor_percent = calculateLoadFactor(
     updated.average_loading_percent,
-    updated.min_load_observed_kW,
+    updated.max_load_observed_kW,
   );
 
   updated.units_generated_per_hour_kWh = calculateUnitsGeneratedPerHour(
@@ -346,6 +412,26 @@ function applyDGAuditDerivedCalculations(
 
   updated.sfc_deviation_percent = calculateSfcDeviationPercent(
     updated.specific_fuel_consumption_l_per_kWh,
+    updated.manufacturer_sfc_l_per_kWh,
+  );
+
+  updated.units_generated_per_hour_kWh_during_test = calculateTestUnitsPerHour(
+    updated.units_generated_during_test_kWh,
+    updated.time_duration_of_the_test_hours,
+  );
+
+  updated.fuel_consumption_per_hour_liters_during_test = calculateTestFuelPerHour(
+    updated.fuel_consumption_during_test_lph,
+    updated.time_duration_of_the_test_hours,
+  );
+
+  updated.specific_fuel_consumption_l_per_kWh_during_test = calculateTestSpecificFuelConsumption(
+    updated.fuel_consumption_during_test_lph,
+    updated.units_generated_during_test_kWh,
+  );
+
+  updated.sfc_deviation_percent_during_test = calculateSfcDeviationPercent(
+    updated.specific_fuel_consumption_l_per_kWh_during_test,
     updated.manufacturer_sfc_l_per_kWh,
   );
 
@@ -398,10 +484,15 @@ const createEmptyForm = (): DGAuditFormState => ({
 
   fuel_consumption_during_test_lph: "",
   units_generated_during_test_kWh: "",
+  time_duration_of_the_test_hours: "",
+  units_generated_per_hour_kWh_during_test: "",
+  fuel_consumption_per_hour_liters_during_test: "",
+  specific_fuel_consumption_l_per_kWh_during_test: "",
 
   specific_fuel_consumption_l_per_kWh: "",
   manufacturer_sfc_l_per_kWh: "",
   sfc_deviation_percent: "",
+  sfc_deviation_percent_during_test: "",
 
   fuel_cost_rs_per_liter: "",
   annual_fuel_cost_rs: "",
@@ -464,12 +555,22 @@ function recordToForm(record: any): DGAuditFormState {
       record.fuel_consumption_during_test_lph?.toString() || "",
     units_generated_during_test_kWh:
       record.units_generated_during_test_kWh?.toString() || "",
+    time_duration_of_the_test_hours:
+      record.time_duration_of_the_test_hours?.toString() || "",
+    units_generated_per_hour_kWh_during_test:
+      record.units_generated_per_hour_kWh_during_test?.toString() || "",
+    fuel_consumption_per_hour_liters_during_test:
+      record.fuel_consumption_per_hour_liters_during_test?.toString() || "",
+    specific_fuel_consumption_l_per_kWh_during_test:
+      record.specific_fuel_consumption_l_per_kWh_during_test?.toString() || "",
 
     specific_fuel_consumption_l_per_kWh:
       record.specific_fuel_consumption_l_per_kWh?.toString() || "",
     manufacturer_sfc_l_per_kWh:
       record.manufacturer_sfc_l_per_kWh?.toString() || "",
     sfc_deviation_percent: record.sfc_deviation_percent?.toString() || "",
+    sfc_deviation_percent_during_test:
+      record.sfc_deviation_percent_during_test?.toString() || "",
 
     fuel_cost_rs_per_liter: record.fuel_cost_rs_per_liter?.toString() || "",
     annual_fuel_cost_rs: record.annual_fuel_cost_rs?.toString() || "",
@@ -615,6 +716,7 @@ export function DGAuditRecordSection({
       total_working_hours_per_year: form.total_working_hours_per_year,
       fuel_consumption_during_test_lph: form.fuel_consumption_during_test_lph,
       units_generated_during_test_kWh: form.units_generated_during_test_kWh,
+      time_duration_of_the_test_hours: form.time_duration_of_the_test_hours,
       manufacturer_sfc_l_per_kWh: form.manufacturer_sfc_l_per_kWh,
       fuel_cost_rs_per_liter: form.fuel_cost_rs_per_liter,
       grid_cost_per_kWh_rs: form.grid_cost_per_kWh_rs,
@@ -737,11 +839,21 @@ export function DGAuditRecordSection({
         form.fuel_consumption_during_test_lph || undefined,
       units_generated_during_test_kWh:
         form.units_generated_during_test_kWh || undefined,
+      time_duration_of_the_test_hours:
+        form.time_duration_of_the_test_hours || undefined,
+      units_generated_per_hour_kWh_during_test:
+        form.units_generated_per_hour_kWh_during_test || undefined,
+      fuel_consumption_per_hour_liters_during_test:
+        form.fuel_consumption_per_hour_liters_during_test || undefined,
+      specific_fuel_consumption_l_per_kWh_during_test:
+        form.specific_fuel_consumption_l_per_kWh_during_test || undefined,
 
       specific_fuel_consumption_l_per_kWh:
         form.specific_fuel_consumption_l_per_kWh || undefined,
       manufacturer_sfc_l_per_kWh: form.manufacturer_sfc_l_per_kWh || undefined,
       sfc_deviation_percent: form.sfc_deviation_percent || undefined,
+      sfc_deviation_percent_during_test:
+        form.sfc_deviation_percent_during_test || undefined,
 
       fuel_cost_rs_per_liter: form.fuel_cost_rs_per_liter || undefined,
       annual_fuel_cost_rs: form.annual_fuel_cost_rs || undefined,
@@ -1030,15 +1142,12 @@ export function DGAuditRecordSection({
               </div>
 
               <div className="space-y-2">
-                <Label>Average Loading (%)</Label>
+                <Label>Average Loading (kW)</Label>
                 <Input
                   type="number"
                   value={form.average_loading_percent}
-                  onChange={(e) =>
-                    updateForm("average_loading_percent", e.target.value)
-                  }
-                  disabled={!form.isEditing}
-                  className={getInputClass(!form.isEditing)}
+                  disabled
+                  className={getInputClass(true)}
                 />
               </div>
 
@@ -1080,10 +1189,10 @@ export function DGAuditRecordSection({
             </div>
           </div>
 
-          {/* Fuel & Generation */}
+          {/* Fuel & Generation (Facility Records) */}
           <div className="rounded-xl border p-4">
             <h4 className="mb-4 text-base font-semibold text-foreground">
-              Fuel & Generation
+              Fuel & Generation (Facility Records)
             </h4>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
@@ -1146,21 +1255,23 @@ export function DGAuditRecordSection({
               </div>
 
               <div className="space-y-2">
-                <Label>Fuel Consumption During Test (LPH)</Label>
+                <Label>Specific Fuel Consumption (L/kWh)</Label>
                 <Input
                   type="number"
-                  value={form.fuel_consumption_during_test_lph}
-                  onChange={(e) =>
-                    updateForm(
-                      "fuel_consumption_during_test_lph",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={getInputClass(!form.isEditing)}
+                  value={form.specific_fuel_consumption_l_per_kWh}
+                  disabled
+                  className={getInputClass(true)}
                 />
               </div>
+            </div>
+          </div>
 
+          {/* Fuel & Generation (Measurements) */}
+          <div className="rounded-xl border p-4">
+            <h4 className="mb-4 text-base font-semibold text-foreground">
+              Fuel & Generation (Measurements)
+            </h4>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label>Units Generated During Test (kWh)</Label>
                 <Input
@@ -1178,15 +1289,75 @@ export function DGAuditRecordSection({
               </div>
 
               <div className="space-y-2">
-                <Label>Specific Fuel Consumption (L/kWh)</Label>
+                <Label>Fuel Consumption During Test (Liters)</Label>
                 <Input
                   type="number"
-                  value={form.specific_fuel_consumption_l_per_kWh}
+                  value={form.fuel_consumption_during_test_lph}
+                  onChange={(e) =>
+                    updateForm(
+                      "fuel_consumption_during_test_lph",
+                      e.target.value,
+                    )
+                  }
+                  disabled={!form.isEditing}
+                  className={getInputClass(!form.isEditing)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Time Duration of the Test (Hours)</Label>
+                <Input
+                  type="number"
+                  value={form.time_duration_of_the_test_hours}
+                  onChange={(e) =>
+                    updateForm(
+                      "time_duration_of_the_test_hours",
+                      e.target.value,
+                    )
+                  }
+                  disabled={!form.isEditing}
+                  className={getInputClass(!form.isEditing)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Units Generated Per Hour During Test (kWh)</Label>
+                <Input
+                  type="number"
+                  value={form.units_generated_per_hour_kWh_during_test}
                   disabled
                   className={getInputClass(true)}
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label>Fuel Consumption Per Hour During Test (Liters)</Label>
+                <Input
+                  type="number"
+                  value={form.fuel_consumption_per_hour_liters_during_test}
+                  disabled
+                  className={getInputClass(true)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Specific Fuel Consumption During Test (L/kWh)</Label>
+                <Input
+                  type="number"
+                  value={form.specific_fuel_consumption_l_per_kWh_during_test}
+                  disabled
+                  className={getInputClass(true)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Fuel & Generation (SFC Deviation (%)) */}
+          <div className="rounded-xl border p-4">
+            <h4 className="mb-4 text-base font-semibold text-foreground">
+              Fuel & Generation (SFC Deviation (%))
+            </h4>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label>Manufacturer SFC (L/kWh)</Label>
                 <Input
@@ -1201,10 +1372,20 @@ export function DGAuditRecordSection({
               </div>
 
               <div className="space-y-2">
-                <Label>SFC Deviation (%)</Label>
+                <Label>SFC Deviation (Facility Records) (%)</Label>
                 <Input
                   type="number"
                   value={form.sfc_deviation_percent}
+                  disabled
+                  className={getInputClass(true)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>SFC Deviation During Test (%)</Label>
+                <Input
+                  type="number"
+                  value={form.sfc_deviation_percent_during_test}
                   disabled
                   className={getInputClass(true)}
                 />

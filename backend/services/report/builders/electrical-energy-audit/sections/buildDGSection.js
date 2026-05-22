@@ -132,6 +132,13 @@ const fetchFacilityDGSets = async (facilityId, utilityAccountId = null) => {
 };
 
 const calculateAverageLoadingPercent = (record, dgSet) => {
+  const maxLoad = normalizeNumber(record?.max_load_observed_kW);
+  const minLoad = normalizeNumber(record?.min_load_observed_kW);
+
+  if (maxLoad !== null && minLoad !== null) {
+    return Number(((maxLoad + minLoad) / 2).toFixed(2));
+  }
+
   const existing = normalizeNumber(record?.average_loading_percent);
   if (existing !== null) return existing;
 
@@ -155,7 +162,7 @@ const calculateUnitsGeneratedPerHour = (record) => {
   const annualHours = normalizeNumber(record?.total_working_hours_per_year);
 
   if (annualUnits !== null && annualHours !== null && annualHours > 0) {
-    return Number((annualUnits / annualHours).toFixed(4));
+    return Number((annualUnits / annualHours).toFixed(2));
   }
 
   return null;
@@ -169,7 +176,7 @@ const calculateFuelConsumptionPerHour = (record) => {
   const annualHours = normalizeNumber(record?.total_working_hours_per_year);
 
   if (annualFuel !== null && annualHours !== null && annualHours > 0) {
-    return Number((annualFuel / annualHours).toFixed(4));
+    return Number((annualFuel / annualHours).toFixed(2));
   }
 
   return null;
@@ -179,16 +186,83 @@ const calculateSpecificFuelConsumption = (record) => {
   const existing = normalizeNumber(record?.specific_fuel_consumption_l_per_kWh);
   if (existing !== null) return existing;
 
-  const fuelPerHour =
-    normalizeNumber(record?.fuel_consumption_per_hour_liters) ??
-    normalizeNumber(record?.fuel_consumption_during_test_lph);
+  const annualFuel = normalizeNumber(record?.annual_fuel_consumption_liters);
+  const annualUnits = normalizeNumber(record?.units_generated_per_year_kWh);
 
-  const unitsPerHour =
-    normalizeNumber(record?.units_generated_per_hour_kWh) ??
-    normalizeNumber(record?.units_generated_during_test_kWh);
+  if (annualFuel !== null && annualUnits !== null && annualUnits > 0) {
+    return Number((annualFuel / annualUnits).toFixed(4));
+  }
 
-  if (fuelPerHour !== null && unitsPerHour !== null && unitsPerHour > 0) {
-    return Number((fuelPerHour / unitsPerHour).toFixed(4));
+  return null;
+};
+
+const calculateTestUnitsPerHour = (record) => {
+  const existing = normalizeNumber(record?.units_generated_per_hour_kWh_during_test);
+  if (existing !== null) return existing;
+
+  const unitsDuringTest = normalizeNumber(record?.units_generated_during_test_kWh);
+  const duration = normalizeNumber(record?.time_duration_of_the_test_hours);
+
+  if (unitsDuringTest !== null && duration !== null && duration > 0) {
+    return Number((unitsDuringTest / duration).toFixed(2));
+  }
+
+  return null;
+};
+
+const calculateTestFuelPerHour = (record) => {
+  const existing = normalizeNumber(record?.fuel_consumption_per_hour_liters_during_test);
+  if (existing !== null) return existing;
+
+  const fuelDuringTest = normalizeNumber(record?.fuel_consumption_during_test_lph);
+  const duration = normalizeNumber(record?.time_duration_of_the_test_hours);
+
+  if (fuelDuringTest !== null && duration !== null && duration > 0) {
+    return Number((fuelDuringTest / duration).toFixed(2));
+  }
+
+  return null;
+};
+
+const calculateTestSpecificFuelConsumption = (record) => {
+  const existing = normalizeNumber(record?.specific_fuel_consumption_l_per_kWh_during_test);
+  if (existing !== null) return existing;
+
+  const fuelDuringTest = normalizeNumber(record?.fuel_consumption_during_test_lph);
+  const unitsDuringTest = normalizeNumber(record?.units_generated_during_test_kWh);
+
+  if (fuelDuringTest !== null && unitsDuringTest !== null && unitsDuringTest > 0) {
+    return Number((fuelDuringTest / unitsDuringTest).toFixed(4));
+  }
+
+  return null;
+};
+
+const calculateSfcDeviation = (record) => {
+  const existing = normalizeNumber(record?.sfc_deviation_percent);
+  if (existing !== null) return existing;
+
+  const sfc = normalizeNumber(record?.specific_fuel_consumption_l_per_kWh) ??
+              calculateSpecificFuelConsumption(record);
+  const mfgSfc = normalizeNumber(record?.manufacturer_sfc_l_per_kWh);
+
+  if (sfc !== null && mfgSfc !== null && mfgSfc > 0) {
+    return Number((((sfc - mfgSfc) / mfgSfc) * 100).toFixed(2));
+  }
+
+  return null;
+};
+
+const calculateTestSfcDeviation = (record) => {
+  const existing = normalizeNumber(record?.sfc_deviation_percent_during_test);
+  if (existing !== null) return existing;
+
+  const testSfc = normalizeNumber(record?.specific_fuel_consumption_l_per_kWh_during_test) ??
+                  calculateTestSpecificFuelConsumption(record);
+  const mfgSfc = normalizeNumber(record?.manufacturer_sfc_l_per_kWh);
+
+  if (testSfc !== null && mfgSfc !== null && mfgSfc > 0) {
+    return Number((((testSfc - mfgSfc) / mfgSfc) * 100).toFixed(2));
   }
 
   return null;
@@ -257,6 +331,18 @@ const normalizeDGAuditRecord = (row, index, dgSetMap, utilityAccountMap) => {
     dg_cost_per_kWh_rs: dgCostPerKWh,
   });
 
+  const unitsGeneratedPerHourDuringTest = calculateTestUnitsPerHour(row);
+  const fuelConsumptionPerHourDuringTest = calculateTestFuelPerHour(row);
+  const specificFuelConsumptionDuringTest = calculateTestSpecificFuelConsumption(row);
+  const sfcDeviationPercentDuringTest = calculateTestSfcDeviation({
+    ...row,
+    specific_fuel_consumption_l_per_kWh_during_test: specificFuelConsumptionDuringTest,
+  });
+  const sfcDeviationPercent = calculateSfcDeviation({
+    ...row,
+    specific_fuel_consumption_l_per_kWh: specificFuelConsumption,
+  });
+
   return {
     id: getId(row),
     _id: getId(row),
@@ -312,11 +398,19 @@ const normalizeDGAuditRecord = (row, index, dgSetMap, utilityAccountMap) => {
       row?.units_generated_during_test_kWh,
     ),
 
+    time_duration_of_the_test_hours: normalizeNumber(
+      row?.time_duration_of_the_test_hours,
+    ),
+    units_generated_per_hour_kWh_during_test: unitsGeneratedPerHourDuringTest,
+    fuel_consumption_per_hour_liters_during_test: fuelConsumptionPerHourDuringTest,
+    specific_fuel_consumption_l_per_kWh_during_test: specificFuelConsumptionDuringTest,
+    sfc_deviation_percent_during_test: sfcDeviationPercentDuringTest,
+
     specific_fuel_consumption_l_per_kWh: specificFuelConsumption,
     manufacturer_sfc_l_per_kWh: normalizeNumber(
       row?.manufacturer_sfc_l_per_kWh,
     ),
-    sfc_deviation_percent: normalizeNumber(row?.sfc_deviation_percent),
+    sfc_deviation_percent: sfcDeviationPercent,
 
     fuel_cost_rs_per_liter: normalizeNumber(row?.fuel_cost_rs_per_liter),
     annual_fuel_cost_rs: annualFuelCost,
@@ -506,16 +600,16 @@ const buildAccountWiseSections = (items = [], overallSummary) => {
     });
 
     sections.push({
-      heading: `${titlePrefix} - Fuel & Generation`,
+      heading: `${titlePrefix} - Fuel & Generation (Facility Records)`,
       columns: [
         { key: "sr_no", label: "Sr No", type: "integer" },
         "dg_name",
-        "annual_fuel_consumption_liters",
-        "units_generated_per_year_kWh",
-        "total_working_hours_per_year",
-        { key: "fuel_consumption_per_hour_liters", label: "Fuel Consumption Per Hour Liters", decimals: 4 },
-        { key: "units_generated_per_hour_kWh", label: "Units Generated Per Hour KWh", decimals: 4 },
-        { key: "specific_fuel_consumption_l_per_kWh", label: "Specific Fuel Consumption L Per KWh", decimals: 4 },
+        { key: "annual_fuel_consumption_liters", label: "Annual Fuel Consumption (Liters)", type: "number" },
+        { key: "units_generated_per_year_kWh", label: "Units Generated Per Year (kWh)", type: "number" },
+        { key: "total_working_hours_per_year", label: "Total Working Hours Per Year", type: "number" },
+        { key: "fuel_consumption_per_hour_liters", label: "Fuel Consumption Per Hour (Liters)", decimals: 2 },
+        { key: "units_generated_per_hour_kWh", label: "Units Generated Per Hour (kWh)", decimals: 2 },
+        { key: "specific_fuel_consumption_l_per_kWh", label: "Specific Fuel Consumption (L/kWh)", decimals: 4 },
       ],
       rows: group.items.map((item, idx) => ({
         sr_no: idx + 1,
@@ -525,8 +619,49 @@ const buildAccountWiseSections = (items = [], overallSummary) => {
         total_working_hours_per_year: item.total_working_hours_per_year ?? null,
         fuel_consumption_per_hour_liters: item.fuel_consumption_per_hour_liters ?? null,
         units_generated_per_hour_kWh: item.units_generated_per_hour_kWh ?? null,
-        specific_fuel_consumption_l_per_kWh:
-          item.specific_fuel_consumption_l_per_kWh ?? null,
+        specific_fuel_consumption_l_per_kWh: item.specific_fuel_consumption_l_per_kWh ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Fuel & Generation (Measurements)`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        { key: "units_generated_during_test_kWh", label: "Units Generated During Test (kWh)", type: "number" },
+        { key: "fuel_consumption_during_test_lph", label: "Fuel Consumption During Test (Liters)", type: "number" },
+        { key: "time_duration_of_the_test_hours", label: "Time Duration of the Test (Hours)", type: "number" },
+        { key: "units_generated_per_hour_kWh_during_test", label: "Units Generated Per Hour During Test (kWh)", decimals: 2 },
+        { key: "fuel_consumption_per_hour_liters_during_test", label: "Fuel Consumption Per Hour During Test (Liters)", decimals: 2 },
+        { key: "specific_fuel_consumption_l_per_kWh_during_test", label: "Specific Fuel Consumption During Test (L/kWh)", decimals: 4 },
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        units_generated_during_test_kWh: item.units_generated_during_test_kWh ?? null,
+        fuel_consumption_during_test_lph: item.fuel_consumption_during_test_lph ?? null,
+        time_duration_of_the_test_hours: item.time_duration_of_the_test_hours ?? null,
+        units_generated_per_hour_kWh_during_test: item.units_generated_per_hour_kWh_during_test ?? null,
+        fuel_consumption_per_hour_liters_during_test: item.fuel_consumption_per_hour_liters_during_test ?? null,
+        specific_fuel_consumption_l_per_kWh_during_test: item.specific_fuel_consumption_l_per_kWh_during_test ?? null,
+      })),
+    });
+
+    sections.push({
+      heading: `${titlePrefix} - Fuel & Generation (SFC Deviation (%))`,
+      columns: [
+        { key: "sr_no", label: "Sr No", type: "integer" },
+        "dg_name",
+        { key: "manufacturer_sfc_l_per_kWh", label: "Manufacturer SFC (L/kWh)", decimals: 4 },
+        { key: "sfc_deviation_percent", label: "SFC Deviation (Facility Records) (%)", decimals: 2 },
+        { key: "sfc_deviation_percent_during_test", label: "SFC Deviation During Test (%)", decimals: 2 },
+      ],
+      rows: group.items.map((item, idx) => ({
+        sr_no: idx + 1,
+        dg_name: item.dg_name,
+        manufacturer_sfc_l_per_kWh: item.manufacturer_sfc_l_per_kWh ?? null,
+        sfc_deviation_percent: item.sfc_deviation_percent ?? null,
+        sfc_deviation_percent_during_test: item.sfc_deviation_percent_during_test ?? null,
       })),
     });
 
@@ -611,7 +746,7 @@ const buildAccountWiseSections = (items = [], overallSummary) => {
         { metric: "Average Power Factor", value: groupSummary.average_power_factor ?? "" },
         { metric: "Average DG Cost per kWh (Rs)", value: groupSummary.average_dg_cost_per_kWh_rs ?? "" },
         { metric: "Average Grid Cost per kWh (Rs)", value: groupSummary.average_grid_cost_per_kWh_rs ?? "" },
-        { metric: "Average Loading (%)", value: groupSummary.average_loading_percent ?? "" },
+        { metric: "Average Loading (kW)", value: groupSummary.average_loading_percent ?? "" },
         {
           metric: "Average Specific Fuel Consumption (L/kWh)",
           value: groupSummary.average_specific_fuel_consumption_l_per_kWh ?? "",
@@ -650,10 +785,10 @@ const buildAccountWiseSections = (items = [], overallSummary) => {
         metric: "Average Grid Cost per kWh (Rs)",
         value: overallSummary.average_grid_cost_per_kWh_rs ?? "",
       },
-      {
-        metric: "Average Loading (%)",
-        value: overallSummary.average_loading_percent ?? "",
-      },
+        {
+          metric: "Average Loading (kW)",
+          value: overallSummary.average_loading_percent ?? "",
+        },
       {
         metric: "Average Specific Fuel Consumption (L/kWh)",
         value: overallSummary.average_specific_fuel_consumption_l_per_kWh ?? "",
@@ -739,7 +874,7 @@ export const buildDGSection = async ({
       { key: "power_factor", label: "Power Factor", decimals: 4 },
       { key: "dg_cost_per_kWh_rs", label: "DG Cost/kWh (Rs)", decimals: 4 },
       { key: "grid_cost_per_kWh_rs", label: "Grid Cost/kWh (Rs)", decimals: 4 },
-      { key: "average_loading_percent", label: "Loading (%)" },
+      { key: "average_loading_percent", label: "Loading (kW)" },
     ],
 
     table_rows: items.map((item) => ({

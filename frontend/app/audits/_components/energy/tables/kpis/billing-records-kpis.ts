@@ -15,9 +15,11 @@ export function computeBillingRecordsKpis(rows: unknown[], columns: string[]): E
   let sum_total_units_kwh = 0;
   let sum_total_units_kvah = 0;
   let sum_total_fixed_charges = 0;
+  let sum_total_demand_charges = 0;
   let sum_total_energy_charges = 0;
   let sum_total_taxes_rent = 0;
   let sum_total_other_charges = 0;
+  let sum_total_penalty = 0;
   let sum_total_rebate = 0;
   let sum_avg_monthly_bill = 0;
   let count_avg_monthly_bill = 0;
@@ -48,9 +50,11 @@ export function computeBillingRecordsKpis(rows: unknown[], columns: string[]): E
     sum_total_units_kwh += tryNum(r['units_kWh']);
     sum_total_units_kvah += tryNum(r['units_kVAh']);
     sum_total_fixed_charges += tryNum(r['fixed_charges_rs']);
+    sum_total_demand_charges += tryNum(r['demand_charges_rs']);
     sum_total_energy_charges += tryNum(r['energy_charges_rs']);
     sum_total_taxes_rent += tryNum(r['taxes_and_rent_rs']);
     sum_total_other_charges += tryNum(r['other_charges_rs']);
+    sum_total_penalty += tryNum(r['penalty_rs']);
     sum_total_rebate += tryNum(r['rebate_subsidy_rs']);
     const val_avg_monthly_bill = Number(r['monthly_electricity_bill_rs']);
     if (!Number.isNaN(val_avg_monthly_bill) && r['monthly_electricity_bill_rs'] != null && r['monthly_electricity_bill_rs'] !== '') {
@@ -141,6 +145,11 @@ export function computeBillingRecordsKpis(rows: unknown[], columns: string[]): E
           value: sum_total_fixed_charges,
         },
         {
+          columnKey: "total_demand_charges",
+          label: "Total Demand Charges Rs",
+          value: sum_total_demand_charges,
+        },
+        {
           columnKey: "total_energy_charges",
           label: "Total Energy Charges Rs",
           value: sum_total_energy_charges,
@@ -154,6 +163,11 @@ export function computeBillingRecordsKpis(rows: unknown[], columns: string[]): E
           columnKey: "total_other_charges",
           label: "Total Other Charges Rs",
           value: sum_total_other_charges,
+        },
+        {
+          columnKey: "total_penalty",
+          label: "Total Penalty Rs",
+          value: sum_total_penalty,
         },
         {
           columnKey: "total_rebate",

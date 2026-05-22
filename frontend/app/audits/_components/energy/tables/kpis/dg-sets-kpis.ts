@@ -139,7 +139,7 @@ export function computeDgSetsKpis(rows: unknown[], columns: string[]): EnergyKpi
         },
         {
           columnKey: "avg_loading",
-          label: "Average Loading (%)",
+          label: "Average Loading (kW)",
           value: count_avg_loading > 0 ? sum_avg_loading / count_avg_loading : 0,
         },
         {

@@ -56,6 +56,11 @@ const utilityBillingRecordSchema = new mongoose.Schema(
       min: 0,
     },
 
+    demand_charges_rs: {
+      type: Number,
+      min: 0,
+    },
+
     energy_charges_rs: {
       type: Number,
       min: 0,
@@ -73,6 +78,11 @@ const utilityBillingRecordSchema = new mongoose.Schema(
     other_charges_remark: {
       type: String,
       trim: true,
+    },
+
+    penalty_rs: {
+      type: Number,
+      min: 0,
     },
 
     rebate_subsidy_rs: {

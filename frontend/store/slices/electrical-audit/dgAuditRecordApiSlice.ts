@@ -37,9 +37,14 @@ export interface DGAuditRecord {
   fuel_consumption_per_hour_liters?: number;
   fuel_consumption_during_test_lph?: number;
   units_generated_during_test_kWh?: number;
+  time_duration_of_the_test_hours?: number;
+  units_generated_per_hour_kWh_during_test?: number;
+  fuel_consumption_per_hour_liters_during_test?: number;
+  specific_fuel_consumption_l_per_kWh_during_test?: number;
   specific_fuel_consumption_l_per_kWh?: number;
   manufacturer_sfc_l_per_kWh?: number;
   sfc_deviation_percent?: number;
+  sfc_deviation_percent_during_test?: number;
 
   // Cost Analysis
   fuel_cost_rs_per_liter?: number;
@@ -100,9 +105,14 @@ export interface CreateDGAuditRecordRequest {
   fuel_consumption_per_hour_liters?: number | string;
   fuel_consumption_during_test_lph?: number | string;
   units_generated_during_test_kWh?: number | string;
+  time_duration_of_the_test_hours?: number | string;
+  units_generated_per_hour_kWh_during_test?: number | string;
+  fuel_consumption_per_hour_liters_during_test?: number | string;
+  specific_fuel_consumption_l_per_kWh_during_test?: number | string;
   specific_fuel_consumption_l_per_kWh?: number | string;
   manufacturer_sfc_l_per_kWh?: number | string;
   sfc_deviation_percent?: number | string;
+  sfc_deviation_percent_during_test?: number | string;
 
   fuel_cost_rs_per_liter?: number | string;
   annual_fuel_cost_rs?: number | string;
@@ -156,9 +166,14 @@ export interface UpdateDGAuditRecordRequest {
   fuel_consumption_per_hour_liters?: number | string;
   fuel_consumption_during_test_lph?: number | string;
   units_generated_during_test_kWh?: number | string;
+  time_duration_of_the_test_hours?: number | string;
+  units_generated_per_hour_kWh_during_test?: number | string;
+  fuel_consumption_per_hour_liters_during_test?: number | string;
+  specific_fuel_consumption_l_per_kWh_during_test?: number | string;
   specific_fuel_consumption_l_per_kWh?: number | string;
   manufacturer_sfc_l_per_kWh?: number | string;
   sfc_deviation_percent?: number | string;
+  sfc_deviation_percent_during_test?: number | string;
 
   fuel_cost_rs_per_liter?: number | string;
   annual_fuel_cost_rs?: number | string;
@@ -338,6 +353,34 @@ const buildDGAuditRecordFormData = (
     );
   }
 
+  if (data.time_duration_of_the_test_hours !== undefined) {
+    formData.append(
+      "time_duration_of_the_test_hours",
+      String(data.time_duration_of_the_test_hours)
+    );
+  }
+
+  if (data.units_generated_per_hour_kWh_during_test !== undefined) {
+    formData.append(
+      "units_generated_per_hour_kWh_during_test",
+      String(data.units_generated_per_hour_kWh_during_test)
+    );
+  }
+
+  if (data.fuel_consumption_per_hour_liters_during_test !== undefined) {
+    formData.append(
+      "fuel_consumption_per_hour_liters_during_test",
+      String(data.fuel_consumption_per_hour_liters_during_test)
+    );
+  }
+
+  if (data.specific_fuel_consumption_l_per_kWh_during_test !== undefined) {
+    formData.append(
+      "specific_fuel_consumption_l_per_kWh_during_test",
+      String(data.specific_fuel_consumption_l_per_kWh_during_test)
+    );
+  }
+
   if (data.specific_fuel_consumption_l_per_kWh !== undefined) {
     formData.append(
       "specific_fuel_consumption_l_per_kWh",
@@ -356,6 +399,13 @@ const buildDGAuditRecordFormData = (
     formData.append(
       "sfc_deviation_percent",
       String(data.sfc_deviation_percent)
+    );
+  }
+
+  if (data.sfc_deviation_percent_during_test !== undefined) {
+    formData.append(
+      "sfc_deviation_percent_during_test",
+      String(data.sfc_deviation_percent_during_test)
     );
   }
 

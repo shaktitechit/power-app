@@ -66,10 +66,15 @@ const createDGAuditRecord = asyncHandler(async (req, res) => {
 
     fuel_consumption_during_test_lph,
     units_generated_during_test_kWh,
+    time_duration_of_the_test_hours,
+    units_generated_per_hour_kWh_during_test,
+    fuel_consumption_per_hour_liters_during_test,
+    specific_fuel_consumption_l_per_kWh_during_test,
 
     specific_fuel_consumption_l_per_kWh,
     manufacturer_sfc_l_per_kWh,
     sfc_deviation_percent,
+    sfc_deviation_percent_during_test,
 
     fuel_cost_rs_per_liter,
     annual_fuel_cost_rs,
@@ -169,10 +174,15 @@ const createDGAuditRecord = asyncHandler(async (req, res) => {
 
     fuel_consumption_during_test_lph,
     units_generated_during_test_kWh,
+    time_duration_of_the_test_hours,
+    units_generated_per_hour_kWh_during_test,
+    fuel_consumption_per_hour_liters_during_test,
+    specific_fuel_consumption_l_per_kWh_during_test,
 
     specific_fuel_consumption_l_per_kWh,
     manufacturer_sfc_l_per_kWh,
     sfc_deviation_percent,
+    sfc_deviation_percent_during_test,
 
     fuel_cost_rs_per_liter,
     annual_fuel_cost_rs,

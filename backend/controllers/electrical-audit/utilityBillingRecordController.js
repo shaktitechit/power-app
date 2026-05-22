@@ -54,9 +54,11 @@ const createUtilityBillingRecord = asyncHandler(async (req, res) => {
     units_kVAh,
     pf,
     fixed_charges_rs,
+    demand_charges_rs,
     energy_charges_rs,
     taxes_and_rent_rs,
     other_charges_rs,
+    penalty_rs,
     other_charges_remark,
     rebate_subsidy_rs,
     monthly_electricity_bill_rs,
@@ -112,9 +114,11 @@ const createUtilityBillingRecord = asyncHandler(async (req, res) => {
     units_kVAh: parseNumber(units_kVAh),
     pf: parseNumber(pf),
     fixed_charges_rs: parseNumber(fixed_charges_rs),
+    demand_charges_rs: parseNumber(demand_charges_rs),
     energy_charges_rs: parseNumber(energy_charges_rs),
     taxes_and_rent_rs: parseNumber(taxes_and_rent_rs),
     other_charges_rs: parseNumber(other_charges_rs),
+    penalty_rs: parseNumber(penalty_rs),
     other_charges_remark: other_charges_remark?.trim(),
     rebate_subsidy_rs: parseNumber(rebate_subsidy_rs),
     monthly_electricity_bill_rs: parseNumber(monthly_electricity_bill_rs),
@@ -258,9 +262,11 @@ const updateUtilityBillingRecord = asyncHandler(async (req, res) => {
     units_kVAh,
     pf,
     fixed_charges_rs,
+    demand_charges_rs,
     energy_charges_rs,
     taxes_and_rent_rs,
     other_charges_rs,
+    penalty_rs,
     other_charges_remark,
     rebate_subsidy_rs,
     monthly_electricity_bill_rs,
@@ -335,6 +341,10 @@ const updateUtilityBillingRecord = asyncHandler(async (req, res) => {
     fixed_charges_rs !== undefined
       ? parseNumber(fixed_charges_rs)
       : billingRecord.fixed_charges_rs;
+  billingRecord.demand_charges_rs =
+    demand_charges_rs !== undefined
+      ? parseNumber(demand_charges_rs)
+      : billingRecord.demand_charges_rs;
   billingRecord.energy_charges_rs =
     energy_charges_rs !== undefined
       ? parseNumber(energy_charges_rs)
@@ -347,6 +357,10 @@ const updateUtilityBillingRecord = asyncHandler(async (req, res) => {
     other_charges_rs !== undefined
       ? parseNumber(other_charges_rs)
       : billingRecord.other_charges_rs;
+  billingRecord.penalty_rs =
+    penalty_rs !== undefined
+      ? parseNumber(penalty_rs)
+      : billingRecord.penalty_rs;
   billingRecord.other_charges_remark =
     other_charges_remark !== undefined
       ? other_charges_remark?.trim()

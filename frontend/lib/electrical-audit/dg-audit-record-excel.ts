@@ -27,10 +27,15 @@ export type DGAuditExcelFormState = {
 
   fuel_consumption_during_test_lph: string;
   units_generated_during_test_kWh: string;
+  time_duration_of_the_test_hours: string;
+  units_generated_per_hour_kWh_during_test: string;
+  fuel_consumption_per_hour_liters_during_test: string;
+  specific_fuel_consumption_l_per_kWh_during_test: string;
 
   specific_fuel_consumption_l_per_kWh: string;
   manufacturer_sfc_l_per_kWh: string;
   sfc_deviation_percent: string;
+  sfc_deviation_percent_during_test: string;
 
   fuel_cost_rs_per_liter: string;
   annual_fuel_cost_rs: string;
@@ -67,7 +72,7 @@ export const DG_AUDIT_EXCEL_FIELDS: {
 
   { key: "max_load_observed_kW", label: "Max Load Observed (kW)" },
   { key: "min_load_observed_kW", label: "Min Load Observed (kW)" },
-  { key: "average_loading_percent", label: "Average Loading (%)" },
+  { key: "average_loading_percent", label: "Average Loading (kW)" },
   {
     key: "idle_running_observed",
     label: "Idle Running Observed (Yes/No)",
@@ -78,10 +83,14 @@ export const DG_AUDIT_EXCEL_FIELDS: {
   { key: "units_generated_per_year_kWh", label: "Units Generated / Year (kWh)" },
   { key: "total_working_hours_per_year", label: "Total Working Hours / Year" },
 
-  { key: "fuel_consumption_during_test_lph", label: "Fuel Consumption During Test (L/h)" },
+  { key: "fuel_consumption_during_test_lph", label: "Fuel Consumption During Test (Liters)" },
   {
     key: "units_generated_during_test_kWh",
     label: "Units Generated During Test (kWh)",
+  },
+  {
+    key: "time_duration_of_the_test_hours",
+    label: "Time Duration of the Test (Hours)",
   },
 
   {
@@ -189,7 +198,7 @@ export function downloadDGAuditTemplate(
   const filename = options?.filename ?? "dg-audit-template.xlsx";
   const prefill = options?.rowPrefill;
 
-  const header = ["Field", "Value"] as const;
+  const header = ["Field", "Value"];
   const rows: (string | number)[][] = [header];
 
   for (const { key, label } of DG_AUDIT_EXCEL_FIELDS) {

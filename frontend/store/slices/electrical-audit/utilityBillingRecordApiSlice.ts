@@ -23,9 +23,11 @@ export interface UtilityBillingRecord {
   pf?: number;
 
   fixed_charges_rs?: number;
+  demand_charges_rs?: number;
   energy_charges_rs?: number;
   taxes_and_rent_rs?: number;
   other_charges_rs?: number;
+  penalty_rs?: number;
   other_charges_remark?: string;
   rebate_subsidy_rs?: number;
   monthly_electricity_bill_rs?: number;
@@ -59,9 +61,11 @@ export interface CreateUtilityBillingRecordRequest {
   pf?: number | string;
 
   fixed_charges_rs?: number | string;
+  demand_charges_rs?: number | string;
   energy_charges_rs?: number | string;
   taxes_and_rent_rs?: number | string;
   other_charges_rs?: number | string;
+  penalty_rs?: number | string;
   other_charges_remark?: string;
   rebate_subsidy_rs?: number | string;
   monthly_electricity_bill_rs?: number | string;
@@ -90,9 +94,11 @@ export interface UpdateUtilityBillingRecordRequest {
   pf?: number | string;
 
   fixed_charges_rs?: number | string;
+  demand_charges_rs?: number | string;
   energy_charges_rs?: number | string;
   taxes_and_rent_rs?: number | string;
   other_charges_rs?: number | string;
+  penalty_rs?: number | string;
   other_charges_remark?: string;
   rebate_subsidy_rs?: number | string;
   monthly_electricity_bill_rs?: number | string;
@@ -184,6 +190,10 @@ const buildUtilityBillingRecordFormData = (
     formData.append("fixed_charges_rs", String(data.fixed_charges_rs));
   }
 
+  if (data.demand_charges_rs !== undefined) {
+    formData.append("demand_charges_rs", String(data.demand_charges_rs));
+  }
+
   if (data.energy_charges_rs !== undefined) {
     formData.append("energy_charges_rs", String(data.energy_charges_rs));
   }
@@ -194,6 +204,10 @@ const buildUtilityBillingRecordFormData = (
 
   if (data.other_charges_rs !== undefined) {
     formData.append("other_charges_rs", String(data.other_charges_rs));
+  }
+
+  if (data.penalty_rs !== undefined) {
+    formData.append("penalty_rs", String(data.penalty_rs));
   }
 
   if (data.other_charges_remark !== undefined) {

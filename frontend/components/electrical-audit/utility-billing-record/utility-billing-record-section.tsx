@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, FileSpreadsheet, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import {
+  Download,
+  FileSpreadsheet,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useCreateUtilityBillingRecordMutation,
@@ -58,9 +66,11 @@ type BillingFormState = {
   units_kVAh: string;
   pf: string;
   fixed_charges_rs: string;
+  demand_charges_rs: string;
   energy_charges_rs: string;
   taxes_and_rent_rs: string;
   other_charges_rs: string;
+  penalty_rs: string;
   other_charges_remark: string;
   rebate_subsidy_rs: string;
   monthly_electricity_bill_rs: string;
@@ -91,9 +101,11 @@ function createEmptyDraftSlot(): BillingFormState {
     units_kVAh: "",
     pf: "",
     fixed_charges_rs: "",
+    demand_charges_rs: "",
     energy_charges_rs: "",
     taxes_and_rent_rs: "",
     other_charges_rs: "",
+    penalty_rs: "",
     other_charges_remark: "",
     rebate_subsidy_rs: "",
     monthly_electricity_bill_rs: "",
@@ -118,9 +130,11 @@ function emptyDraftPreservingLocalId(localId: string): BillingFormState {
     units_kVAh: "",
     pf: "",
     fixed_charges_rs: "",
+    demand_charges_rs: "",
     energy_charges_rs: "",
     taxes_and_rent_rs: "",
     other_charges_rs: "",
+    penalty_rs: "",
     other_charges_remark: "",
     rebate_subsidy_rs: "",
     monthly_electricity_bill_rs: "",
@@ -173,9 +187,11 @@ function recordToForm(record: any): BillingFormState {
     units_kVAh: record.units_kVAh?.toString() || "",
     pf: record.pf?.toString() || "",
     fixed_charges_rs: record.fixed_charges_rs?.toString() || "",
+    demand_charges_rs: record.demand_charges_rs?.toString() || "",
     energy_charges_rs: record.energy_charges_rs?.toString() || "",
     taxes_and_rent_rs: record.taxes_and_rent_rs?.toString() || "",
     other_charges_rs: record.other_charges_rs?.toString() || "",
+    penalty_rs: record.penalty_rs?.toString() || "",
     other_charges_remark: record.other_charges_remark || "",
     rebate_subsidy_rs: record.rebate_subsidy_rs?.toString() || "",
     monthly_electricity_bill_rs:
@@ -223,20 +239,30 @@ const calculatePF = (units_kWh: string, units_kVAh: string) => {
 
 const calculateMonthlyElectricityBill = (
   fixed: string,
+  demand: string,
   energy: string,
   taxes: string,
   other: string,
+  penalty: string,
   rebateSubsidy: string,
 ) => {
   const fixedCharges = toNumber(fixed) ?? 0;
+  const demandCharges = toNumber(demand) ?? 0;
   const energyCharges = toNumber(energy) ?? 0;
   const taxesCharges = toNumber(taxes) ?? 0;
   const otherCharges = toNumber(other) ?? 0;
+  const penaltyCharges = toNumber(penalty) ?? 0;
   const rebate = toNumber(rebateSubsidy) ?? 0;
 
   return String(
     roundTo(
-      fixedCharges + energyCharges + taxesCharges + otherCharges - rebate,
+      fixedCharges +
+        demandCharges +
+        energyCharges +
+        taxesCharges +
+        otherCharges +
+        penaltyCharges -
+        rebate,
       2,
     ),
   );
@@ -270,15 +296,14 @@ const recalculateBillingForm = (form: BillingFormState): BillingFormState => {
     updatedForm.billing_period_start,
     updatedForm.billing_period_end,
   );
-  updatedForm.pf = calculatePF(
-    updatedForm.units_kWh,
-    updatedForm.units_kVAh,
-  );
+  updatedForm.pf = calculatePF(updatedForm.units_kWh, updatedForm.units_kVAh);
   updatedForm.monthly_electricity_bill_rs = calculateMonthlyElectricityBill(
     updatedForm.fixed_charges_rs,
+    updatedForm.demand_charges_rs,
     updatedForm.energy_charges_rs,
     updatedForm.taxes_and_rent_rs,
     updatedForm.other_charges_rs,
+    updatedForm.penalty_rs,
     updatedForm.rebate_subsidy_rs,
   );
   updatedForm.unit_consumption_per_day_kVAh = calculateUnitConsumptionPerDay(
@@ -310,10 +335,14 @@ function mergeBulkImportIntoForms(
     if (hasExcelRow && partial !== null && Object.keys(partial).length > 0) {
       const normalizedPartial = { ...partial };
       if (partial.billing_period_start) {
-        normalizedPartial.billing_period_start = toDateInput(partial.billing_period_start);
+        normalizedPartial.billing_period_start = toDateInput(
+          partial.billing_period_start,
+        );
       }
       if (partial.billing_period_end) {
-        normalizedPartial.billing_period_end = toDateInput(partial.billing_period_end);
+        normalizedPartial.billing_period_end = toDateInput(
+          partial.billing_period_end,
+        );
       }
 
       const baseForm = i < prev.length ? prev[i] : createEmptyDraftSlot();
@@ -474,7 +503,11 @@ function mergeBillingServerWithLocalEdits(
     }
 
     // Merge paired a draft with a different saved row at this index — keep in-progress draft.
-    if (!local.id && serverForm.id && !periodsMatchForPromotion(local, serverForm)) {
+    if (
+      !local.id &&
+      serverForm.id &&
+      !periodsMatchForPromotion(local, serverForm)
+    ) {
       return recalculateBillingForm({
         ...local,
         isNew: serverForm.isNew,
@@ -507,9 +540,11 @@ function mergeBillingServerWithLocalEdits(
         !prev[i].units_kWh &&
         !prev[i].units_kVAh &&
         !prev[i].fixed_charges_rs &&
+        !prev[i].demand_charges_rs &&
         !prev[i].energy_charges_rs &&
         !prev[i].taxes_and_rent_rs &&
         !prev[i].other_charges_rs &&
+        !prev[i].penalty_rs &&
         !prev[i].rebate_subsidy_rs;
 
       if (!isEmpty) {
@@ -571,7 +606,9 @@ export function UtilityBillingRecordSection({
   const [forms, setForms] = useState<BillingFormState[]>([]);
   const [excelImporting, setExcelImporting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<BillingFormState | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BillingFormState | null>(
+    null,
+  );
 
   const totalBillingDays = useMemo(() => {
     return forms.reduce((sum, f) => sum + (toNumber(f.billing_days) || 0), 0);
@@ -608,7 +645,9 @@ export function UtilityBillingRecordSection({
 
   const handleAddRecord = () => {
     if (totalBillingDays >= 365) {
-      toast.error(`Cannot add more billing records. The total sum of billing days has reached ${totalBillingDays} / 365 days.`);
+      toast.error(
+        `Cannot add more billing records. The total sum of billing days has reached ${totalBillingDays} / 365 days.`,
+      );
       return;
     }
     setForms((prev) => [...prev, createEmptyDraftSlot()]);
@@ -683,9 +722,7 @@ export function UtilityBillingRecordSection({
     } catch (err) {
       console.error(err);
       toast.error(
-        err instanceof Error
-          ? err.message
-          : "Could not read that Excel file.",
+        err instanceof Error ? err.message : "Could not read that Excel file.",
       );
     } finally {
       setExcelImporting(false);
@@ -716,9 +753,11 @@ export function UtilityBillingRecordSection({
         updatedForm.monthly_electricity_bill_rs =
           calculateMonthlyElectricityBill(
             updatedForm.fixed_charges_rs,
+            updatedForm.demand_charges_rs,
             updatedForm.energy_charges_rs,
             updatedForm.taxes_and_rent_rs,
             updatedForm.other_charges_rs,
+            updatedForm.penalty_rs,
             updatedForm.rebate_subsidy_rs,
           );
 
@@ -779,7 +818,7 @@ export function UtilityBillingRecordSection({
     if (totalDays > 365) {
       toast.error(
         `The sum of billing days across records (${totalDays} days) cannot exceed 365 days. ` +
-        `(Previous saved records: ${savedRecordsDays} days, current record: ${currentDays} days)`
+          `(Previous saved records: ${savedRecordsDays} days, current record: ${currentDays} days)`,
       );
       return;
     }
@@ -798,9 +837,11 @@ export function UtilityBillingRecordSection({
       pf: toNumber(form.pf),
 
       fixed_charges_rs: toNumber(form.fixed_charges_rs),
+      demand_charges_rs: toNumber(form.demand_charges_rs),
       energy_charges_rs: toNumber(form.energy_charges_rs),
       taxes_and_rent_rs: toNumber(form.taxes_and_rent_rs),
       other_charges_rs: toNumber(form.other_charges_rs),
+      penalty_rs: toNumber(form.penalty_rs),
       other_charges_remark: form.other_charges_remark || undefined,
       rebate_subsidy_rs: toNumber(form.rebate_subsidy_rs),
 
@@ -892,418 +933,468 @@ export function UtilityBillingRecordSection({
 
       <div className="relative">
         <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h3 id="utility-billing-records-heading" className="text-lg font-medium text-foreground">
-              Utility Billing Records
-            </h3>
-            <div className={cn(
-              "flex items-center gap-2 rounded-full px-2.5 py-0.5 text-xs font-semibold border transition shadow-sm",
-              totalBillingDays > 365
-                ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60"
-                : totalBillingDays === 365
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60"
-                  : "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60"
-            )}>
-              Total Days: {totalBillingDays} / 365
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3
+                  id="utility-billing-records-heading"
+                  className="text-lg font-medium text-foreground"
+                >
+                  Utility Billing Records
+                </h3>
+                <div
+                  className={cn(
+                    "flex items-center gap-2 rounded-full px-2.5 py-0.5 text-xs font-semibold border transition shadow-sm",
+                    totalBillingDays > 365
+                      ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60"
+                      : totalBillingDays === 365
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60"
+                        : "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60",
+                  )}
+                >
+                  Total Days: {totalBillingDays} / 365
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Add your billing records dynamically. The sum of all record
+                billing days must not exceed 365 days.
+              </p>
+            </div>
+
+            <div
+              className={cnHideUtilityAuditEdits(
+                auditStepLocked,
+                "flex flex-wrap items-center gap-2",
+              )}
+            >
+              <input
+                id="utility-billing-excel-import"
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="hidden"
+                onChange={handleExcelFileChange}
+                disabled={excelImporting}
+              />
+              {!auditStepLocked && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddRecord}
+                  disabled={totalBillingDays >= 365}
+                  className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Billing Record
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadBillingExcelTemplate}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Excel template ({forms.length || 12} rows)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={excelImporting}
+                onClick={() =>
+                  document
+                    .getElementById("utility-billing-excel-import")
+                    ?.click()
+                }
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                {excelImporting ? "Reading…" : "Bulk import"}
+              </Button>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Add your billing records dynamically. The sum of all record billing days must not exceed 365 days.
-          </p>
-        </div>
 
-        <div
-          className={cnHideUtilityAuditEdits(
-            auditStepLocked,
-            "flex flex-wrap items-center gap-2",
-          )}
-        >
-          <input
-            id="utility-billing-excel-import"
-            type="file"
-            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-            className="hidden"
-            onChange={handleExcelFileChange}
-            disabled={excelImporting}
-          />
-          {!auditStepLocked && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddRecord}
-              disabled={totalBillingDays >= 365}
-              className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Billing Record
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadBillingExcelTemplate}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Excel template ({forms.length || 12} rows)
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={excelImporting}
-            onClick={() =>
-              document.getElementById("utility-billing-excel-import")?.click()
-            }
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            {excelImporting ? "Reading…" : "Bulk import"}
-          </Button>
-        </div>
-      </div>
+          {forms.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  No billing records available.
+                </p>
+                {!auditStepLocked && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddRecord}
+                    disabled={totalBillingDays >= 365}
+                    className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 mx-auto"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add First Billing Record
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            forms.map((form, index) => (
+              <Card key={form.id ?? form.localId}>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>
+                    Billing Record {index + 1} of {forms.length}
+                    {form.isNew ? " (New)" : ""}
+                  </CardTitle>
 
-      {forms.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">No billing records available.</p>
-            {!auditStepLocked && (
+                  <div
+                    className={cnHideUtilityAuditEdits(
+                      auditStepLocked,
+                      "flex flex-wrap items-center gap-2",
+                    )}
+                  >
+                    {!form.isEditing ? (
+                      <>
+                        <Button
+                          onClick={() => toggleEdit(form.localId, true)}
+                          size="sm"
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        {canDeleteRecords && form.id ? (
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleDelete(form)}
+                            size="sm"
+                            disabled={saving}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </Button>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleCancel(form)}
+                          size="sm"
+                          disabled={saving}
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => handleSave(form)}
+                          size="sm"
+                          disabled={saving}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          {saving ? "Saving..." : "Save"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Billing Period Start</Label>
+                    <Input
+                      type="date"
+                      value={form.billing_period_start}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "billing_period_start",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Billing Period End</Label>
+                    <Input
+                      type="date"
+                      value={form.billing_period_end}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "billing_period_end",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Billing Days (Auto)</Label>
+                    <Input
+                      type="number"
+                      value={form.billing_days}
+                      disabled
+                      className={autoInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Bill No</Label>
+                    <Input
+                      value={form.bill_no}
+                      onChange={(e) =>
+                        updateForm(form.localId, "bill_no", e.target.value)
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>MDI (kVA)</Label>
+                    <Input
+                      type="number"
+                      value={form.mdi_kVA}
+                      onChange={(e) =>
+                        updateForm(form.localId, "mdi_kVA", e.target.value)
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Units (kWh)</Label>
+                    <Input
+                      type="number"
+                      value={form.units_kWh}
+                      onChange={(e) =>
+                        updateForm(form.localId, "units_kWh", e.target.value)
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Units (kVAh)</Label>
+                    <Input
+                      type="number"
+                      value={form.units_kVAh}
+                      onChange={(e) =>
+                        updateForm(form.localId, "units_kVAh", e.target.value)
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>PF (Auto = kWh / kVAh)</Label>
+                    <Input
+                      type="number"
+                      step="0.001"
+                      value={form.pf}
+                      disabled
+                      className={autoInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Fixed Charges(Min. Charges) (₹)</Label>
+                    <Input
+                      type="number"
+                      value={form.fixed_charges_rs}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "fixed_charges_rs",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Demand Charges (₹)</Label>
+                    <Input
+                      type="number"
+                      value={form.demand_charges_rs}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "demand_charges_rs",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Energy Charges (₹)</Label>
+                    <Input
+                      type="number"
+                      value={form.energy_charges_rs}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "energy_charges_rs",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Taxes and Rent (Duty) (₹)</Label>
+                    <Input
+                      type="number"
+                      value={form.taxes_and_rent_rs}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "taxes_and_rent_rs",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Other Charges (₹)</Label>
+                    <Input
+                      type="number"
+                      value={form.other_charges_rs}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "other_charges_rs",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Other Charges Remark</Label>
+                    <Input
+                      value={form.other_charges_remark}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "other_charges_remark",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                      placeholder="Enter other charges remark"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Penalty (₹)</Label>
+                    <Input
+                      type="number"
+                      value={form.penalty_rs}
+                      onChange={(e) =>
+                        updateForm(form.localId, "penalty_rs", e.target.value)
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Rebate / Subsidy (₹)</Label>
+                    <Input
+                      type="number"
+                      value={form.rebate_subsidy_rs}
+                      onChange={(e) =>
+                        updateForm(
+                          form.localId,
+                          "rebate_subsidy_rs",
+                          e.target.value,
+                        )
+                      }
+                      disabled={!form.isEditing}
+                      className={editableInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      Monthly Electricity Bill (Auto = Fixed + Demand + Energy +
+                      Taxes + Other + Penalty - Rebate / Subsidy)
+                    </Label>
+                    <Input
+                      type="number"
+                      value={form.monthly_electricity_bill_rs}
+                      disabled
+                      className={autoInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Unit Consumption / Day (Auto)</Label>
+                    <Input
+                      type="number"
+                      value={form.unit_consumption_per_day_kVAh}
+                      disabled
+                      className={autoInputClass}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Average Per Unit Cost (Auto)</Label>
+                    <Input
+                      type="number"
+                      value={form.average_per_unit_cost_rs}
+                      disabled
+                      className={autoInputClass}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+          {!auditStepLocked && forms.length > 0 && (
+            <div className="flex justify-center pt-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={handleAddRecord}
                 disabled={totalBillingDays >= 365}
-                className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 mx-auto"
+                className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 w-full sm:w-auto"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add First Billing Record
+                Add Billing Record
               </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        forms.map((form, index) => (
-          <Card key={form.id ?? form.localId}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>
-                Billing Record {index + 1} of {forms.length}
-                {form.isNew ? " (New)" : ""}
-              </CardTitle>
-
-              <div
-                className={cnHideUtilityAuditEdits(
-                  auditStepLocked,
-                  "flex flex-wrap items-center gap-2",
-                )}
-              >
-                {!form.isEditing ? (
-                  <>
-                    <Button
-                      onClick={() => toggleEdit(form.localId, true)}
-                      size="sm"
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                    {canDeleteRecords && form.id ? (
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleDelete(form)}
-                        size="sm"
-                        disabled={saving}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </Button>
-                    ) : null}
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleCancel(form)}
-                      size="sm"
-                      disabled={saving}
-                    >
-                      <X className="mr-2 h-4 w-4" />
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => handleSave(form)}
-                      size="sm"
-                      disabled={saving}
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      {saving ? "Saving..." : "Save"}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </CardHeader>
-
-            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Billing Period Start</Label>
-                <Input
-                  type="date"
-                  value={form.billing_period_start}
-                  onChange={(e) =>
-                    updateForm(
-                      form.localId,
-                      "billing_period_start",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Billing Period End</Label>
-                <Input
-                  type="date"
-                  value={form.billing_period_end}
-                  onChange={(e) =>
-                    updateForm(
-                      form.localId,
-                      "billing_period_end",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Billing Days (Auto)</Label>
-                <Input
-                  type="number"
-                  value={form.billing_days}
-                  disabled
-                  className={autoInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Bill No</Label>
-                <Input
-                  value={form.bill_no}
-                  onChange={(e) =>
-                    updateForm(form.localId, "bill_no", e.target.value)
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>MDI (kVA)</Label>
-                <Input
-                  type="number"
-                  value={form.mdi_kVA}
-                  onChange={(e) =>
-                    updateForm(form.localId, "mdi_kVA", e.target.value)
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Units (kWh)</Label>
-                <Input
-                  type="number"
-                  value={form.units_kWh}
-                  onChange={(e) =>
-                    updateForm(form.localId, "units_kWh", e.target.value)
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Units (kVAh)</Label>
-                <Input
-                  type="number"
-                  value={form.units_kVAh}
-                  onChange={(e) =>
-                    updateForm(form.localId, "units_kVAh", e.target.value)
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>PF (Auto = kWh / kVAh)</Label>
-                <Input
-                  type="number"
-                  step="0.001"
-                  value={form.pf}
-                  disabled
-                  className={autoInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Fixed Charges (₹)</Label>
-                <Input
-                  type="number"
-                  value={form.fixed_charges_rs}
-                  onChange={(e) =>
-                    updateForm(form.localId, "fixed_charges_rs", e.target.value)
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Energy Charges (₹)</Label>
-                <Input
-                  type="number"
-                  value={form.energy_charges_rs}
-                  onChange={(e) =>
-                    updateForm(
-                      form.localId,
-                      "energy_charges_rs",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Taxes and Rent (₹)</Label>
-                <Input
-                  type="number"
-                  value={form.taxes_and_rent_rs}
-                  onChange={(e) =>
-                    updateForm(
-                      form.localId,
-                      "taxes_and_rent_rs",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Other Charges (₹)</Label>
-                <Input
-                  type="number"
-                  value={form.other_charges_rs}
-                  onChange={(e) =>
-                    updateForm(form.localId, "other_charges_rs", e.target.value)
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Other Charges Remark</Label>
-                <Input
-                  value={form.other_charges_remark}
-                  onChange={(e) =>
-                    updateForm(
-                      form.localId,
-                      "other_charges_remark",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                  placeholder="Enter other charges remark"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Rebate / Subsidy (₹)</Label>
-                <Input
-                  type="number"
-                  value={form.rebate_subsidy_rs}
-                  onChange={(e) =>
-                    updateForm(
-                      form.localId,
-                      "rebate_subsidy_rs",
-                      e.target.value,
-                    )
-                  }
-                  disabled={!form.isEditing}
-                  className={editableInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Monthly Electricity Bill (Auto = Fixed + Energy + Taxes +
-                  Other - Rebate / Subsidy)
-                </Label>
-                <Input
-                  type="number"
-                  value={form.monthly_electricity_bill_rs}
-                  disabled
-                  className={autoInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Unit Consumption / Day (Auto)</Label>
-                <Input
-                  type="number"
-                  value={form.unit_consumption_per_day_kVAh}
-                  disabled
-                  className={autoInputClass}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Average Per Unit Cost (Auto)</Label>
-                <Input
-                  type="number"
-                  value={form.average_per_unit_cost_rs}
-                  disabled
-                  className={autoInputClass}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))
-      )}
-      {!auditStepLocked && forms.length > 0 && (
-        <div className="flex justify-center pt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleAddRecord}
-            disabled={totalBillingDays >= 365}
-            className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 w-full sm:w-auto"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Billing Record
-          </Button>
-        </div>
-      )}
+            </div>
+          )}
         </div>
 
         {/* Pagination Controls */}
         {data && data.pages !== undefined && data.pages > 1 && (
           <div className="flex flex-col items-center justify-between gap-4 border-t border-border pt-4 sm:flex-row">
             <p className="text-sm text-muted-foreground">
-              Showing page <span className="font-medium text-foreground">{page}</span> of{" "}
-              <span className="font-medium text-foreground">{data.pages}</span> (Total {data.total ?? 0} records)
+              Showing page{" "}
+              <span className="font-medium text-foreground">{page}</span> of{" "}
+              <span className="font-medium text-foreground">{data.pages}</span>{" "}
+              (Total {data.total ?? 0} records)
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -1311,7 +1402,9 @@ export function UtilityBillingRecordSection({
                 size="sm"
                 onClick={() => {
                   setPage((p) => Math.max(1, p - 1));
-                  document.getElementById("utility-billing-records-heading")?.scrollIntoView({ behavior: "smooth" });
+                  document
+                    .getElementById("utility-billing-records-heading")
+                    ?.scrollIntoView({ behavior: "smooth" });
                 }}
                 disabled={page === 1}
               >
@@ -1322,7 +1415,9 @@ export function UtilityBillingRecordSection({
                 size="sm"
                 onClick={() => {
                   setPage((p) => Math.min(data.pages || 1, p + 1));
-                  document.getElementById("utility-billing-records-heading")?.scrollIntoView({ behavior: "smooth" });
+                  document
+                    .getElementById("utility-billing-records-heading")
+                    ?.scrollIntoView({ behavior: "smooth" });
                 }}
                 disabled={page === data.pages}
               >
@@ -1343,7 +1438,8 @@ export function UtilityBillingRecordSection({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete billing record?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. It will permanently delete this utility billing record.
+              This action cannot be undone. It will permanently delete this
+              utility billing record.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

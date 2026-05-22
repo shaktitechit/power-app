@@ -116,15 +116,23 @@ const normalizeUtilityAccountMini = (account, index = 0) => {
     return valueNum;
   };
 
-  const rawDemandValue = account?.sanctioned_demand_value !== undefined && account?.sanctioned_demand_value !== null
-    ? account.sanctioned_demand_value
-    : account?.sanctioned_demand_kVA;
+  const rawDemandValue =
+    account?.sanctioned_demand_value !== undefined &&
+    account?.sanctioned_demand_value !== null
+      ? account.sanctioned_demand_value
+      : account?.sanctioned_demand_kVA;
   const rawDemandUnit = account?.sanctioned_demand_unit || "kVA";
-  const hasNewDemand = account?.sanctioned_demand_value !== undefined && account?.sanctioned_demand_value !== null;
-  const sanctionedDemand = hasNewDemand ? null : normalizeNumber(getKva(rawDemandValue, rawDemandUnit));
+  const hasNewDemand =
+    account?.sanctioned_demand_value !== undefined &&
+    account?.sanctioned_demand_value !== null;
+  const sanctionedDemand = hasNewDemand
+    ? null
+    : normalizeNumber(getKva(rawDemandValue, rawDemandUnit));
   const sanctionedDemandLabel = hasNewDemand
     ? `${formatNumber(account.sanctioned_demand_value)} ${account.sanctioned_demand_unit || "kVA"}`
-    : sanctionedDemand !== null ? `${formatNumber(sanctionedDemand)} kVA` : "";
+    : sanctionedDemand !== null
+      ? `${formatNumber(sanctionedDemand)} kVA`
+      : "";
 
   return {
     id: getId(account),
@@ -139,7 +147,8 @@ const normalizeUtilityAccountMini = (account, index = 0) => {
     sanctioned_demand_kVA_label:
       sanctionedDemand !== null ? formatNumber(sanctionedDemand) : "",
     sanctioned_demand_value: normalizeNumber(account.sanctioned_demand_value),
-    sanctioned_demand_unit: normalizeText(account.sanctioned_demand_unit) || "kVA",
+    sanctioned_demand_unit:
+      normalizeText(account.sanctioned_demand_unit) || "kVA",
     sanctioned_demand_label: sanctionedDemandLabel,
     is_solar_connected: Boolean(account?.is_solar_connected),
     is_dg_connected: Boolean(account?.is_dg_connected),
@@ -148,7 +157,8 @@ const normalizeUtilityAccountMini = (account, index = 0) => {
     is_transformer_maintained_by_facility: Boolean(
       account?.is_transformer_maintained_by_facility,
     ),
-    is_active: account?.is_active === undefined ? true : Boolean(account?.is_active),
+    is_active:
+      account?.is_active === undefined ? true : Boolean(account?.is_active),
   };
 };
 
@@ -196,12 +206,16 @@ const calculateMonthlyBill = (record) => {
   if (existing !== null) return existing;
 
   const fixed = normalizeNumber(record?.fixed_charges_rs) || 0;
+  const demand = normalizeNumber(record?.demand_charges_rs) || 0;
   const energy = normalizeNumber(record?.energy_charges_rs) || 0;
   const taxes = normalizeNumber(record?.taxes_and_rent_rs) || 0;
   const other = normalizeNumber(record?.other_charges_rs) || 0;
+  const penalty = normalizeNumber(record?.penalty_rs) || 0;
   const rebate = normalizeNumber(record?.rebate_subsidy_rs) || 0;
 
-  return Number((fixed + energy + taxes + other - rebate).toFixed(2));
+  return Number(
+    (fixed + demand + energy + taxes + other + penalty - rebate).toFixed(2),
+  );
 };
 
 const calculateUnitConsumptionPerDay = (record, resolvedBillingDays = null) => {
@@ -245,9 +259,11 @@ const normalizeBillingRecord = (record, account, index = 0) => {
   const unitsKWh = normalizeNumber(record?.units_kWh);
   const unitsKVAh = normalizeNumber(record?.units_kVAh);
   const fixedCharges = normalizeNumber(record?.fixed_charges_rs);
+  const demandCharges = normalizeNumber(record?.demand_charges_rs);
   const energyCharges = normalizeNumber(record?.energy_charges_rs);
   const taxesAndRent = normalizeNumber(record?.taxes_and_rent_rs);
   const otherCharges = normalizeNumber(record?.other_charges_rs);
+  const penaltyCharges = normalizeNumber(record?.penalty_rs);
   const rebateSubsidy = normalizeNumber(record?.rebate_subsidy_rs);
 
   const pf = calculatePf(record);
@@ -267,17 +283,29 @@ const normalizeBillingRecord = (record, account, index = 0) => {
     return valueNum;
   };
 
-  const rawDemandValue = account?.sanctioned_demand_value !== undefined && account?.sanctioned_demand_value !== null
-    ? account.sanctioned_demand_value
-    : record?.utility_account_id?.sanctioned_demand_value !== undefined && record?.utility_account_id?.sanctioned_demand_value !== null
-    ? record.utility_account_id.sanctioned_demand_value
-    : account?.sanctioned_demand_kVA ?? record?.utility_account_id?.sanctioned_demand_kVA;
+  const rawDemandValue =
+    account?.sanctioned_demand_value !== undefined &&
+    account?.sanctioned_demand_value !== null
+      ? account.sanctioned_demand_value
+      : record?.utility_account_id?.sanctioned_demand_value !== undefined &&
+          record?.utility_account_id?.sanctioned_demand_value !== null
+        ? record.utility_account_id.sanctioned_demand_value
+        : (account?.sanctioned_demand_kVA ??
+          record?.utility_account_id?.sanctioned_demand_kVA);
 
-  const rawDemandUnit = account?.sanctioned_demand_unit || record?.utility_account_id?.sanctioned_demand_unit || "kVA";
+  const rawDemandUnit =
+    account?.sanctioned_demand_unit ||
+    record?.utility_account_id?.sanctioned_demand_unit ||
+    "kVA";
 
-  const hasNewDemand = (account?.sanctioned_demand_value !== undefined && account?.sanctioned_demand_value !== null)
-    || (record?.utility_account_id?.sanctioned_demand_value !== undefined && record?.utility_account_id?.sanctioned_demand_value !== null);
-  const sanctionedDemand = hasNewDemand ? null : normalizeNumber(getKva(rawDemandValue, rawDemandUnit));
+  const hasNewDemand =
+    (account?.sanctioned_demand_value !== undefined &&
+      account?.sanctioned_demand_value !== null) ||
+    (record?.utility_account_id?.sanctioned_demand_value !== undefined &&
+      record?.utility_account_id?.sanctioned_demand_value !== null);
+  const sanctionedDemand = hasNewDemand
+    ? null
+    : normalizeNumber(getKva(rawDemandValue, rawDemandUnit));
 
   return {
     id: getId(record),
@@ -312,11 +340,16 @@ const normalizeBillingRecord = (record, account, index = 0) => {
       account?.sanctioned_demand_unit ||
       normalizeText(record?.utility_account_id?.sanctioned_demand_unit) ||
       "kVA",
-    sanctioned_demand_label: (account?.sanctioned_demand_value !== undefined && account?.sanctioned_demand_value !== null)
-      ? `${formatNumber(account.sanctioned_demand_value)} ${account.sanctioned_demand_unit || "kVA"}`
-      : (record?.utility_account_id?.sanctioned_demand_value !== undefined && record?.utility_account_id?.sanctioned_demand_value !== null)
-      ? `${formatNumber(record.utility_account_id.sanctioned_demand_value)} ${record.utility_account_id.sanctioned_demand_unit || "kVA"}`
-      : sanctionedDemand !== null ? `${formatNumber(sanctionedDemand)} kVA` : "",
+    sanctioned_demand_label:
+      account?.sanctioned_demand_value !== undefined &&
+      account?.sanctioned_demand_value !== null
+        ? `${formatNumber(account.sanctioned_demand_value)} ${account.sanctioned_demand_unit || "kVA"}`
+        : record?.utility_account_id?.sanctioned_demand_value !== undefined &&
+            record?.utility_account_id?.sanctioned_demand_value !== null
+          ? `${formatNumber(record.utility_account_id.sanctioned_demand_value)} ${record.utility_account_id.sanctioned_demand_unit || "kVA"}`
+          : sanctionedDemand !== null
+            ? `${formatNumber(sanctionedDemand)} kVA`
+            : "",
 
     billing_period_start: record?.billing_period_start || null,
     billing_period_end: record?.billing_period_end || null,
@@ -346,6 +379,10 @@ const normalizeBillingRecord = (record, account, index = 0) => {
     fixed_charges_rs_label:
       fixedCharges !== null ? formatNumber(fixedCharges) : "",
 
+    demand_charges_rs: demandCharges,
+    demand_charges_rs_label:
+      demandCharges !== null ? formatNumber(demandCharges) : "",
+
     energy_charges_rs: energyCharges,
     energy_charges_rs_label:
       energyCharges !== null ? formatNumber(energyCharges) : "",
@@ -358,6 +395,10 @@ const normalizeBillingRecord = (record, account, index = 0) => {
     other_charges_rs_label:
       otherCharges !== null ? formatNumber(otherCharges) : "",
     other_charges_remark: normalizeText(record?.other_charges_remark),
+
+    penalty_rs: penaltyCharges,
+    penalty_rs_label:
+      penaltyCharges !== null ? formatNumber(penaltyCharges) : "",
 
     rebate_subsidy_rs: rebateSubsidy,
     rebate_subsidy_rs_label:
@@ -445,6 +486,11 @@ const buildRecordSummary = (items = []) => {
     0,
   );
 
+  const totalDemandCharges = items.reduce(
+    (sum, item) => sum + (normalizeNumber(item.demand_charges_rs) || 0),
+    0,
+  );
+
   const totalEnergyCharges = items.reduce(
     (sum, item) => sum + (normalizeNumber(item.energy_charges_rs) || 0),
     0,
@@ -457,6 +503,11 @@ const buildRecordSummary = (items = []) => {
 
   const totalOtherCharges = items.reduce(
     (sum, item) => sum + (normalizeNumber(item.other_charges_rs) || 0),
+    0,
+  );
+
+  const totalPenaltyCharges = items.reduce(
+    (sum, item) => sum + (normalizeNumber(item.penalty_rs) || 0),
     0,
   );
 
@@ -488,9 +539,11 @@ const buildRecordSummary = (items = []) => {
     total_units_kWh: Number(totalUnitsKWh.toFixed(2)),
     total_units_kVAh: Number(totalUnitsKVAh.toFixed(2)),
     total_fixed_charges_rs: Number(totalFixedCharges.toFixed(2)),
+    total_demand_charges_rs: Number(totalDemandCharges.toFixed(2)),
     total_energy_charges_rs: Number(totalEnergyCharges.toFixed(2)),
     total_taxes_and_rent_rs: Number(totalTaxesAndRent.toFixed(2)),
     total_other_charges_rs: Number(totalOtherCharges.toFixed(2)),
+    total_penalty_rs: Number(totalPenaltyCharges.toFixed(2)),
     total_rebate_subsidy_rs: Number(totalRebateSubsidy.toFixed(2)),
 
     average_monthly_bill_rs:
@@ -641,7 +694,9 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         {
           field: "DG Connected",
           value:
-            latestRecord?.utility_account?.is_dg_connected === true ? "Yes" : "No",
+            latestRecord?.utility_account?.is_dg_connected === true
+              ? "Yes"
+              : "No",
         },
         {
           field: "Transformer Connected",
@@ -667,7 +722,10 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         },
         {
           field: "Utility Account Status",
-          value: latestRecord?.utility_account?.is_active === false ? "Inactive" : "Active",
+          value:
+            latestRecord?.utility_account?.is_active === false
+              ? "Inactive"
+              : "Active",
         },
       ],
     });
@@ -712,10 +770,12 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         { key: "sr_no", label: "Sr No", type: "integer" },
         "bill_no",
         "fixed_charges_rs",
+        "demand_charges_rs",
         "energy_charges_rs",
         "taxes_and_rent_rs",
         "other_charges_rs",
         "other_charges_remark",
+        "penalty_rs",
         "rebate_subsidy_rs",
         "monthly_electricity_bill_rs",
       ],
@@ -723,10 +783,12 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         sr_no: item.sr_no,
         bill_no: item.bill_no,
         fixed_charges_rs: item.fixed_charges_rs ?? null,
+        demand_charges_rs: item.demand_charges_rs ?? null,
         energy_charges_rs: item.energy_charges_rs ?? null,
         taxes_and_rent_rs: item.taxes_and_rent_rs ?? null,
         other_charges_rs: item.other_charges_rs ?? null,
         other_charges_remark: item.other_charges_remark ?? "",
+        penalty_rs: item.penalty_rs ?? null,
         rebate_subsidy_rs: item.rebate_subsidy_rs ?? null,
         monthly_electricity_bill_rs: item.monthly_electricity_bill_rs ?? null,
       })),
@@ -808,6 +870,10 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
         value: overallSummary.total_fixed_charges_rs ?? "",
       },
       {
+        metric: "Total Demand Charges Rs",
+        value: overallSummary.total_demand_charges_rs ?? "",
+      },
+      {
         metric: "Total Energy Charges Rs",
         value: overallSummary.total_energy_charges_rs ?? "",
       },
@@ -818,6 +884,10 @@ const buildGroupedSections = (billingGroups = [], overallSummary) => {
       {
         metric: "Total Other Charges Rs",
         value: overallSummary.total_other_charges_rs ?? "",
+      },
+      {
+        metric: "Total Penalty Rs",
+        value: overallSummary.total_penalty_rs ?? "",
       },
       {
         metric: "Total Rebate / Subsidy Rs",

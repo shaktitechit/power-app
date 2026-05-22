@@ -33,7 +33,7 @@ const dgAuditRecordSchema = new mongoose.Schema(
     // 📊 Load Analysis
     max_load_observed_kW: { type: Number },
     min_load_observed_kW: { type: Number },
-    average_loading_percent: { type: Number, min: 0, max: 100 },
+    average_loading_percent: { type: Number, min: 0 },
     load_factor_percent: { type: Number, min: 0, max: 100 },
 
     idle_running_observed: { type: Boolean },
@@ -48,10 +48,15 @@ const dgAuditRecordSchema = new mongoose.Schema(
 
     fuel_consumption_during_test_lph: { type: Number },
     units_generated_during_test_kWh: { type: Number },
+    time_duration_of_the_test_hours: { type: Number },
+    units_generated_per_hour_kWh_during_test: { type: Number },
+    fuel_consumption_per_hour_liters_during_test: { type: Number },
+    specific_fuel_consumption_l_per_kWh_during_test: { type: Number },
 
     specific_fuel_consumption_l_per_kWh: { type: Number },
     manufacturer_sfc_l_per_kWh: { type: Number },
     sfc_deviation_percent: { type: Number },
+    sfc_deviation_percent_during_test: { type: Number },
 
     // 💰 Cost Analysis
     fuel_cost_rs_per_liter: { type: Number },
