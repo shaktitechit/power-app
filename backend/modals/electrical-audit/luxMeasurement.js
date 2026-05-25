@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+﻿import mongoose from "mongoose";
 
 import { softDeletePlugin } from "../plugins/softDelete.js";
 
@@ -108,6 +108,8 @@ const luxMeasurementSchema = new mongoose.Schema(
   },
 );
 
+luxMeasurementSchema.index({ utility_account_id: 1, facility_id: 1 });
+luxMeasurementSchema.index({ facility_id: 1 });
 luxMeasurementSchema.plugin(softDeletePlugin);
 
 // 🔍 Indexes

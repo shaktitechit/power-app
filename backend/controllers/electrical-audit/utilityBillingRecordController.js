@@ -1,14 +1,13 @@
-import asyncHandler from "../../middlewares/asyncHandler.js";
+﻿import asyncHandler from "../../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import UtilityBillingRecord from "../../modals/electrical-audit/utilityBillingRecord.js";
-import UtilityAccount from "../../modals/utilityAccount.js";
 import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../../helpers/buildActivityMessage.js";
 import {
-  isAdmin,
   resolveAccessibleUtilityAccount,
 } from "../../services/authorization/index.js";
+import { getAccessibleUtilityAccountIds } from "../../services/authorization/getAccessibleUtilityIds.js";
 
 // helper: upload documents
 const uploadBillingDocuments = async (files = [], billingRecordId) => {
@@ -166,30 +165,33 @@ const createUtilityBillingRecord = asyncHandler(async (req, res) => {
 const getUtilityBillingRecords = asyncHandler(async (req, res) => {
   const { utility_account_id, page, limit } = req.query;
 
-  let query = {};
+  const allowedIds = await getAccessibleUtilityAccountIds(req.user);
 
-  if (isAdmin(req.user)) {
-    query = utility_account_id ? { utility_account_id } : {};
+  const query = {};
+
+  if (allowedIds === null) {
+    // admin — no restriction
+    if (utility_account_id) query.utility_account_id = utility_account_id;
   } else {
-    const utilities = await UtilityAccount.find();
-    const allowedIds = [];
-
-    for (const utility of utilities) {
-      const access = await resolveAccessibleUtilityAccount(req.user, utility._id);
-      if (access) {
-        allowedIds.push(utility._id);
+    // non-admin
+    if (utility_account_id) {
+      const isAllowed = allowedIds.some(
+        (id) => id.toString() === utility_account_id.toString(),
+      );
+      if (!isAllowed) {
+        return res.status(200).json({
+          success: true,
+          total: 0,
+          pages: 1,
+          currentPage: 1,
+          count: 0,
+          data: [],
+        });
       }
+      query.utility_account_id = utility_account_id;
+    } else {
+      query.utility_account_id = { $in: allowedIds };
     }
-
-    query = {
-      utility_account_id: utility_account_id
-        ? {
-            $in: allowedIds.filter(
-              (id) => id.toString() === utility_account_id.toString(),
-            ),
-          }
-        : { $in: allowedIds },
-    };
   }
 
   // Count total records matching search conditions

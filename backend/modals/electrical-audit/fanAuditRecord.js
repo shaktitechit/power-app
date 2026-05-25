@@ -133,6 +133,8 @@ const fanAuditRecordSchema = new mongoose.Schema(
 
 fanAuditRecordSchema.plugin(softDeletePlugin);
 
+// Compound index for the most common query filter
+fanAuditRecordSchema.index({ utility_account_id: 1, facility_id: 1 });
 fanAuditRecordSchema.index({ facility_id: 1 });
 fanAuditRecordSchema.index({ utility_account_id: 1 });
 fanAuditRecordSchema.index({ created_at: -1 });

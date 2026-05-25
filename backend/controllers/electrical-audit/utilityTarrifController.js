@@ -1,15 +1,14 @@
-import asyncHandler from "../../middlewares/asyncHandler.js";
+﻿import asyncHandler from "../../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import UtilityTariff from "../../modals/electrical-audit/utilityTarrif.js";
-import UtilityAccount from "../../modals/utilityAccount.js";
 import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../../helpers/buildActivityMessage.js";
 import {
-  isAdmin,
   resolveAccessibleUtilityAccount,
 } from "../../services/authorization/index.js";
+import { getAccessibleUtilityAccountIds } from "../../services/authorization/getAccessibleUtilityIds.js";
 
 const formatDateLabel = (value) => {
   if (!value) return "";
@@ -154,45 +153,28 @@ const getUtilityTariffs = asyncHandler(async (req, res) => {
 
   let tariffs = [];
 
-  if (isAdmin(req.user)) {
-    const query = utility_account_id ? { utility_account_id } : {};
+  const allowedIds = await getAccessibleUtilityAccountIds(req.user);
 
-    tariffs = await UtilityTariff.find(query)
-      .populate("utility_account_id", "account_number")
-      .populate("auditor_id", "name email")
-      .sort({ effective_from: -1 });
+  const query = {};
+
+  if (allowedIds === null) {
+    if (utility_account_id) query.utility_account_id = utility_account_id;
   } else {
-    const utilities = await UtilityAccount.find();
-
-    const allowedIds = [];
-
-    for (const utility of utilities) {
-      const access = await resolveAccessibleUtilityAccount(req.user, utility._id);
-      if (access) allowedIds.push(utility._id.toString());
-    }
-
-    let query = {
-      utility_account_id: { $in: allowedIds },
-    };
-
     if (utility_account_id) {
-      if (!allowedIds.includes(utility_account_id.toString())) {
-        return res.status(403).json({
-          success: false,
-          message: "Access denied for this utility account",
-        });
-      }
-
-      query = {
-        utility_account_id,
-      };
+      const isAllowed = allowedIds.some(
+        (id) => id.toString() === utility_account_id.toString(),
+      );
+      if (!isAllowed) return res.status(200).json({ success: true, count: 0, data: [] });
+      query.utility_account_id = utility_account_id;
+    } else {
+      query.utility_account_id = { $in: allowedIds };
     }
-
-    tariffs = await UtilityTariff.find(query)
-      .populate("utility_account_id", "account_number")
-      .populate("auditor_id", "name email")
-      .sort({ effective_from: -1 });
   }
+
+  tariffs = await UtilityTariff.find(query)
+    .populate("utility_account_id", "account_number")
+    .populate("auditor_id", "name email")
+    .sort({ effective_from: -1 });
 
   res.status(200).json({
     success: true,

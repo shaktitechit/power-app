@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+﻿import mongoose from "mongoose";
 
 import { softDeletePlugin } from "../plugins/softDelete.js";
 
@@ -115,6 +115,9 @@ pumpAuditRecordSchema.plugin(softDeletePlugin);
 pumpAuditRecordSchema.index({ pump_id: 1 });
 pumpAuditRecordSchema.index({ utility_account_id: 1 });
 pumpAuditRecordSchema.index({ created_at: -1 });
+
+pumpAuditRecordSchema.index({ utility_account_id: 1, facility_id: 1 });
+pumpAuditRecordSchema.index({ facility_id: 1 });
 
 const PumpAuditRecord = mongoose.model(
   "PumpAuditRecord",

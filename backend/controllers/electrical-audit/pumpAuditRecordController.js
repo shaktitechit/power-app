@@ -1,15 +1,14 @@
-import asyncHandler from "../../middlewares/asyncHandler.js";
+﻿import asyncHandler from "../../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import PumpAuditRecord from "../../modals/electrical-audit/pumpAuditRecord.js";
 import Pump from "../../modals/electrical-audit/pump.js";
-import UtilityAccount from "../../modals/utilityAccount.js";
 import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.js";
 import { createRecentActivity } from "../../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../../helpers/buildActivityMessage.js";
 import {
-  isAdmin,
   resolveAccessibleUtilityAccount,
 } from "../../services/authorization/index.js";
+import { getAccessibleUtilityAccountIds } from "../../services/authorization/getAccessibleUtilityIds.js";
 
 // 📂 Upload audit documents
 const uploadPumpAuditDocuments = async (files = [], recordId) => {
@@ -205,55 +204,31 @@ const getPumpAuditRecords = asyncHandler(async (req, res) => {
 
   let records;
 
-  if (isAdmin(req.user)) {
-    records = await PumpAuditRecord.find(query)
-      .populate("facility_id", "name city")
-      .populate(
-        "utility_account_id",
-        "utility_account_id account_number connection_type category",
-      )
-      .populate("pump_id", "pump_tag_number make_model rated_power_kW_or_HP")
-      .populate("auditor_id", "name email")
-      .sort({ created_at: -1 });
+  const allowedIds = await getAccessibleUtilityAccountIds(req.user);
+
+  if (allowedIds === null) {
+    if (utility_account_id) query.utility_account_id = utility_account_id;
   } else {
-    const utilities = await UtilityAccount.find();
-    const allowedUtilityIds = [];
-
-    for (const utility of utilities) {
-      const access = await resolveAccessibleUtilityAccount(req.user, utility._id);
-      if (access) allowedUtilityIds.push(utility._id);
+    if (utility_account_id) {
+      const isAllowed = allowedIds.some(
+        (id) => id.toString() === utility_account_id.toString(),
+      );
+      if (!isAllowed) return res.status(200).json({ success: true, count: 0, data: [] });
+      query.utility_account_id = utility_account_id;
+    } else {
+      query.utility_account_id = { $in: allowedIds };
     }
-
-    const userQuery = {
-      ...query,
-      utility_account_id: query.utility_account_id
-        ? query.utility_account_id
-        : { $in: allowedUtilityIds },
-    };
-
-    if (
-      query.utility_account_id &&
-      !allowedUtilityIds.some(
-        (id) => id.toString() === query.utility_account_id.toString(),
-      )
-    ) {
-      return res.status(200).json({
-        success: true,
-        count: 0,
-        data: [],
-      });
-    }
-
-    records = await PumpAuditRecord.find(userQuery)
-      .populate("facility_id", "name city")
-      .populate(
-        "utility_account_id",
-        "utility_account_id account_number connection_type category",
-      )
-      .populate("pump_id", "pump_tag_number make_model rated_power_kW_or_HP")
-      .populate("auditor_id", "name email")
-      .sort({ created_at: -1 });
   }
+
+  records = await PumpAuditRecord.find(query)
+    .populate("facility_id", "name city")
+    .populate(
+      "utility_account_id",
+      "utility_account_id account_number connection_type category",
+    )
+    .populate("pump_id", "pump_tag_number make_model rated_power_kW_or_HP")
+    .populate("auditor_id", "name email")
+    .sort({ created_at: -1 });
 
   res.status(200).json({
     success: true,

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+﻿import mongoose from "mongoose";
 
 import { softDeletePlugin } from "../plugins/softDelete.js";
 
@@ -109,6 +109,8 @@ const miscLoadAuditRecordSchema = new mongoose.Schema(
   },
 );
 
+miscLoadAuditRecordSchema.index({ utility_account_id: 1, facility_id: 1 });
+miscLoadAuditRecordSchema.index({ facility_id: 1 });
 miscLoadAuditRecordSchema.plugin(softDeletePlugin);
 
 miscLoadAuditRecordSchema.index({ utility_account_id: 1 });

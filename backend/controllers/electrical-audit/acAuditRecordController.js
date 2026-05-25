@@ -1,4 +1,4 @@
-import asyncHandler from "../../middlewares/asyncHandler.js";
+﻿import asyncHandler from "../../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import ACAuditRecord from "../../modals/electrical-audit/acAuditRecord.js";
 import UtilityAccount from "../../modals/utilityAccount.js";
@@ -6,10 +6,10 @@ import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.j
 import { createRecentActivity } from "../../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../../helpers/buildActivityMessage.js";
 import {
-  isAdmin,
   resolveAccessibleFacility,
   resolveAccessibleUtilityAccount,
 } from "../../services/authorization/index.js";
+import { getAccessibleUtilityAccountIds } from "../../services/authorization/getAccessibleUtilityIds.js";
 
 const uploadACDocuments = async (files = [], recordId) => {
   const docs = [];
@@ -160,37 +160,30 @@ const createACAuditRecord = asyncHandler(async (req, res) => {
 const getACAuditRecords = asyncHandler(async (req, res) => {
   const { facility_id, utility_account_id } = req.query;
 
+  const allowedIds = await getAccessibleUtilityAccountIds(req.user);
+
   const query = {};
   if (facility_id) query.facility_id = facility_id;
-  if (utility_account_id) query.utility_account_id = utility_account_id;
 
-  let records;
-
-  if (isAdmin(req.user)) {
-    records = await ACAuditRecord.find(query)
-      .populate("facility_id", "name city")
-      .populate("utility_account_id", "account_number")
-      .populate("auditor_id", "name email")
-      .sort({ createdAt: -1 });
+  if (allowedIds === null) {
+    if (utility_account_id) query.utility_account_id = utility_account_id;
   } else {
-    const all = await ACAuditRecord.find(query);
-    const allowed = [];
-
-    for (const rec of all) {
-      const access = await resolveAccessibleUtilityAccount(
-        req.user,
-        rec.utility_account_id,
+    if (utility_account_id) {
+      const isAllowed = allowedIds.some(
+        (id) => id.toString() === utility_account_id.toString(),
       );
-
-      if (access) allowed.push(rec._id);
+      if (!isAllowed) return res.json({ success: true, count: 0, data: [] });
+      query.utility_account_id = utility_account_id;
+    } else {
+      query.utility_account_id = { $in: allowedIds };
     }
-
-    records = await ACAuditRecord.find({ _id: { $in: allowed } })
-      .populate("facility_id", "name city")
-      .populate("utility_account_id", "account_number")
-      .populate("auditor_id", "name email")
-      .sort({ createdAt: -1 });
   }
+
+  const records = await ACAuditRecord.find(query)
+    .populate("facility_id", "name city")
+    .populate("utility_account_id", "account_number")
+    .populate("auditor_id", "name email")
+    .sort({ createdAt: -1 });
 
   res.json({
     success: true,

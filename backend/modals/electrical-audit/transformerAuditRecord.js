@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+﻿import mongoose from "mongoose";
 
 import { softDeletePlugin } from "../plugins/softDelete.js";
 
@@ -120,6 +120,9 @@ transformerAuditRecordSchema.plugin(softDeletePlugin);
 transformerAuditRecordSchema.index({ transformer_id: 1 });
 transformerAuditRecordSchema.index({ utility_account_id: 1 });
 transformerAuditRecordSchema.index({ created_at: -1 });
+
+transformerAuditRecordSchema.index({ utility_account_id: 1, facility_id: 1 });
+transformerAuditRecordSchema.index({ facility_id: 1 });
 
 const TransformerAuditRecord = mongoose.model(
   "TransformerAuditRecord",

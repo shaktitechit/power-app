@@ -47,7 +47,7 @@ export function findMatchingPolicies(policies, resource, action) {
  */
 export function isAdmin(user) {
   const role = user?.role;
-  return role === "super_admin";
+  return role === "super_admin" || role === "admin";
 }
 
 

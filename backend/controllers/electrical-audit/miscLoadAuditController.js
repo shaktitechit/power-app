@@ -1,4 +1,4 @@
-import asyncHandler from "../../middlewares/asyncHandler.js";
+﻿import asyncHandler from "../../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import MiscLoadAuditRecord from "../../modals/electrical-audit/miscLoadAuditRecord.js";
 import UtilityAccount from "../../modals/utilityAccount.js";
@@ -6,10 +6,10 @@ import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.j
 import { createRecentActivity } from "../../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../../helpers/buildActivityMessage.js";
 import {
-  isAdmin,
   resolveAccessibleFacility,
   resolveAccessibleUtilityAccount,
 } from "../../services/authorization/index.js";
+import { getAccessibleUtilityAccountIds } from "../../services/authorization/getAccessibleUtilityIds.js";
 
 // 📂 Upload documents
 const uploadMiscLoadDocuments = async (files = [], recordId) => {
@@ -141,34 +141,28 @@ const getMiscLoadAuditRecords = asyncHandler(async (req, res) => {
 
   let records;
 
-  if (isAdmin(req.user)) {
-    records = await MiscLoadAuditRecord.find(query)
-      .populate("facility_id", "name city")
-      .populate("utility_account_id", "account_number")
-      .populate("auditor_id", "name email")
-      .sort({ created_at: -1 });
+  const allowedIds = await getAccessibleUtilityAccountIds(req.user);
+
+  if (allowedIds === null) {
+    if (utility_account_id) query.utility_account_id = utility_account_id;
+    if (category) query.category = category;
   } else {
-    const allowed = [];
-    const all = await MiscLoadAuditRecord.find();
-
-    for (const rec of all) {
-      const access = await resolveAccessibleUtilityAccount(
-        req.user,
-        rec.utility_account_id,
+    if (utility_account_id) {
+      const isAllowed = allowedIds.some(
+        (id) => id.toString() === utility_account_id.toString(),
       );
-
-      if (access) allowed.push(rec._id);
+      if (!isAllowed) return res.json({ success: true, count: 0, data: [] });
+      query.utility_account_id = utility_account_id;
+    } else {
+      query.utility_account_id = { $in: allowedIds };
     }
-
-    records = await MiscLoadAuditRecord.find({
-      _id: { $in: allowed },
-      ...query,
-    })
-      .populate("facility_id", "name city")
-      .populate("utility_account_id", "account_number")
-      .populate("auditor_id", "name email")
-      .sort({ created_at: -1 });
   }
+
+  records = await MiscLoadAuditRecord.find(query)
+    .populate("facility_id", "name city")
+    .populate("utility_account_id", "account_number")
+    .populate("auditor_id", "name email")
+    .sort({ created_at: -1 });
 
   res.json({
     success: true,

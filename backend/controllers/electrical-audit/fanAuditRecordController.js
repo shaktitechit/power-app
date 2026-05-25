@@ -1,4 +1,4 @@
-import asyncHandler from "../../middlewares/asyncHandler.js";
+﻿import asyncHandler from "../../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import FanAuditRecord from "../../modals/electrical-audit/fanAuditRecord.js";
 import UtilityAccount from "../../modals/utilityAccount.js";
@@ -6,10 +6,10 @@ import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.j
 import { createRecentActivity } from "../../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../../helpers/buildActivityMessage.js";
 import {
-  isAdmin,
   resolveAccessibleFacility,
   resolveAccessibleUtilityAccount,
 } from "../../services/authorization/index.js";
+import { getAccessibleUtilityAccountIds } from "../../services/authorization/getAccessibleUtilityIds.js";
 
 const uploadFanDocuments = async (files = [], recordId) => {
   const docs = [];
@@ -145,31 +145,27 @@ const getFanAuditRecords = asyncHandler(async (req, res) => {
 
   let records;
 
-  if (isAdmin(req.user)) {
-    records = await FanAuditRecord.find(query)
-      .populate("facility_id", "name city")
-      .populate("utility_account_id", "account_number")
-      .populate("auditor_id", "name email")
-      .sort({ created_at: -1 });
+  const allowedIds = await getAccessibleUtilityAccountIds(req.user);
+
+  if (allowedIds === null) {
+    if (utility_account_id) query.utility_account_id = utility_account_id;
   } else {
-    const allRecords = await FanAuditRecord.find(query);
-    const allowedIds = [];
-
-    for (const record of allRecords) {
-      const access = await resolveAccessibleUtilityAccount(
-        req.user,
-        record.utility_account_id,
+    if (utility_account_id) {
+      const isAllowed = allowedIds.some(
+        (id) => id.toString() === utility_account_id.toString(),
       );
-
-      if (access) allowedIds.push(record._id);
+      if (!isAllowed) return res.json({ success: true, count: 0, data: [] });
+      query.utility_account_id = utility_account_id;
+    } else {
+      query.utility_account_id = { $in: allowedIds };
     }
-
-    records = await FanAuditRecord.find({ _id: { $in: allowedIds } })
-      .populate("facility_id", "name city")
-      .populate("utility_account_id", "account_number")
-      .populate("auditor_id", "name email")
-      .sort({ created_at: -1 });
   }
+
+  records = await FanAuditRecord.find(query)
+    .populate("facility_id", "name city")
+    .populate("utility_account_id", "account_number")
+    .populate("auditor_id", "name email")
+    .sort({ created_at: -1 });
 
   res.json({
     success: true,

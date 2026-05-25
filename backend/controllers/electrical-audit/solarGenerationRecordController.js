@@ -1,16 +1,15 @@
-import asyncHandler from "../../middlewares/asyncHandler.js";
+﻿import asyncHandler from "../../middlewares/asyncHandler.js";
 import mongoose from "mongoose";
 import SolarGenerationRecord from "../../modals/electrical-audit/solarGenerationRecord.js";
 import SolarPlant from "../../modals/electrical-audit/solarPlant.js";
-import UtilityAccount from "../../modals/utilityAccount.js";
 import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.js";
 
 import { createRecentActivity } from "../../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../../helpers/buildActivityMessage.js";
 import {
-  isAdmin,
   resolveAccessibleUtilityAccount,
 } from "../../services/authorization/index.js";
+import { getAccessibleUtilityAccountIds } from "../../services/authorization/getAccessibleUtilityIds.js";
 
 // 📂 Upload solar generation documents
 const uploadSolarGenerationDocuments = async (files = [], recordId) => {
@@ -232,47 +231,28 @@ const getSolarGenerationRecords = asyncHandler(async (req, res) => {
 
   let solarGenerationRecords;
 
-  if (isAdmin(req.user)) {
-    solarGenerationRecords = await SolarGenerationRecord.find(query)
-      .populate("facility_id", "name city")
-      .populate("utility_account_id", "account_number connection_type")
-      .populate("solar_plant_id", "plant_name rating_kWp")
-      .populate("auditor_id", "name email")
-      .sort({ billing_period_start: -1, created_at: -1 });
+  const allowedIds = await getAccessibleUtilityAccountIds(req.user);
+
+  if (allowedIds === null) {
+    if (utility_account_id) query.utility_account_id = utility_account_id;
   } else {
-    const utilities = await UtilityAccount.find();
-    const allowedUtilityIds = [];
-
-    for (const utility of utilities) {
-      const access = await resolveAccessibleUtilityAccount(req.user, utility._id);
-      if (access) allowedUtilityIds.push(utility._id.toString());
+    if (utility_account_id) {
+      const isAllowed = allowedIds.some(
+        (id) => id.toString() === utility_account_id.toString(),
+      );
+      if (!isAllowed) return res.status(200).json({ success: true, count: 0, data: [] });
+      query.utility_account_id = utility_account_id;
+    } else {
+      query.utility_account_id = { $in: allowedIds };
     }
-
-    if (
-      utility_account_id &&
-      !allowedUtilityIds.includes(utility_account_id.toString())
-    ) {
-      return res.status(200).json({
-        success: true,
-        count: 0,
-        data: [],
-      });
-    }
-
-    const userQuery = {
-      ...query,
-      utility_account_id: utility_account_id
-        ? utility_account_id
-        : { $in: allowedUtilityIds },
-    };
-
-    solarGenerationRecords = await SolarGenerationRecord.find(userQuery)
-      .populate("facility_id", "name city")
-      .populate("utility_account_id", "account_number connection_type")
-      .populate("solar_plant_id", "plant_name rating_kWp")
-      .populate("auditor_id", "name email")
-      .sort({ billing_period_start: -1, created_at: -1 });
   }
+
+  solarGenerationRecords = await SolarGenerationRecord.find(query)
+    .populate("facility_id", "name city")
+    .populate("utility_account_id", "account_number connection_type")
+    .populate("solar_plant_id", "plant_name rating_kWp")
+    .populate("auditor_id", "name email")
+    .sort({ billing_period_start: -1, created_at: -1 });
 
   res.status(200).json({
     success: true,
