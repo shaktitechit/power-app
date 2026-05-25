@@ -4,10 +4,10 @@ import { uploadBufferToFileManagement } from "../../utils/fileManagementUpload.j
 import { createRecentActivity } from "../../helpers/createRecentActivity.js";
 import { buildActivityMessage } from "../../helpers/buildActivityMessage.js";
 import {
-  isAdmin,
   resolveAccessibleFacility,
   resolveAccessibleUtilityAccount,
 } from "../../services/authorization/index.js";
+import { getAccessibleUtilityAccountIds } from "../../services/authorization/getAccessibleUtilityIds.js";
 
 /**
  * Normalize JSON fields that may arrive as strings (e.g. multipart).
@@ -191,30 +191,30 @@ export function createSafetyAuditCrudController(Model, options) {
 
   const getAll = asyncHandler(async (req, res) => {
     const query = buildQueryFromRequest(req);
+    const utilityFromQuery = req.query.utility_account_id;
 
-    let records;
+    const allowedUtilityIds = await getAccessibleUtilityAccountIds(req.user);
 
-    if (isAdmin(req.user)) {
-      records = await applySafetyAuditPopulates(Model, Model.find(query)).sort({
-        created_at: -1,
-      });
-    } else {
-      const allRecords = await Model.find(query);
-      const allowedIds = [];
-
-      for (const rec of allRecords) {
-        const access = await resolveAccessibleUtilityAccount(
-          req.user,
-          rec.utility_account_id,
-        );
-        if (access) allowedIds.push(rec._id);
+    if (allowedUtilityIds !== null) {
+      if (allowedUtilityIds.length === 0) {
+        return res.json({ success: true, count: 0, data: [] });
       }
-
-      records = await applySafetyAuditPopulates(
-        Model,
-        Model.find({ _id: { $in: allowedIds } }),
-      ).sort({ created_at: -1 });
+      if (utilityFromQuery) {
+        const isAllowed = allowedUtilityIds.some(
+          (id) => id.toString() === String(utilityFromQuery),
+        );
+        if (!isAllowed) {
+          return res.json({ success: true, count: 0, data: [] });
+        }
+      } else {
+        query.utility_account_id = { $in: allowedUtilityIds };
+      }
     }
+
+    const records = await applySafetyAuditPopulates(
+      Model,
+      Model.find(query),
+    ).sort({ created_at: -1 });
 
     res.json({ success: true, count: records.length, data: records });
   });
