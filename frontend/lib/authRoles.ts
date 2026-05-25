@@ -268,3 +268,15 @@ export function formatRoleLabel(role: string | undefined | null): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
+
+/**
+ * Can delete audit records (electrical, safety, etc.).
+ * Only super_admin and admin are allowed to delete records.
+ * Copy-paste of `user?.role === 'super_admin' || user?.role === 'admin'`
+ * centralised here to avoid 14+ duplicate definitions across audit components.
+ */
+export function canDeleteAuditRecords(
+  role: string | null | undefined,
+): boolean {
+  return role === "super_admin" || role === "admin";
+}

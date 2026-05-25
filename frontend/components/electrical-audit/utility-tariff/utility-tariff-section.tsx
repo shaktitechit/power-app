@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
@@ -91,7 +91,7 @@ export function UtilityTariffSection({
     user?.role,
     (user?.permissions as UserPermission[]) || [],
   );
-  const { data, isLoading, refetch } = useGetUtilityTariffsQuery({
+  const { data, isLoading } = useGetUtilityTariffsQuery({
     utility_account_id: utilityAccountId,
   });
 
@@ -295,8 +295,6 @@ export function UtilityTariffSection({
           ? "Utility tariff updated successfully"
           : "Utility tariff created successfully",
       });
-
-      await refetch();
       setSelectedFiles([]);
       setIsEditing(false);
     } catch (error) {
@@ -312,7 +310,6 @@ export function UtilityTariffSection({
         loading: "Deleting utility tariff...",
         success: "Utility tariff deleted successfully",
       });
-      await refetch();
     } catch (error) {
       console.error("Failed to delete utility tariff:", error);
     }

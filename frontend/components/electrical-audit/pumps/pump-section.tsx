@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useState } from "react";
@@ -154,7 +154,7 @@ export function PumpSection({
     (user?.permissions as UserPermission[]) || [],
   );
   const router = useRouter();
-  const { data, isLoading, refetch } = useGetPumpsQuery({
+  const { data, isLoading } = useGetPumpsQuery({
     utility_account_id: utilityAccountId,
   });
 
@@ -365,8 +365,6 @@ export function PumpSection({
           ? "Pump created successfully"
           : "Pump updated successfully",
       });
-
-      await refetch();
       setErrorMessage("");
       setDialogOpen(false);
       setActiveFormLocalId(null);
@@ -387,7 +385,6 @@ export function PumpSection({
         loading: "Deleting pump...",
         success: "Pump deleted successfully",
       });
-      await refetch();
       setDeleteTarget(null);
     } catch (error) {
       console.error("Failed to delete pump:", error);

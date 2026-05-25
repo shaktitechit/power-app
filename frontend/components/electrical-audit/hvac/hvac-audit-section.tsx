@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 
 import {
@@ -38,6 +38,7 @@ import {
   type HVACAuditExcelParsed,
 } from "@/lib/electrical-audit/hvac-audit-excel";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
 import { UTILITY_AUDIT_STEP_IDS } from "@/lib/electrical-audit/utility-audit-steps";
@@ -711,7 +712,7 @@ export function HVACAuditSection({
   const noDataDeclared = Boolean(
     auditStepNoData?.[UTILITY_AUDIT_STEP_IDS.HVAC]?.declared_at,
   );
-  const { data, isLoading, refetch } = useGetHVACAuditsQuery({
+  const { data, isLoading } = useGetHVACAuditsQuery({
     utility_account_id: utilityAccountId,
   });
 
@@ -1004,7 +1005,6 @@ export function HVACAuditSection({
       });
 
       setBackendError("");
-      await refetch();
     } catch (error: any) {
       const message = getErrorMessage(error);
       setBackendError(message);
@@ -1026,7 +1026,6 @@ export function HVACAuditSection({
         loading: "Deleting HVAC audit record...",
         success: "HVAC audit record deleted successfully",
       });
-      await refetch();
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
     } catch (error) {
@@ -1037,11 +1036,7 @@ export function HVACAuditSection({
   const saving = isCreating || isUpdating || isDeleting;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading HVAC audits...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   const checklistFields: {

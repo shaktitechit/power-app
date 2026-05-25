@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
 } from "@/store/slices/electrical-audit/utilityBillingRecordApiSlice";
 import { toast } from "sonner";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import {
   downloadUtilityBillingRecordTemplate,
   getBulkRecordCountForBillingCycle,
@@ -587,10 +588,10 @@ export function UtilityBillingRecordSection({
     user?.role === "super_admin" || user?.role === "admin";
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, refetch } = useGetUtilityBillingRecordsQuery({
+  const { data, isLoading } = useGetUtilityBillingRecordsQuery({
     utility_account_id: utilityAccountId,
     page,
-    limit: 1000,
+    limit: 24,
   });
 
   const [createUtilityBillingRecord, { isLoading: isCreating }] =
@@ -883,8 +884,6 @@ export function UtilityBillingRecordSection({
           f.localId === form.localId ? { ...f, isEditing: false } : f,
         ),
       );
-
-      await refetch();
     } catch (error: any) {
       console.error("Failed to save utility billing record:", error);
     }
@@ -905,7 +904,6 @@ export function UtilityBillingRecordSection({
         loading: "Deleting billing record...",
         success: "Billing record deleted successfully",
       });
-      await refetch();
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
     } catch (error) {
@@ -916,11 +914,7 @@ export function UtilityBillingRecordSection({
   const saving = isCreating || isUpdating || isDeleting;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading billing records...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   return (

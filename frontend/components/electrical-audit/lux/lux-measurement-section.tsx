@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 
 import {
@@ -37,6 +37,7 @@ import {
   parseLuxMeasurementExcel,
 } from "@/lib/electrical-audit/lux-measurement-excel";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
 import { UTILITY_AUDIT_STEP_IDS } from "@/lib/electrical-audit/utility-audit-steps";
@@ -240,7 +241,7 @@ export function LuxMeasurementSection({
   const noDataDeclared = Boolean(
     auditStepNoData?.[UTILITY_AUDIT_STEP_IDS.LUX]?.declared_at,
   );
-  const { data, isLoading, refetch } = useGetLuxMeasurementsQuery({
+  const { data, isLoading } = useGetLuxMeasurementsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
   });
@@ -433,7 +434,6 @@ export function LuxMeasurementSection({
       });
 
       setBackendError("");
-      await refetch();
     } catch (error: any) {
       const message = getErrorMessage(error);
       setBackendError(message);
@@ -455,7 +455,6 @@ export function LuxMeasurementSection({
         loading: "Deleting lux measurement...",
         success: "Lux measurement deleted successfully",
       });
-      await refetch();
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
     } catch (error) {
@@ -466,11 +465,7 @@ export function LuxMeasurementSection({
   const saving = isCreating || isUpdating || isDeleting;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading lux measurements...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   return (
@@ -760,7 +755,7 @@ export function LuxMeasurementSection({
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       {form.existingDocuments.map((doc, idx) => (
                         <a
-                          key={idx}
+                          key={doc.fileUrl ?? `doc-${idx}`}
                           href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"

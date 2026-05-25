@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
@@ -43,6 +43,7 @@ import {
   type DGAuditExcelFormState,
 } from "@/lib/electrical-audit/dg-audit-record-excel";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
 import { cnHideUtilityAuditEdits } from "@/lib/electrical-audit/utility-audit-edits-visibility";
@@ -619,7 +620,7 @@ export function DGAuditRecordSection({
     (user?.permissions as UserPermission[]) || [],
   );
   const canDeleteRecords = user?.role === "super_admin" || user?.role === "admin";
-  const { data, isLoading, refetch } = useGetDGAuditRecordsQuery({
+  const { data, isLoading } = useGetDGAuditRecordsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
     dg_set_id: dgSetId,
@@ -907,8 +908,6 @@ export function DGAuditRecordSection({
           ? "DG audit record created successfully"
           : "DG audit record updated successfully",
       });
-
-      await refetch();
     } catch (error: any) {
       console.error("Failed to save DG audit record:", error);
     }
@@ -919,7 +918,6 @@ export function DGAuditRecordSection({
     try {
       await deleteDGAuditRecord(form.id).unwrap();
       setDeleteDialogOpen(false);
-      await refetch();
     } catch (error) {
       console.error("Failed to delete DG audit record:", error);
     }
@@ -928,11 +926,7 @@ export function DGAuditRecordSection({
   const saving = isCreating || isUpdating || isDeleting;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading DG audit record...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   return (

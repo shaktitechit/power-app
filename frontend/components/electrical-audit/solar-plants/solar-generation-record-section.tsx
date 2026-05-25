@@ -37,6 +37,7 @@ import {
 import { useGetUtilityBillingRecordsQuery } from "@/store/slices/electrical-audit/utilityBillingRecordApiSlice";
 import { toast } from "sonner";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import {
   downloadSolarGenerationBulkTemplate,
   parseSolarGenerationExcelBulk,
@@ -299,7 +300,6 @@ export function SolarGenerationRecordSection({
   const {
     data: billingData,
     isLoading: isBillingLoading,
-    refetch: refetchBillingRecords,
   } = useGetUtilityBillingRecordsQuery({
     utility_account_id: utilityAccountId,
   });
@@ -307,7 +307,6 @@ export function SolarGenerationRecordSection({
   const {
     data: solarData,
     isLoading: isSolarLoading,
-    refetch: refetchSolarGenerationRecords,
   } = useGetSolarGenerationRecordsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
@@ -607,10 +606,7 @@ export function SolarGenerationRecordSection({
         ),
       );
 
-      await Promise.all([
-        refetchSolarGenerationRecords(),
-        refetchBillingRecords(),
-      ]);
+      // RTK cache invalidation handles re-fetching automatically
     } catch (error: any) {
       console.error("Failed to save solar generation record:", error);
     }
@@ -631,7 +627,7 @@ export function SolarGenerationRecordSection({
       await deleteSolarGenerationRecord(deleteTarget.id).unwrap();
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
-      await Promise.all([refetchSolarGenerationRecords(), refetchBillingRecords()]);
+      // RTK cache invalidation handles re-fetching automatically
     } catch (error) {
       console.error("Failed to delete solar generation record:", error);
     }
@@ -641,11 +637,7 @@ export function SolarGenerationRecordSection({
   const isLoading = isBillingLoading || isSolarLoading;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading solar generation records...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   if (forms.length === 0) {

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useState } from "react";
@@ -149,7 +149,7 @@ export function SolarPlantSection({
     (user?.permissions as UserPermission[]) || [],
   );
   const router = useRouter();
-  const { data, isLoading, refetch } = useGetSolarPlantsQuery({
+  const { data, isLoading } = useGetSolarPlantsQuery({
     utility_account_id: utilityAccountId,
   });
 
@@ -350,8 +350,6 @@ export function SolarPlantSection({
           ? "Solar plant created successfully"
           : "Solar plant updated successfully",
       });
-
-      await refetch();
       setErrorMessage("");
       setDialogOpen(false);
       setActiveFormLocalId(null);
@@ -372,7 +370,6 @@ export function SolarPlantSection({
         loading: "Deleting solar plant...",
         success: "Solar plant deleted successfully",
       });
-      await refetch();
       setDeleteTarget(null);
     } catch (error) {
       console.error("Failed to delete solar plant:", error);

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 
 import {
@@ -36,6 +36,7 @@ import {
   parseFanAuditExcel,
 } from "@/lib/electrical-audit/fan-audit-record-excel";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
 import { UTILITY_AUDIT_STEP_IDS } from "@/lib/electrical-audit/utility-audit-steps";
@@ -266,7 +267,7 @@ export function FanAuditRecordSection({
   const noDataDeclared = Boolean(
     auditStepNoData?.[UTILITY_AUDIT_STEP_IDS.FAN]?.declared_at,
   );
-  const { data, isLoading, refetch } = useGetFanAuditRecordsQuery({
+  const { data, isLoading } = useGetFanAuditRecordsQuery({
     utility_account_id: utilityAccountId,
   });
 
@@ -478,7 +479,6 @@ export function FanAuditRecordSection({
       });
 
       setBackendError("");
-      await refetch();
     } catch (error: any) {
       setBackendError(getErrorMessage(error));
       console.error("Failed to save fan audit record:", error);
@@ -499,7 +499,6 @@ export function FanAuditRecordSection({
         loading: "Deleting fan audit record...",
         success: "Fan audit record deleted successfully",
       });
-      await refetch();
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
     } catch (error) {
@@ -510,11 +509,7 @@ export function FanAuditRecordSection({
   const saving = isCreating || isUpdating || isDeleting;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading fan audit records...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   const renderAutoInput = (label: string, value: string) => (
@@ -916,7 +911,7 @@ export function FanAuditRecordSection({
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       {form.existingDocuments.map((doc, idx) => (
                         <a
-                          key={idx}
+                          key={doc.fileUrl ?? `doc-${idx}`}
                           href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"

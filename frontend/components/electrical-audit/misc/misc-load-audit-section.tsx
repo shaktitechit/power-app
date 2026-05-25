@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 
 import {
@@ -36,6 +36,7 @@ import {
   parseMiscLoadAuditExcel,
 } from "@/lib/electrical-audit/misc-load-audit-excel";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
 import { UTILITY_AUDIT_STEP_IDS } from "@/lib/electrical-audit/utility-audit-steps";
@@ -234,7 +235,7 @@ export function MiscLoadAuditSection({
   const noDataDeclared = Boolean(
     auditStepNoData?.[UTILITY_AUDIT_STEP_IDS.MISC]?.declared_at,
   );
-  const { data, isLoading, refetch } = useGetMiscLoadAuditsQuery({
+  const { data, isLoading } = useGetMiscLoadAuditsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
   });
@@ -426,7 +427,6 @@ export function MiscLoadAuditSection({
       });
 
       setBackendError("");
-      await refetch();
     } catch (error: any) {
       const message = getErrorMessage(error);
       setBackendError(message);
@@ -448,7 +448,6 @@ export function MiscLoadAuditSection({
         loading: "Deleting misc load audit record...",
         success: "Misc load audit record deleted successfully",
       });
-      await refetch();
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
     } catch (error) {
@@ -459,11 +458,7 @@ export function MiscLoadAuditSection({
   const saving = isCreating || isUpdating || isDeleting;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading misc load audit records...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   return (
@@ -744,7 +739,7 @@ export function MiscLoadAuditSection({
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       {form.existingDocuments.map((doc, idx) => (
                         <a
-                          key={idx}
+                          key={doc.fileUrl ?? `doc-${idx}`}
                           href={toSameOriginFileManagementUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noreferrer"

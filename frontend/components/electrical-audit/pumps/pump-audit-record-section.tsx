@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
@@ -41,6 +41,7 @@ import {
   type PumpAuditExcelFormState,
 } from "@/lib/electrical-audit/pump-audit-record-excel";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
 import { cnHideUtilityAuditEdits } from "@/lib/electrical-audit/utility-audit-edits-visibility";
@@ -275,7 +276,7 @@ export function PumpAuditRecordSection({
     skip: !pumpId,
   });
   const ratedPowerkWOrHP = Number(pumpData?.data?.rated_power_kW_or_HP) || 0;
-  const { data, isLoading, refetch } = useGetPumpAuditRecordsQuery({
+  const { data, isLoading } = useGetPumpAuditRecordsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
     pump_id: pumpId,
@@ -530,8 +531,6 @@ export function PumpAuditRecordSection({
           ? "Pump audit record created successfully"
           : "Pump audit record updated successfully",
       });
-
-      await refetch();
     } catch (error: any) {
       console.error("Failed to save pump audit record:", error);
     }
@@ -542,7 +541,6 @@ export function PumpAuditRecordSection({
     try {
       await deletePumpAuditRecord(form.id).unwrap();
       setDeleteDialogOpen(false);
-      await refetch();
     } catch (error) {
       console.error("Failed to delete pump audit record:", error);
     }
@@ -551,11 +549,7 @@ export function PumpAuditRecordSection({
   const saving = isCreating || isUpdating || isDeleting;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading pump audit record...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   return (

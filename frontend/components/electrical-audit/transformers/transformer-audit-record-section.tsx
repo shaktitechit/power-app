@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
@@ -43,6 +43,7 @@ import {
 } from "@/lib/electrical-audit/transformer-audit-record-excel";
 import { useGetTransformerByIdQuery } from "@/store/slices/electrical-audit/transformerApiSlice";
 import { toastHandler } from "@/lib/toast";
+import { AuditSectionSkeleton } from "@/components/electrical-audit/utility-audit/audit-skeleton";
 import { toast } from "sonner";
 import { useAppSelector } from "@/store/hooks";
 import { cnHideUtilityAuditEdits } from "@/lib/electrical-audit/utility-audit-edits-visibility";
@@ -252,7 +253,7 @@ export function TransformerAuditRecordSection({
     (user?.permissions as UserPermission[]) || [],
   );
   const canDeleteRecords = user?.role === "super_admin" || user?.role === "admin";
-  const { data, isLoading, refetch } = useGetTransformerAuditRecordsQuery({
+  const { data, isLoading } = useGetTransformerAuditRecordsQuery({
     facility_id: facilityId,
     utility_account_id: utilityAccountId,
     transformer_id: transformerId,
@@ -301,37 +302,29 @@ export function TransformerAuditRecordSection({
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
-  useEffect(() => {
-    if (!auditStepLocked) return;
-    setForm((prev) => ({ ...prev, isEditing: false }));
-  }, [auditStepLocked]);
-
-  useEffect(() => {
-    if (latestRecord) {
-      setForm(recordToForm(latestRecord));
-    } else {
-      setForm(createEmptyForm());
-    }
-  }, [latestRecord]);
-
-  useEffect(() => {
-    setForm((prev) => ({
-      ...prev,
-      per_unit_cost_rs:
-        gridCostSummary?.gridCostPerKVAH !== undefined &&
-        gridCostSummary?.gridCostPerKVAH !== null
-          ? String(gridCostSummary.gridCostPerKVAH)
-          : prev.per_unit_cost_rs,
-    }));
-
-    setFromDate(toDateInput(gridCostSummary?.fromDate));
-    setToDate(toDateInput(gridCostSummary?.toDate));
-  }, [gridCostSummary]);
-
-  const calculatedValues = useMemo(() => {
+  // Derive all computed values in a single pass — avoids 3 separate render cycles
+  const derivedFormValues = useMemo(() => {
     const noLoadLoss = toNumber(transformer?.no_load_loss_kW);
     const fullLoadLoss = toNumber(transformer?.full_load_loss_kW);
     const ratedCapacity = toNumber(transformer?.rated_capacity_kVA);
+
+    // Use gridCostSummary to get the per-unit cost from billing records
+    const perUnitCostFromBilling =
+      gridCostSummary?.gridCostPerKVAH !== undefined &&
+      gridCostSummary?.gridCostPerKVAH !== null
+        ? String(gridCostSummary.gridCostPerKVAH)
+        : null;
+
+    return { noLoadLoss, fullLoadLoss, ratedCapacity, perUnitCostFromBilling };
+  }, [
+    transformer?.no_load_loss_kW,
+    transformer?.full_load_loss_kW,
+    transformer?.rated_capacity_kVA,
+    gridCostSummary,
+  ]);
+
+  const calculatedValues = useMemo(() => {
+    const { noLoadLoss, fullLoadLoss, ratedCapacity } = derivedFormValues;
 
     const averageLoad = toNumber(form.average_load_kVA);
     const maxLoad = toNumber(form.max_load_kVA);
@@ -366,15 +359,25 @@ export function TransformerAuditRecordSection({
       ratedCapacity,
     };
   }, [
-    transformer?.no_load_loss_kW,
-    transformer?.full_load_loss_kW,
-    transformer?.rated_capacity_kVA,
+    derivedFormValues,
     form.average_load_kVA,
     form.max_load_kVA,
     form.operating_hours_per_year,
     form.per_unit_cost_rs,
   ]);
 
+  // SINGLE sync effect: runs only when server data (latestRecord) changes
+  // Merges record data + billing cost + calculated values in one setState call
+  useEffect(() => {
+    const base = latestRecord ? recordToForm(latestRecord) : createEmptyForm();
+    const perUnitCost =
+      derivedFormValues.perUnitCostFromBilling ?? base.per_unit_cost_rs;
+    setForm({ ...base, per_unit_cost_rs: perUnitCost });
+    setFromDate(toDateInput(gridCostSummary?.fromDate));
+    setToDate(toDateInput(gridCostSummary?.toDate));
+  }, [latestRecord, derivedFormValues, gridCostSummary]);
+
+  // Sync auto-calculated fields back into form state when inputs change
   useEffect(() => {
     setForm((prev) => ({
       ...prev,
@@ -385,6 +388,11 @@ export function TransformerAuditRecordSection({
       cost_of_losses_rs: formatAuto(calculatedValues.costOfLosses),
     }));
   }, [calculatedValues]);
+
+  useEffect(() => {
+    if (!auditStepLocked) return;
+    setForm((prev) => ({ ...prev, isEditing: false }));
+  }, [auditStepLocked]);
 
   const updateForm = (key: keyof TransformerAuditFormState, value: string) => {
     setForm((prev) => ({
@@ -565,8 +573,6 @@ export function TransformerAuditRecordSection({
           ? "Transformer audit record created successfully"
           : "Transformer audit record updated successfully",
       });
-
-      await refetch();
     } catch (error: any) {
       console.error("Failed to save transformer audit record:", error);
     }
@@ -577,7 +583,6 @@ export function TransformerAuditRecordSection({
     try {
       await deleteTransformerAuditRecord(form.id).unwrap();
       setDeleteDialogOpen(false);
-      await refetch();
     } catch (error) {
       console.error("Failed to delete transformer audit record:", error);
     }
@@ -586,11 +591,7 @@ export function TransformerAuditRecordSection({
   const saving = isCreating || isUpdating || isDeleting;
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        Loading transformer audit record...
-      </div>
-    );
+    return <AuditSectionSkeleton />;
   }
 
   return (

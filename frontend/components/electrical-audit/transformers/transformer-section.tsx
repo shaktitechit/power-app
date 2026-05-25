@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useState } from "react";
@@ -163,7 +163,7 @@ export function TransformerSection({
     (user?.permissions as UserPermission[]) || [],
   );
   const router = useRouter();
-  const { data, isLoading, refetch } = useGetTransformersQuery({
+  const { data, isLoading } = useGetTransformersQuery({
     utility_account_id: utilityAccountId,
   });
 
@@ -391,8 +391,6 @@ export function TransformerSection({
           ? "Transformer created successfully"
           : "Transformer updated successfully",
       });
-
-      await refetch();
       setErrorMessage("");
       setDialogOpen(false);
       setActiveFormLocalId(null);
@@ -413,7 +411,6 @@ export function TransformerSection({
         loading: "Deleting transformer...",
         success: "Transformer deleted successfully",
       });
-      await refetch();
       setDeleteTarget(null);
     } catch (error) {
       console.error("Failed to delete transformer:", error);
