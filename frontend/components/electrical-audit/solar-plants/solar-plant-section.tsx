@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useState } from "react";
@@ -31,7 +31,12 @@ import {
   X,
   FileText,
   Image as ImageIcon,
+  Trash2,
+  ArrowRight,
+  Sun,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGetSolarGenerationRecordsQuery } from "@/store/slices/electrical-audit/solarGenerationRecordApiSlice";
 import {
   useCreateSolarPlantMutation,
   useDeleteSolarPlantMutation,
@@ -152,6 +157,9 @@ export function SolarPlantSection({
   const { data, isLoading } = useGetSolarPlantsQuery({
     utility_account_id: utilityAccountId,
   });
+  const { data: solarGenData, isLoading: isGenLoading } = useGetSolarGenerationRecordsQuery({
+    utility_account_id: utilityAccountId,
+  });
 
   const [createSolarPlant, { isLoading: isCreating }] =
     useCreateSolarPlantMutation();
@@ -162,6 +170,8 @@ export function SolarPlantSection({
     useDeleteSolarPlantMutation();
 
   const solarPlants = useMemo(() => data?.data || [], [data]);
+  const solarGenRecords = useMemo(() => solarGenData?.data || [], [solarGenData]);
+  const isLoadingAll = isLoading || isGenLoading;
   const [forms, setForms] = useState<SolarPlantFormState[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -378,13 +388,32 @@ export function SolarPlantSection({
 
   const saving = isCreating || isUpdating || isDeleting;
 
-  if (isLoading) {
+  if (isLoadingAll) {
     return (
-      <div className="text-sm text-muted-foreground">
-        Loading solar plants...
+      <div className="space-y-3 animate-pulse">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Card key={i} className="w-full p-4 border border-border bg-card rounded-xl">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 w-full max-w-md">
+                <Skeleton className="h-10 w-10 rounded-lg shrink-0 bg-muted" />
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-1/3 bg-muted" />
+                  <Skeleton className="h-3.5 w-1/2 bg-muted" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <Skeleton className="h-8 w-24 bg-muted" />
+                <Skeleton className="h-8 w-24 bg-muted" />
+                <Skeleton className="h-8 w-16 bg-muted" />
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
     );
   }
+
+  const activeForms = forms.filter((form) => !form.isNew);
 
   return (
     <div className="relative space-y-4">
@@ -417,118 +446,161 @@ export function SolarPlantSection({
         </div>
       ) : null}
 
-      {solarPlants.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Solar Plant Table</CardTitle>
-          </CardHeader>
-
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="px-3 py-2 font-medium">Plant Name</th>
-                  <th className="px-3 py-2 font-medium">Rating (kWp)</th>
-                  <th className="px-3 py-2 font-medium">Panel Watt</th>
-                  <th className="px-3 py-2 font-medium">No. of Panels</th>
-                  <th className="px-3 py-2 font-medium">Inverter Make</th>
-                  <th className="px-3 py-2 font-medium">Inverter Rating</th>
-                  <th className="px-3 py-2 font-medium">Documents</th>
-                  <th className="px-3 py-2 font-medium">Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {forms
-                  .filter((form) => !form.isNew)
-                  .map((form) => (
-                    <tr key={form.localId} className="border-b align-top">
-                      <td className="px-3 py-2">{form.plant_name || "-"}</td>
-                      <td className="px-3 py-2">{form.rating_kWp || "-"}</td>
-                      <td className="px-3 py-2">
-                        {form.panel_rating_watt || "-"}
-                      </td>
-                      <td className="px-3 py-2">{form.no_of_panels || "-"}</td>
-                      <td className="px-3 py-2">{form.inverter_make || "-"}</td>
-                      <td className="px-3 py-2">
-                        {form.inverter_rating_kW || "-"}
-                      </td>
-
-                      <td className="max-w-[min(280px,40vw)] px-3 py-2 align-top">
-                        {form.existingDocuments.length > 0 ? (
-                          <div className="flex min-w-0 flex-col gap-1">
-                            {form.existingDocuments.map((doc, index) => (
-                              <a
-                                key={`${doc.fileUrl}-${index}`}
-                                href={toSameOriginFileManagementUrl(doc.fileUrl)}
-                                target="_blank"
-                                rel="noreferrer"
-                                title={doc.fileName || `Document ${index + 1}`}
-                                className={cn(
-                                  AUDIT_DOC_LINK_PRIMARY,
-                                  "text-xs",
-                                )}
-                              >
-                                {doc.fileName || `Document ${index + 1}`}
-                              </a>
-                            ))}
-                          </div>
-                        ) : (
-                          "-"
+      {activeForms.length > 0 && (
+        <div className="space-y-3">
+          {activeForms.map((form) => {
+            const isAudited = solarGenRecords.some((rec) => {
+              const plantId =
+                typeof rec.solar_plant_id === "object" && rec.solar_plant_id
+                  ? (rec.solar_plant_id as any)._id
+                  : rec.solar_plant_id;
+              return plantId === form.id;
+            });
+            return (
+              <Card
+                key={form.localId}
+                className={cn(
+                  "group w-full p-4 border border-border bg-card rounded-xl hover:shadow-md transition-all duration-200 border-l-4 cursor-pointer",
+                  isAudited
+                    ? "border-l-emerald-500 hover:border-l-emerald-600"
+                    : "border-l-amber-500 hover:border-l-amber-600"
+                )}
+                onClick={() => {
+                  if (form.id) {
+                    router.push(
+                      `${facilityPathPrefix}/utility-account/${utilityAccountId}/solar-audit/${form.id}`
+                    );
+                  }
+                }}
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between min-w-0">
+                  
+                  {/* Left section: Icon + Plant name + badges */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <Sun className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-foreground truncate max-w-[200px]" title={form.plant_name}>
+                          {form.plant_name || "-"}
+                        </span>
+                        {form.rating_kWp && (
+                          <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-foreground">
+                            {form.rating_kWp} kWp
+                          </span>
                         )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          {/* Edit Button */}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenEdit(form.localId)}
-                            className={cnHideUtilityAuditEdits(auditStepLocked)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </Button>
-                          {canDeleteRecords ? (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setDeleteTarget(form)}
-                              disabled={saving}
-                              className={cnHideUtilityAuditEdits(auditStepLocked)}
-                            >
-                              Delete
-                            </Button>
-                          ) : null}
+                        {form.inverter_rating_kW && (
+                          <span className="rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-muted-foreground">
+                            Inverter: {form.inverter_rating_kW} kW
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                          {/* Audit Button */}
+                  {/* Middle section: Tech Specs */}
+                  <div className="flex flex-wrap items-center gap-4 sm:gap-6 lg:justify-center text-xs text-muted-foreground min-w-0 flex-1">
+                    {form.panel_rating_watt && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">Panel Rating</span>
+                        <span className="font-medium text-foreground text-sm">{form.panel_rating_watt} W</span>
+                      </div>
+                    )}
+                    {form.no_of_panels && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">No. of Panels</span>
+                        <span className="font-medium text-foreground text-sm">{form.no_of_panels}</span>
+                      </div>
+                    )}
+                    {form.inverter_make && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">Inverter Make</span>
+                        <span className="font-medium text-foreground text-sm truncate block max-w-[120px]" title={form.inverter_make}>
+                          {form.inverter_make}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right section: Status & Actions */}
+                  <div className="flex flex-wrap lg:flex-nowrap items-center gap-4 lg:gap-6 shrink-0 justify-between lg:justify-end w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-muted/20">
+                    
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          isAudited
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                        }`}
+                      >
+                        {isAudited ? "Completed" : "Pending"}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        {/* Edit Button */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(form.localId);
+                          }}
+                          className={cnHideUtilityAuditEdits(auditStepLocked, "h-8 px-2")}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        
+                        {/* Delete Button */}
+                        {canDeleteRecords && (
                           <Button
                             size="sm"
-                            disabled={!form.id}
-                            className="bg-warning text-warning-foreground hover:bg-warning/90"
-                            onClick={() =>
-                              router.push(
-                                `${facilityPathPrefix}/utility-account/${utilityAccountId}/solar-audit/${form.id}`,
-                              )
-                            }
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(form);
+                            }}
+                            disabled={saving}
+                            className={cnHideUtilityAuditEdits(auditStepLocked, "h-8 px-2")}
                           >
-                            Audit
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                        )}
+
+                        {/* Audit Button */}
+                        <Button
+                          size="sm"
+                          disabled={!form.id}
+                          className="bg-warning text-warning-foreground hover:bg-warning/90 h-8 px-3 font-medium flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (form.id) {
+                              router.push(
+                                `${facilityPathPrefix}/utility-account/${utilityAccountId}/solar-audit/${form.id}`
+                              );
+                            }
+                          }}
+                        >
+                          <span>Audit</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
-      {forms.length === 0 && (
+      {activeForms.length === 0 && (
         <Card>
-          <CardContent className="py-8 text-sm text-muted-foreground">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
             No solar plants found. Click{" "}
-            <span className="font-medium">Create Solar Plant</span> to add one.
+            <span className="font-medium text-foreground">Create Solar Plant</span> to add one.
           </CardContent>
         </Card>
       )}

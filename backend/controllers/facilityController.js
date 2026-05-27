@@ -499,6 +499,7 @@ const updateFacility = asyncHandler(async (req, res) => {
     auditor_ids,
     client_representatives,
     budget: budgetRaw,
+    removed_document_ids,
   } = req.body;
 
   let facility;
@@ -570,6 +571,27 @@ const updateFacility = asyncHandler(async (req, res) => {
       tentative_budget: parseNumberOrNull(b?.tentative_budget),
       actual_budget: parseNumberOrNull(b?.actual_budget),
     };
+  }
+
+  let parsedRemovedDocIds = [];
+  if (removed_document_ids) {
+    try {
+      parsedRemovedDocIds = typeof removed_document_ids === "string"
+        ? JSON.parse(removed_document_ids)
+        : removed_document_ids;
+    } catch (e) {
+      console.error("Failed to parse removed_document_ids:", e);
+    }
+  }
+
+  if (Array.isArray(parsedRemovedDocIds) && parsedRemovedDocIds.length > 0) {
+    const originalCount = facility.documents.length;
+    facility.documents = facility.documents.filter(
+      (doc) => !parsedRemovedDocIds.includes(doc._id?.toString()),
+    );
+    if (facility.documents.length !== originalCount) {
+      updatedFields.push("documents");
+    }
   }
 
   if (uploadedDocuments.length > 0) {

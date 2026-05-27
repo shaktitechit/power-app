@@ -106,6 +106,7 @@ export interface UpdateUtilityAccountRequest {
   auditor_id?: string;
 
   documents?: File[];
+  removed_document_ids?: string[];
 }
 
 export interface CreateUtilityAccountResponse {
@@ -228,6 +229,13 @@ const buildUtilityFormData = (
     data.documents.forEach((file) => {
       formData.append("documents", file);
     });
+  }
+
+  if ("removed_document_ids" in data && Array.isArray(data.removed_document_ids)) {
+    formData.append(
+      "removed_document_ids",
+      JSON.stringify(data.removed_document_ids),
+    );
   }
 
   return formData;

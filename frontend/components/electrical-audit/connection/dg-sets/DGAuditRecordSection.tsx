@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
@@ -1634,10 +1634,10 @@ export function DGAuditRecordSection({
             </div>
           </div>
 
-          {/* Documents */}
+          {/* Images & Documents */}
           <div className={AUDIT_DOCUMENTS_PANEL_CLASS}>
             <h4 className="mb-4 text-base font-semibold text-foreground">
-              Documents
+              Images & Documents
             </h4>
 
             <div className="space-y-2">

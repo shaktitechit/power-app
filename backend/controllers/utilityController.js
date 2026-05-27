@@ -719,6 +719,7 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
     is_pump_connected,
     is_transformer_maintained_by_facility,
     is_active,
+    removed_document_ids,
   } = req.body;
 
   const utilityAccount = await UtilityAccount.findById(req.params.id);
@@ -810,6 +811,27 @@ const updateUtilityAccount = asyncHandler(async (req, res) => {
 
   if (is_active !== undefined) {
     utilityAccount.is_active = parseBoolean(is_active, true);
+  }
+
+  let parsedRemovedDocIds = [];
+  if (removed_document_ids) {
+    try {
+      parsedRemovedDocIds = typeof removed_document_ids === "string"
+        ? JSON.parse(removed_document_ids)
+        : removed_document_ids;
+    } catch (e) {
+      console.error("Failed to parse removed_document_ids:", e);
+    }
+  }
+
+  if (Array.isArray(parsedRemovedDocIds) && parsedRemovedDocIds.length > 0) {
+    const originalCount = utilityAccount.documents.length;
+    utilityAccount.documents = utilityAccount.documents.filter(
+      (doc) => !parsedRemovedDocIds.includes(doc._id?.toString()),
+    );
+    if (utilityAccount.documents.length !== originalCount) {
+      updatedFields.push("documents");
+    }
   }
 
   if (uploadedDocuments.length > 0) {

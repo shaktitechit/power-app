@@ -1007,7 +1007,7 @@ export function SolarGenerationRecordSection({
 
             <div className={AUDIT_DOCUMENTS_PANEL_CLASS}>
               <h4 className="mb-4 text-base font-semibold text-foreground">
-                Documents
+                Images & Documents
               </h4>
 
               <div className="space-y-2">

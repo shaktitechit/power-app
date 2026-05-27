@@ -13,8 +13,9 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { CustomTabs } from "@/components/ui/custom-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Plug, FileText, ImageIcon } from "lucide-react";
+import { ArrowLeft, Plug, FileText, ImageIcon, Plus } from "lucide-react";
 import Link from "next/link";
+import { EditTransformerDocumentsForm } from "@/components/electrical-audit/transformers/edit-transformer-documents-form";
 import { useGetUtilityAccountByIdQuery } from "@/store/slices/electrical-audit/utilityApiSlice";
 import { UTILITY_AUDIT_STEP_IDS } from "@/lib/electrical-audit/utility-audit-steps";
 import { useGetFacilityByIdQuery } from "@/store/slices/facilityApiSlice";
@@ -106,6 +107,7 @@ export default function ConnectionDetailsPage() {
   };
 
   const [activeTab, setActiveTab] = useState<string>("details");
+  const [uploadDocsOpen, setUploadDocsOpen] = useState(false);
 
   useEffect(() => {
     if (!validTabIds.length) return;
@@ -315,11 +317,23 @@ export default function ConnectionDetailsPage() {
           </div>
 
           <Card className="border-border bg-card">
-            <CardHeader className="p-4 sm:p-6">
+            <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6 space-y-0">
               <CardTitle className="flex items-center gap-2 text-card-foreground">
                 <ImageIcon className="h-5 w-5 text-primary" />
                 Images & Documents
               </CardTitle>
+              {canViewDocs && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={transformerAuditSubmitted}
+                  onClick={() => setUploadDocsOpen(true)}
+                  className="h-8 text-xs sm:text-sm"
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  Add Documents
+                </Button>
+              )}
             </CardHeader>
 
             <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
@@ -381,6 +395,15 @@ export default function ConnectionDetailsPage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {canViewDocs && (
+        <EditTransformerDocumentsForm
+          open={uploadDocsOpen}
+          onOpenChange={setUploadDocsOpen}
+          onComplete={() => {}}
+          transformerId={transformerAccountId}
+        />
       )}
 
       {activeTab === "transformer-audits" && (

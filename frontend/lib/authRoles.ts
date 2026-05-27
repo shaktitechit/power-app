@@ -238,7 +238,12 @@ export function canViewDocuments(
   role: string | null | undefined,
   _permissions: UserPermission[] = [],
 ): boolean {
-  return role === "super_admin" || role === "admin" || role === "manager";
+  return (
+    role === "super_admin" ||
+    role === "admin" ||
+    role === "manager" ||
+    role === "auditor"
+  );
 }
 
 export function canManageResource(

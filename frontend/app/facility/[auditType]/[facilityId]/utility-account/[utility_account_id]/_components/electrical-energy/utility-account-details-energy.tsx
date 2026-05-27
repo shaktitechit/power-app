@@ -1,13 +1,18 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, ClipboardList, FileText, ImageIcon, Plug, Zap } from "lucide-react";
+import { Activity, ClipboardList, FileText, ImageIcon, Plug, Zap, Plus } from "lucide-react";
 import type { UtilityAccount } from "@/store/slices/electrical-audit/utilityApiSlice";
 import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
   type UtilityDocument,
   formatUtilityAuditSubmittedBy,
 } from "../shared/utility-account-workspace-types";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useAppSelector } from "@/store/hooks";
+import { canManageResource } from "@/lib/authRoles";
+import { EditUtilityDocumentsForm } from "@/components/electrical-audit/connection/edit-utility-documents-form";
 
 type Props = {
   utilityAccount: UtilityAccount;
@@ -20,6 +25,7 @@ type Props = {
       }
     | undefined;
   auditStatusLabel: string;
+  auditStepLocked: boolean;
 };
 
 export function UtilityAccountDetailsEnergy({
@@ -28,7 +34,17 @@ export function UtilityAccountDetailsEnergy({
   finalAuditLocked,
   finalAuditSubmission,
   auditStatusLabel,
+  auditStepLocked,
 }: Props) {
+  const [uploadDocsOpen, setUploadDocsOpen] = useState(false);
+  const user = useAppSelector((state) => state.auth.user);
+  const canUpdateUtilityAccount = canManageResource(
+    user?.role,
+    user?.permissions || [],
+    "utility_account",
+    "update",
+  );
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
@@ -330,11 +346,23 @@ export function UtilityAccountDetailsEnergy({
       </Card>
 
       <Card className="border-border bg-card">
-        <CardHeader className="p-4 sm:p-6">
+        <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6 space-y-0">
           <CardTitle className="flex items-center gap-2 text-card-foreground">
             <ImageIcon className="h-5 w-5 text-primary" />
             Images & Documents
           </CardTitle>
+          {canUpdateUtilityAccount && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={auditStepLocked}
+              onClick={() => setUploadDocsOpen(true)}
+              className="h-8 text-xs sm:text-sm"
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Add Documents
+            </Button>
+          )}
         </CardHeader>
 
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
@@ -406,6 +434,15 @@ export function UtilityAccountDetailsEnergy({
           )}
         </CardContent>
       </Card>
+
+      {canUpdateUtilityAccount && (
+        <EditUtilityDocumentsForm
+          open={uploadDocsOpen}
+          onOpenChange={setUploadDocsOpen}
+          onComplete={() => {}}
+          utilityAccountId={utilityAccount._id}
+        />
+      )}
     </div>
   );
 }

@@ -132,7 +132,7 @@
   /* Reserve space for the vertical scrollbar so Radix scroll-lock (Select, Dialog, etc.)
      does not remove the bar and shift the whole layout while a dropdown is open. */
   html {
-    font-size: calc(16px * var(--app-font-scale));
+    font-size: calc(14px * var(--app-font-scale));
     overflow-x: clip;
     scrollbar-gutter: stable;
   }

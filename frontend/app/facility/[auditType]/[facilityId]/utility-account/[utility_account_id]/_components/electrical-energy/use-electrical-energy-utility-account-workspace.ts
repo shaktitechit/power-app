@@ -101,7 +101,11 @@ export function useElectricalEnergyUtilityAccountWorkspace() {
 
   const tabs = useMemo<TabItem[]>(() => {
     const subs = utilityAccount?.audit_step_submissions;
+    const noData = utilityAccount?.audit_step_no_data;
     const done = (step: string) => Boolean(subs?.[step]?.submitted_at);
+    const isStepCompleted = (count: number, stepKey: string): boolean => {
+      return count > 0 || Boolean(noData?.[stepKey]?.declared_at) || done(stepKey);
+    };
 
     return [
       { id: "details", label: "Utility Account Details" },
@@ -109,13 +113,13 @@ export function useElectricalEnergyUtilityAccountWorkspace() {
         id: UTILITY_AUDIT_STEP_IDS.TARIFF,
         label: "Utility Tarrif",
         count: tariffCount,
-        completed: done(UTILITY_AUDIT_STEP_IDS.TARIFF),
+        completed: isStepCompleted(tariffCount, UTILITY_AUDIT_STEP_IDS.TARIFF),
       },
       {
         id: UTILITY_AUDIT_STEP_IDS.BILLING,
         label: "Utility Billing Records",
         count: billingCount,
-        completed: done(UTILITY_AUDIT_STEP_IDS.BILLING),
+        completed: isStepCompleted(billingCount, UTILITY_AUDIT_STEP_IDS.BILLING),
       },
 
       utilityAccount?.is_solar_connected
@@ -123,7 +127,7 @@ export function useElectricalEnergyUtilityAccountWorkspace() {
             id: UTILITY_AUDIT_STEP_IDS.SOLAR,
             label: "Solar Audit",
             count: solarRecordCount,
-            completed: done(UTILITY_AUDIT_STEP_IDS.SOLAR),
+            completed: isStepCompleted(solarRecordCount, UTILITY_AUDIT_STEP_IDS.SOLAR),
           }
         : null,
 
@@ -132,7 +136,7 @@ export function useElectricalEnergyUtilityAccountWorkspace() {
             id: UTILITY_AUDIT_STEP_IDS.DG,
             label: "DG Audit",
             count: dgAuditCount,
-            completed: done(UTILITY_AUDIT_STEP_IDS.DG),
+            completed: isStepCompleted(dgAuditCount, UTILITY_AUDIT_STEP_IDS.DG),
           }
         : null,
 
@@ -141,7 +145,7 @@ export function useElectricalEnergyUtilityAccountWorkspace() {
             id: UTILITY_AUDIT_STEP_IDS.TRANSFORMER,
             label: "Transformer Audit",
             count: transformerAuditCount,
-            completed: done(UTILITY_AUDIT_STEP_IDS.TRANSFORMER),
+            completed: isStepCompleted(transformerAuditCount, UTILITY_AUDIT_STEP_IDS.TRANSFORMER),
           }
         : null,
 
@@ -150,7 +154,7 @@ export function useElectricalEnergyUtilityAccountWorkspace() {
             id: UTILITY_AUDIT_STEP_IDS.PUMP,
             label: "Pump Audit",
             count: pumpAuditCount,
-            completed: done(UTILITY_AUDIT_STEP_IDS.PUMP),
+            completed: isStepCompleted(pumpAuditCount, UTILITY_AUDIT_STEP_IDS.PUMP),
           }
         : null,
 
@@ -158,37 +162,37 @@ export function useElectricalEnergyUtilityAccountWorkspace() {
         id: UTILITY_AUDIT_STEP_IDS.HVAC,
         label: "HVAC Audit",
         count: hvacCount,
-        completed: done(UTILITY_AUDIT_STEP_IDS.HVAC),
+        completed: isStepCompleted(hvacCount, UTILITY_AUDIT_STEP_IDS.HVAC),
       },
       {
         id: UTILITY_AUDIT_STEP_IDS.AC,
         label: "AC Audit",
         count: acCount,
-        completed: done(UTILITY_AUDIT_STEP_IDS.AC),
+        completed: isStepCompleted(acCount, UTILITY_AUDIT_STEP_IDS.AC),
       },
       {
         id: UTILITY_AUDIT_STEP_IDS.LIGHTING,
         label: "Lighting Audit",
         count: lightingCount,
-        completed: done(UTILITY_AUDIT_STEP_IDS.LIGHTING),
+        completed: isStepCompleted(lightingCount, UTILITY_AUDIT_STEP_IDS.LIGHTING),
       },
       {
         id: UTILITY_AUDIT_STEP_IDS.FAN,
         label: "Fan Audit",
         count: fanCount,
-        completed: done(UTILITY_AUDIT_STEP_IDS.FAN),
+        completed: isStepCompleted(fanCount, UTILITY_AUDIT_STEP_IDS.FAN),
       },
       {
         id: UTILITY_AUDIT_STEP_IDS.LUX,
         label: "LUX Measurement",
         count: luxCount,
-        completed: done(UTILITY_AUDIT_STEP_IDS.LUX),
+        completed: isStepCompleted(luxCount, UTILITY_AUDIT_STEP_IDS.LUX),
       },
       {
         id: UTILITY_AUDIT_STEP_IDS.MISC,
         label: "Misc Audit",
         count: miscCount,
-        completed: done(UTILITY_AUDIT_STEP_IDS.MISC),
+        completed: isStepCompleted(miscCount, UTILITY_AUDIT_STEP_IDS.MISC),
       },
       {
         id: UTILITY_AUDIT_STEP_IDS.PREVIEW_SUBMIT,
@@ -198,6 +202,7 @@ export function useElectricalEnergyUtilityAccountWorkspace() {
     ].filter(Boolean) as TabItem[];
   }, [
     utilityAccount?.audit_step_submissions,
+    utilityAccount?.audit_step_no_data,
     utilityAccount?.is_solar_connected,
     utilityAccount?.is_dg_connected,
     utilityAccount?.is_transformer_connected,

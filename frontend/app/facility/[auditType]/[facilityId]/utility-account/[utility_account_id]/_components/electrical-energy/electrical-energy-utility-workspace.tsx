@@ -35,6 +35,7 @@ export function ElectricalEnergyUtilityWorkspace({
     finalAuditLocked,
     finalAuditSubmission,
     auditStatusLabel,
+    auditStepLocked,
   } = model;
 
   return (
@@ -86,6 +87,7 @@ export function ElectricalEnergyUtilityWorkspace({
           finalAuditLocked={finalAuditLocked}
           finalAuditSubmission={finalAuditSubmission}
           auditStatusLabel={auditStatusLabel}
+          auditStepLocked={auditStepLocked}
         />
       )}
 

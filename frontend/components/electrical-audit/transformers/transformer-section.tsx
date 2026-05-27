@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useState } from "react";
@@ -30,7 +30,12 @@ import {
   X,
   FileText,
   Image as ImageIcon,
+  Trash2,
+  ArrowRight,
+  Cpu,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGetTransformerAuditRecordsQuery } from "@/store/slices/electrical-audit/transformerAuditRecordApiSlice";
 import {
   useCreateTransformerMutation,
   useDeleteTransformerMutation,
@@ -166,6 +171,9 @@ export function TransformerSection({
   const { data, isLoading } = useGetTransformersQuery({
     utility_account_id: utilityAccountId,
   });
+  const { data: auditData, isLoading: isAuditLoading } = useGetTransformerAuditRecordsQuery({
+    utility_account_id: utilityAccountId,
+  });
 
   const [createTransformer, { isLoading: isCreating }] =
     useCreateTransformerMutation();
@@ -175,6 +183,8 @@ export function TransformerSection({
     useDeleteTransformerMutation();
 
   const transformers = useMemo(() => data?.data || [], [data]);
+  const transformerAuditRecords = useMemo(() => auditData?.data || [], [auditData]);
+  const isLoadingAll = isLoading || isAuditLoading;
   const [forms, setForms] = useState<TransformerFormState[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -419,13 +429,32 @@ export function TransformerSection({
 
   const saving = isCreating || isUpdating || isDeleting;
 
-  if (isLoading) {
+  if (isLoadingAll) {
     return (
-      <div className="text-sm text-muted-foreground">
-        Loading transformers...
+      <div className="space-y-3 animate-pulse">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Card key={i} className="w-full p-4 border border-border bg-card rounded-xl">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 w-full max-w-md">
+                <Skeleton className="h-10 w-10 rounded-lg shrink-0 bg-muted" />
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-1/3 bg-muted" />
+                  <Skeleton className="h-3.5 w-1/2 bg-muted" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <Skeleton className="h-8 w-24 bg-muted" />
+                <Skeleton className="h-8 w-24 bg-muted" />
+                <Skeleton className="h-8 w-16 bg-muted" />
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
     );
   }
+
+  const activeForms = forms.filter((form) => !form.isNew);
 
   return (
     <div className="relative space-y-4">
@@ -458,139 +487,171 @@ export function TransformerSection({
         </div>
       ) : null}
 
-      {transformers.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Transformer Table</CardTitle>
-          </CardHeader>
-
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[1600px] text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="px-3 py-2 font-medium">Transformer Tag</th>
-                  <th className="px-3 py-2 font-medium">Capacity (kVA)</th>
-                  <th className="px-3 py-2 font-medium">Cooling Type</th>
-                  <th className="px-3 py-2 font-medium">HV (kV)</th>
-                  <th className="px-3 py-2 font-medium">LV (V)</th>
-                  <th className="px-3 py-2 font-medium">HV Current (A)</th>
-                  <th className="px-3 py-2 font-medium">LV Current (A)</th>
-                  <th className="px-3 py-2 font-medium">No Load Loss (kW)</th>
-                  <th className="px-3 py-2 font-medium">Full Load Loss (kW)</th>
-                  <th className="px-3 py-2 font-medium">Efficiency (%)</th>
-
-                  <th className="px-3 py-2 font-medium">Documents</th>
-                  <th className="px-3 py-2 font-medium">Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {forms
-                  .filter((form) => !form.isNew)
-                  .map((form) => (
-                    <tr key={form.localId} className="border-b align-top">
-                      <td className="px-3 py-2">
-                        {form.transformer_tag || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.rated_capacity_kVA || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.type_of_cooling || "-"}
-                      </td>
-                      <td className="px-3 py-2">{form.rated_HV_kV || "-"}</td>
-                      <td className="px-3 py-2">{form.rated_LV_V || "-"}</td>
-                      <td className="px-3 py-2">
-                        {form.rated_HV_current_A || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.rated_LV_current_A || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.no_load_loss_kW || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.full_load_loss_kW || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.nameplate_efficiency_percent || "-"}
-                      </td>
-
-                      <td className="max-w-[min(280px,40vw)] px-3 py-2 align-top">
-                        {form.existingDocuments.length > 0 ? (
-                          <div className="flex min-w-0 flex-col gap-1">
-                            {form.existingDocuments.map((doc, index) => (
-                              <a
-                                key={`${doc.fileUrl}-${index}`}
-                                href={toSameOriginFileManagementUrl(doc.fileUrl)}
-                                target="_blank"
-                                rel="noreferrer"
-                                title={doc.fileName || `Document ${index + 1}`}
-                                className={cn(
-                                  AUDIT_DOC_LINK_PRIMARY,
-                                  "text-xs",
-                                )}
-                              >
-                                {doc.fileName || `Document ${index + 1}`}
-                              </a>
-                            ))}
-                          </div>
-                        ) : (
-                          "-"
+      {activeForms.length > 0 && (
+        <div className="space-y-3">
+          {activeForms.map((form) => {
+            const isAudited = transformerAuditRecords.some((rec) => {
+              const transId =
+                typeof rec.transformer_id === "object" && rec.transformer_id
+                  ? (rec.transformer_id as any)._id
+                  : rec.transformer_id;
+              return transId === form.id;
+            });
+            return (
+              <Card
+                key={form.localId}
+                className={cn(
+                  "group w-full p-4 border border-border bg-card rounded-xl hover:shadow-md transition-all duration-200 border-l-4 cursor-pointer",
+                  isAudited
+                    ? "border-l-emerald-500 hover:border-l-emerald-600"
+                    : "border-l-amber-500 hover:border-l-amber-600"
+                )}
+                onClick={() => {
+                  if (form.id) {
+                    router.push(
+                      `${facilityPathPrefix}/utility-account/${utilityAccountId}/transformer-audit/${form.id}`
+                    );
+                  }
+                }}
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between min-w-0">
+                  
+                  {/* Left section: Icon + Tag + capacity + cooling type */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <Cpu className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-foreground truncate max-w-[200px]" title={form.transformer_tag}>
+                          {form.transformer_tag || "-"}
+                        </span>
+                        {form.rated_capacity_kVA && (
+                          <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-foreground">
+                            {form.rated_capacity_kVA} kVA
+                          </span>
                         )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          {/* Edit Button */}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenEdit(form.localId)}
-                            className={cnHideUtilityAuditEdits(auditStepLocked)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </Button>
-                          {canDeleteRecords ? (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setDeleteTarget(form)}
-                              disabled={saving}
-                              className={cnHideUtilityAuditEdits(auditStepLocked)}
-                            >
-                              Delete
-                            </Button>
-                          ) : null}
+                        {form.type_of_cooling && (
+                          <span className="rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-muted-foreground uppercase">
+                            {form.type_of_cooling}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                          {/* Audit Button */}
+                  {/* Middle section: Tech Specs */}
+                  <div className="flex flex-wrap items-center gap-4 sm:gap-6 lg:justify-center text-xs text-muted-foreground min-w-0 flex-1 col-span-2">
+                    {(form.rated_HV_kV || form.rated_LV_V) && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">HV / LV Rating</span>
+                        <span className="font-medium text-foreground text-sm">
+                          {form.rated_HV_kV ? `${form.rated_HV_kV} kV` : "—"} / {form.rated_LV_V ? `${form.rated_LV_V} V` : "—"}
+                        </span>
+                      </div>
+                    )}
+                    {(form.rated_HV_current_A || form.rated_LV_current_A) && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">HV / LV Current</span>
+                        <span className="font-medium text-foreground text-sm">
+                          {form.rated_HV_current_A ? `${form.rated_HV_current_A} A` : "—"} / {form.rated_LV_current_A ? `${form.rated_LV_current_A} A` : "—"}
+                        </span>
+                      </div>
+                    )}
+                    {(form.no_load_loss_kW || form.full_load_loss_kW) && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">Losses (NL / FL)</span>
+                        <span className="font-medium text-foreground text-sm">
+                          {form.no_load_loss_kW ? `${form.no_load_loss_kW} kW` : "—"} / {form.full_load_loss_kW ? `${form.full_load_loss_kW} kW` : "—"}
+                        </span>
+                      </div>
+                    )}
+                    {form.nameplate_efficiency_percent && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">Efficiency</span>
+                        <span className="font-medium text-foreground text-sm">{form.nameplate_efficiency_percent}%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right section: Status & Actions */}
+                  <div className="flex flex-wrap lg:flex-nowrap items-center gap-4 lg:gap-6 shrink-0 justify-between lg:justify-end w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-muted/20">
+                    
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          isAudited
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                        }`}
+                      >
+                        {isAudited ? "Completed" : "Pending"}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        {/* Edit Button */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(form.localId);
+                          }}
+                          className={cnHideUtilityAuditEdits(auditStepLocked, "h-8 px-2")}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        
+                        {/* Delete Button */}
+                        {canDeleteRecords && (
                           <Button
                             size="sm"
-                            disabled={!form.id}
-                            className="bg-warning text-warning-foreground hover:bg-warning/90"
-                            onClick={() =>
-                              router.push(
-                                `${facilityPathPrefix}/utility-account/${utilityAccountId}/transformer-audit/${form.id}`,
-                              )
-                            }
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(form);
+                            }}
+                            disabled={saving}
+                            className={cnHideUtilityAuditEdits(auditStepLocked, "h-8 px-2")}
                           >
-                            Audit
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                        )}
+
+                        {/* Audit Button */}
+                        <Button
+                          size="sm"
+                          disabled={!form.id}
+                          className="bg-warning text-warning-foreground hover:bg-warning/90 h-8 px-3 font-medium flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (form.id) {
+                              router.push(
+                                `${facilityPathPrefix}/utility-account/${utilityAccountId}/transformer-audit/${form.id}`
+                              );
+                            }
+                          }}
+                        >
+                          <span>Audit</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
-      {forms.length === 0 && (
+      {activeForms.length === 0 && (
         <Card>
-          <CardContent className="py-8 text-sm text-muted-foreground">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
             No transformers found. Click{" "}
-            <span className="font-medium">Create Transformer</span> to add one.
+            <span className="font-medium text-foreground">Create Transformer</span> to add one.
           </CardContent>
         </Card>
       )}

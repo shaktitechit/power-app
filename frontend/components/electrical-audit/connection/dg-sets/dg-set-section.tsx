@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useState } from "react";
@@ -30,7 +30,12 @@ import {
   X,
   FileText,
   Image as ImageIcon,
+  Trash2,
+  ArrowRight,
+  Zap,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGetDGAuditRecordsQuery } from "@/store/slices/electrical-audit/dgAuditRecordApiSlice";
 import {
   useCreateDGSetMutation,
   useDeleteDGSetMutation,
@@ -157,12 +162,17 @@ export function DGSetSection({
   const { data, isLoading } = useGetDGSetsQuery({
     utility_account_id: utilityAccountId,
   });
+  const { data: dgAuditData, isLoading: isAuditLoading } = useGetDGAuditRecordsQuery({
+    utility_account_id: utilityAccountId,
+  });
 
   const [createDGSet, { isLoading: isCreating }] = useCreateDGSetMutation();
   const [updateDGSet, { isLoading: isUpdating }] = useUpdateDGSetMutation();
   const [deleteDGSet, { isLoading: isDeleting }] = useDeleteDGSetMutation();
 
   const dgSets = useMemo(() => data?.data || [], [data]);
+  const dgAuditRecords = useMemo(() => dgAuditData?.data || [], [dgAuditData]);
+  const isLoadingAll = isLoading || isAuditLoading;
   const [forms, setForms] = useState<DGSetFormState[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -387,11 +397,32 @@ export function DGSetSection({
 
   const saving = isCreating || isUpdating || isDeleting;
 
-  if (isLoading) {
+  if (isLoadingAll) {
     return (
-      <div className="text-sm text-muted-foreground">Loading DG sets...</div>
+      <div className="space-y-3 animate-pulse">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Card key={i} className="w-full p-4 border border-border bg-card rounded-xl">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 w-full max-w-md">
+                <Skeleton className="h-10 w-10 rounded-lg shrink-0 bg-muted" />
+                <div className="space-y-2 w-full">
+                  <Skeleton className="h-4 w-1/3 bg-muted" />
+                  <Skeleton className="h-3.5 w-1/2 bg-muted" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 w-full sm:w-auto">
+                <Skeleton className="h-8 w-24 bg-muted" />
+                <Skeleton className="h-8 w-24 bg-muted" />
+                <Skeleton className="h-8 w-16 bg-muted" />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
     );
   }
+
+  const activeForms = forms.filter((form) => !form.isNew);
 
   return (
     <div className="relative space-y-4">
@@ -424,131 +455,169 @@ export function DGSetSection({
         </div>
       ) : null}
 
-      {dgSets.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>DG Set Table</CardTitle>
-          </CardHeader>
-
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="px-3 py-2 font-medium">DG Number</th>
-                  <th className="px-3 py-2 font-medium">Make / Model</th>
-                  <th className="px-3 py-2 font-medium">Year</th>
-                  <th className="px-3 py-2 font-medium">Capacity (kVA)</th>
-                  <th className="px-3 py-2 font-medium">Power (kW)</th>
-                  <th className="px-3 py-2 font-medium">Voltage (V)</th>
-                  <th className="px-3 py-2 font-medium">Speed (RPM)</th>
-                  <th className="px-3 py-2 font-medium">Fuel Type</th>
-
-                  <th className="px-3 py-2 font-medium">Documents</th>
-                  <th className="px-3 py-2 font-medium">Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {forms
-                  .filter((form) => !form.isNew)
-                  .map((form) => (
-                    <tr key={form.localId} className="border-b align-top">
-                      <td className="px-3 py-2">{form.dg_number || "-"}</td>
-                      <td className="px-3 py-2">{form.make_model || "-"}</td>
-                      <td className="px-3 py-2">
-                        {form.year_of_installation || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.rated_capacity_kVA || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.rated_active_power_kW || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.rated_voltage_V || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        {form.rated_speed_RPM || "-"}
-                      </td>
-                      <td className="px-3 py-2 capitalize">
-                        {form.fuel_type || "-"}
-                      </td>
-
-                      <td className="max-w-[min(280px,40vw)] px-3 py-2 align-top">
-                        {form.existingDocuments.length > 0 ? (
-                          <div className="flex min-w-0 flex-col gap-1">
-                            {form.existingDocuments.map((doc, index) => (
-                              <a
-                                key={`${doc.fileUrl}-${index}`}
-                                href={toSameOriginFileManagementUrl(doc.fileUrl)}
-                                target="_blank"
-                                rel="noreferrer"
-                                title={doc.fileName || `Document ${index + 1}`}
-                                className={cn(
-                                  AUDIT_DOC_LINK_PRIMARY,
-                                  "text-xs",
-                                )}
-                              >
-                                {doc.fileName || `Document ${index + 1}`}
-                              </a>
-                            ))}
-                          </div>
-                        ) : (
-                          "-"
+      {activeForms.length > 0 && (
+        <div className="space-y-3">
+          {activeForms.map((form) => {
+            const isAudited = dgAuditRecords.some((rec) => {
+              const dgSetId =
+                typeof rec.dg_set_id === "object" && rec.dg_set_id
+                  ? (rec.dg_set_id as any)._id
+                  : rec.dg_set_id;
+              return dgSetId === form.id;
+            });
+            return (
+              <Card
+                key={form.localId}
+                className={cn(
+                  "group w-full p-4 border border-border bg-card rounded-xl hover:shadow-md transition-all duration-200 border-l-4 cursor-pointer",
+                  isAudited
+                    ? "border-l-emerald-500 hover:border-l-emerald-600"
+                    : "border-l-amber-500 hover:border-l-amber-600"
+                )}
+                onClick={() => {
+                  if (form.id) {
+                    router.push(
+                      `${facilityPathPrefix}/utility-account/${utilityAccountId}/dg-audit/${form.id}`
+                    );
+                  }
+                }}
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between min-w-0">
+                  
+                  {/* Left section: Icon + DG number + badges */}
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-foreground truncate max-w-[200px]" title={form.dg_number}>
+                          DG Set #{form.dg_number}
+                        </span>
+                        {form.rated_capacity_kVA && (
+                          <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-foreground">
+                            {form.rated_capacity_kVA} kVA
+                          </span>
                         )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          {/* Edit Button */}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenEdit(form.localId)}
-                            className={cnHideUtilityAuditEdits(auditStepLocked)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </Button>
-                          {canDeleteRecords ? (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setDeleteTarget(form)}
-                              disabled={saving}
-                              className={cnHideUtilityAuditEdits(auditStepLocked)}
-                            >
-                              Delete
-                            </Button>
-                          ) : null}
+                        {form.fuel_type && (
+                          <span className="rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-muted-foreground capitalize">
+                            {form.fuel_type}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                          {/* Audit Button */}
+                  {/* Middle section: Tech Specs */}
+                  <div className="flex flex-wrap items-center gap-4 sm:gap-6 lg:justify-center text-xs text-muted-foreground min-w-0 flex-1 col-span-2">
+                    {form.make_model && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">Make / Model</span>
+                        <span className="font-medium text-foreground text-sm truncate block max-w-[120px]" title={form.make_model}>
+                          {form.make_model}
+                        </span>
+                      </div>
+                    )}
+                    {form.year_of_installation && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">Year</span>
+                        <span className="font-medium text-foreground text-sm">{form.year_of_installation}</span>
+                      </div>
+                    )}
+                    {form.rated_active_power_kW && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">Power</span>
+                        <span className="font-medium text-foreground text-sm">{form.rated_active_power_kW} kW</span>
+                      </div>
+                    )}
+                    {(form.rated_voltage_V || form.rated_speed_RPM) && (
+                      <div className="min-w-[100px]">
+                        <span className="block text-[10px] text-muted-foreground/75 uppercase">Volt / Speed</span>
+                        <span className="font-medium text-foreground text-sm">
+                          {form.rated_voltage_V ? `${form.rated_voltage_V}V` : "—"} / {form.rated_speed_RPM ? `${form.rated_speed_RPM} RPM` : "—"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right section: Status & Actions */}
+                  <div className="flex flex-wrap lg:flex-nowrap items-center gap-4 lg:gap-6 shrink-0 justify-between lg:justify-end w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-muted/20">
+                    
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          isAudited
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                        }`}
+                      >
+                        {isAudited ? "Completed" : "Pending"}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        {/* Edit Button */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(form.localId);
+                          }}
+                          className={cnHideUtilityAuditEdits(auditStepLocked, "h-8 px-2")}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        
+                        {/* Delete Button */}
+                        {canDeleteRecords && (
                           <Button
                             size="sm"
-                            disabled={!form.id}
-                            className="bg-warning text-warning-foreground hover:bg-warning/90"
-                            onClick={() =>
-                              router.push(
-                                `${facilityPathPrefix}/utility-account/${utilityAccountId}/dg-audit/${form.id}`,
-                              )
-                            }
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(form);
+                            }}
+                            disabled={saving}
+                            className={cnHideUtilityAuditEdits(auditStepLocked, "h-8 px-2")}
                           >
-                            Audit
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                        )}
+
+                        {/* Audit Button */}
+                        <Button
+                          size="sm"
+                          disabled={!form.id}
+                          className="bg-warning text-warning-foreground hover:bg-warning/90 h-8 px-3 font-medium flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (form.id) {
+                              router.push(
+                                `${facilityPathPrefix}/utility-account/${utilityAccountId}/dg-audit/${form.id}`
+                              );
+                            }
+                          }}
+                        >
+                          <span>Audit</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
-      {forms.length === 0 && (
+      {activeForms.length === 0 && (
         <Card>
-          <CardContent className="py-8 text-sm text-muted-foreground">
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
             No DG sets found. Click{" "}
-            <span className="font-medium">Create DG Set</span> to add one.
+            <span className="font-medium text-foreground">Create DG Set</span> to add one.
           </CardContent>
         </Card>
       )}

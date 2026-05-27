@@ -1,6 +1,6 @@
 "use client";
 
-import { canManageResource, canViewDocuments } from "@/lib/authRoles";
+import { canManageResource, canViewDocuments, type UserPermission } from "@/lib/authRoles";
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { toSameOriginFileManagementUrl } from "@/lib/fileManagementUrls";
 import {
@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { CustomTabs } from "@/components/ui/custom-tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,11 @@ import { CreateSafetyAuditUtilityForm } from "@/components/safety-audit/utility-
 import { EditSafetyAuditUtilityForm } from "@/components/safety-audit/utility-account/edit-safety-audit-utility-form";
 import { hasUtilityFinalAuditSubmission } from "@/lib/electrical-audit/utility-audit-steps";
 import { cnHideUtilityAuditEdits } from "@/lib/electrical-audit/utility-audit-edits-visibility";
+import { EditFacilityForm } from "@/components/facility/edit-facility-form";
+import { EditBudgetForm } from "@/components/facility/edit-budget-form";
+import { EditDocumentsForm } from "@/components/facility/edit-documents-form";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   ArrowLeft,
@@ -49,6 +55,11 @@ import {
   Pencil,
   Trash2,
   Search,
+  Sun,
+  Zap,
+  Cpu,
+  Droplet,
+  ArrowRight,
 } from "lucide-react";
 import {
   useCloseFacilityAuditMutation,
@@ -180,6 +191,9 @@ export default function FacilityWorkspacePage() {
     isUtilityAccountComingSoonSlug(auditTypeSlug);
 
   const [editOpen, setEditOpen] = useState(false);
+  const [editFacilityOpen, setEditFacilityOpen] = useState(false);
+  const [editBudgetOpen, setEditBudgetOpen] = useState(false);
+  const [editDocumentsOpen, setEditDocumentsOpen] = useState(false);
   const [selectedUtilityAccount, setSelectedUtilityAccount] =
     useState<EditUtilityAccountValue>(null);
   const [isConnectionWizardOpen, setIsConnectionWizardOpen] = useState(false);
@@ -189,6 +203,7 @@ export default function FacilityWorkspacePage() {
     useState<UtilityAccount | null>(null);
   const [utilitySearchQuery, setUtilitySearchQuery] = useState("");
   const [utilityPage, setUtilityPage] = useState(1);
+  const [overviewSubTab, setOverviewSubTab] = useState<string>("budget");
 
   const [deleteUtilityAccount] = useDeleteUtilityAccountMutation();
   const [closeFacilityAudit, { isLoading: closingFacilityAudit }] =
@@ -197,7 +212,10 @@ export default function FacilityWorkspacePage() {
     useOpenFacilityAuditMutation();
 
   const user = useAppSelector((state) => state.auth.user);
-  const canViewDocs = canViewDocuments(user?.role, user?.permissions || []);
+  const canViewDocs = canViewDocuments(
+    user?.role,
+    (user?.permissions as UserPermission[]) || [],
+  );
   const canCloseFacilityAuditAction = canManageResource(
     user?.role,
     user?.permissions || [],
@@ -210,6 +228,7 @@ export default function FacilityWorkspacePage() {
     "facility",
     "reopen_facility_audit",
   );
+  const canUpdateFacility = user?.role === "super_admin" || user?.role === "admin";
   const canCreateUtilityAccount = canManageResource(
     user?.role,
     user?.permissions || [],
@@ -275,7 +294,7 @@ export default function FacilityWorkspacePage() {
     UtilityAccounts.length > 0 &&
     utilityAuditCompletedCount === UtilityAccounts.length;
 
-  const { data } = useGetFacilityByIdQuery(facilityId);
+  const { data, refetch: refetchFacility } = useGetFacilityByIdQuery(facilityId);
 
   const facility = data?.data?.facility;
   const facilityAuditClosed = Boolean(facility?.audit_closure?.closed_at);
@@ -299,7 +318,6 @@ export default function FacilityWorkspacePage() {
         label: "Utility Accounts",
         count: UtilityAccounts?.length || 0,
       },
-      { id: "preview_closure", label: "Preview and Closure" },
     ],
     [UtilityAccounts?.length],
   );
@@ -444,6 +462,60 @@ export default function FacilityWorkspacePage() {
       hideOnMobile: true,
       render: (row) => <span className="text-foreground">{row.location || "-"}</span>,
     },
+    {
+      key: "devices",
+      header: "Devices",
+      render: (row) => {
+        return (
+          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <div
+              title={row.is_dg_connected ? "DG Connected" : "DG Disconnected"}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
+                row.is_dg_connected
+                  ? "bg-orange-500/10 border-orange-500/20 text-orange-500 dark:bg-orange-500/20"
+                  : "bg-muted/30 border-transparent text-muted-foreground/30"
+              )}
+            >
+              <Zap className="h-4 w-4" />
+            </div>
+            <div
+              title={row.is_solar_connected ? "Solar Connected" : "Solar Disconnected"}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
+                row.is_solar_connected
+                  ? "bg-amber-500/10 border-amber-500/20 text-amber-500 dark:bg-amber-500/20"
+                  : "bg-muted/30 border-transparent text-muted-foreground/30"
+              )}
+            >
+              <Sun className="h-4 w-4" />
+            </div>
+            <div
+              title={row.is_transformer_connected ? "Transformer Connected" : "Transformer Disconnected"}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
+                row.is_transformer_connected
+                  ? "bg-blue-500/10 border-blue-500/20 text-blue-500 dark:bg-blue-500/20"
+                  : "bg-muted/30 border-transparent text-muted-foreground/30"
+              )}
+            >
+              <Cpu className="h-4 w-4" />
+            </div>
+            <div
+              title={row.is_pump_connected ? "Pump Connected" : "Pump Disconnected"}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
+                row.is_pump_connected
+                  ? "bg-sky-500/10 border-sky-500/20 text-sky-500 dark:bg-sky-500/20"
+                  : "bg-muted/30 border-transparent text-muted-foreground/30"
+              )}
+            >
+              <Droplet className="h-4 w-4" />
+            </div>
+          </div>
+        );
+      },
+    },
     
     {
       key: "audit_status",
@@ -516,6 +588,11 @@ export default function FacilityWorkspacePage() {
     setSelectedUtilityAccount(null);
   };
 
+  const handleEditFacilityComplete = () => {
+    setEditFacilityOpen(false);
+    refetchFacility();
+  };
+
   const handleCloseFacilityAudit = async () => {
     if (!facilityId || !canCloseFacilityAuditAction || !canCloseFacilityAudit)
       return;
@@ -551,7 +628,25 @@ export default function FacilityWorkspacePage() {
           <ArrowLeft className="h-4 w-4 shrink-0" />
           <span className="truncate">Back to Facilities</span>
         </Link>
-        <StatusBadge status={facility.status} />
+        <div className="flex items-center gap-2">
+          {canUpdateFacility && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={facilityAuditClosed}
+              title={
+                facilityAuditClosed
+                  ? "Facility audit is closed; editing is locked."
+                  : "Edit Facility"
+              }
+              onClick={() => setEditFacilityOpen(true)}
+            >
+              <Pencil className="mr-1 h-4 w-4" />
+              Edit Facility
+            </Button>
+          )}
+          <StatusBadge status={facility.status} />
+        </div>
       </div>
 
       <CustomTabs
@@ -562,7 +657,7 @@ export default function FacilityWorkspacePage() {
       />
 
       {activeTab === "overview" && (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-6 pb-24">
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             <Card className="border-border bg-card">
               <CardHeader className="p-4 sm:p-6">
@@ -785,56 +880,6 @@ export default function FacilityWorkspacePage() {
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-card-foreground">
                 <Activity className="h-5 w-5 text-primary" />
-                Budget Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 p-4 pt-0 sm:grid-cols-2 sm:p-6 sm:pt-0 lg:grid-cols-4">
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">No. of Persons</p>
-                <p className="mt-1 text-lg font-semibold text-foreground">
-                  {facility?.budget?.no_of_persons != null
-                    ? facility.budget.no_of_persons
-                    : "—"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">
-                  Planned Site Visits
-                </p>
-                <p className="mt-1 text-lg font-semibold text-foreground">
-                  {facility?.budget?.no_planned_site_visits != null
-                    ? facility.budget.no_planned_site_visits
-                    : "—"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">
-                  Tentative Budget
-                </p>
-                <p className="mt-1 text-lg font-semibold text-foreground">
-                  {facility?.budget?.tentative_budget != null
-                    ? `₹${facility.budget.tentative_budget.toLocaleString("en-IN")}`
-                    : "—"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">Actual Budget</p>
-                <p className="mt-1 text-lg font-semibold text-foreground">
-                  {facility?.budget?.actual_budget != null
-                    ? `₹${facility.budget.actual_budget.toLocaleString("en-IN")}`
-                    : "—"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card">
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-card-foreground">
-                <Activity className="h-5 w-5 text-primary" />
                 Quick Summary
               </CardTitle>
             </CardHeader>
@@ -879,79 +924,238 @@ export default function FacilityWorkspacePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card">
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-card-foreground">
-                <ImageIcon className="h-5 w-5 text-primary" />
-                Images & Documents
-              </CardTitle>
-            </CardHeader>
+          {/* Sub-tabs for Budget & Documents */}
+          {canUpdateFacility && (
+            <div className="w-full">
+              <Tabs defaultValue="budget" value={overviewSubTab} onValueChange={setOverviewSubTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 mb-4 sm:mb-6 max-w-md">
+                  <TabsTrigger value="budget" className="px-4 py-2 text-sm font-medium">
+                    Budget Information
+                  </TabsTrigger>
+                  <TabsTrigger value="documents" className="px-4 py-2 text-sm font-medium">
+                    Images & Documents ({facility?.documents?.length || 0})
+                  </TabsTrigger>
+                </TabsList>
 
-            <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-              {!canViewDocs ? (
-                <p className="text-sm text-muted-foreground">
-                  Only super admin, admin, and manager can view uploaded documents.
-                </p>
-              ) : facility?.documents?.length > 0 ? (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                  {facility.documents.map((doc: any, index: number) => (
-                    <div
-                      key={index}
-                      className="group overflow-hidden rounded-xl border border-border bg-muted/20"
-                    >
-                      {doc.fileType === "image" ? (
-                        <a href={toSameOriginFileManagementUrl(doc.fileUrl)} target="_blank" rel="noreferrer">
-                          <img
-                            src={toSameOriginFileManagementUrl(doc.fileUrl)}
-                            alt={doc.fileName || `Image ${index + 1}`}
-                            className="h-32 w-full object-cover transition duration-200 group-hover:scale-105"
-                          />
-                        </a>
-                      ) : (
-                        <a
-                          href={toSameOriginFileManagementUrl(doc.fileUrl)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex h-32 flex-col items-center justify-center gap-2"
+                {overviewSubTab === "budget" && (
+                  <Card className="border-border bg-card animate-in fade-in duration-200">
+                    <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6 space-y-0">
+                      <CardTitle className="flex items-center gap-2 text-card-foreground">
+                        <Activity className="h-5 w-5 text-primary" />
+                        Budget Information
+                      </CardTitle>
+                      {canUpdateFacility && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={facilityAuditClosed}
+                          onClick={() => setEditBudgetOpen(true)}
+                          className="h-8 text-xs sm:text-sm"
                         >
-                          <FileText className="h-8 w-8 text-destructive" />
-                          <p className="text-xs text-muted-foreground">
-                            PDF Document
-                          </p>
-                        </a>
+                          <Pencil className="mr-1 h-3.5 w-3.5" />
+                          Edit Budget
+                        </Button>
                       )}
-
-                      <div className="space-y-1 p-2">
-                        <p className="truncate text-xs font-medium text-foreground">
-                          {doc.fileName || `File ${index + 1}`}
+                    </CardHeader>
+                    <CardContent className="grid gap-4 p-4 pt-0 sm:grid-cols-2 sm:p-6 sm:pt-0 lg:grid-cols-4">
+                      <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">No. of Persons</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">
+                          {facility?.budget?.no_of_persons != null
+                            ? facility.budget.no_of_persons
+                            : "—"}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {doc.uploadedAt
-                            ? new Date(doc.uploadedAt).toLocaleDateString()
-                            : "-"}
-                        </p>
-
-                        {doc.fileType === "pdf" && (
-                          <a
-                            href={toSameOriginFileManagementUrl(doc.fileUrl)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-block text-xs text-primary hover:underline"
-                          >
-                            Open PDF
-                          </a>
-                        )}
                       </div>
-                    </div>
-                  ))}
+
+                      <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">
+                          Planned Site Visits
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">
+                          {facility?.budget?.no_planned_site_visits != null
+                            ? facility.budget.no_planned_site_visits
+                            : "—"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">
+                          Tentative Budget
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">
+                          {facility?.budget?.tentative_budget != null
+                            ? `₹${facility.budget.tentative_budget.toLocaleString("en-IN")}`
+                            : "—"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Actual Budget</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">
+                          {facility?.budget?.actual_budget != null
+                            ? `₹${facility.budget.actual_budget.toLocaleString("en-IN")}`
+                            : "—"}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {overviewSubTab === "documents" && (
+                  <Card className="border-border bg-card animate-in fade-in duration-200">
+                    <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6 space-y-0">
+                      <CardTitle className="flex items-center gap-2 text-card-foreground">
+                        <ImageIcon className="h-5 w-5 text-primary" />
+                        Images & Documents
+                      </CardTitle>
+                      {canUpdateFacility && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={facilityAuditClosed}
+                          onClick={() => setEditDocumentsOpen(true)}
+                          className="h-8 text-xs sm:text-sm"
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" />
+                          Add Documents
+                        </Button>
+                      )}
+                    </CardHeader>
+
+                    <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                      {!canViewDocs ? (
+                        <p className="text-sm text-muted-foreground">
+                          Only super admin, admin, and manager can view uploaded documents.
+                        </p>
+                      ) : facility?.documents?.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                          {facility.documents.map((doc: any, index: number) => (
+                            <div
+                              key={index}
+                              className="group overflow-hidden rounded-xl border border-border bg-muted/20"
+                            >
+                              {doc.fileType === "image" ? (
+                                <a href={toSameOriginFileManagementUrl(doc.fileUrl)} target="_blank" rel="noreferrer">
+                                  <img
+                                    src={toSameOriginFileManagementUrl(doc.fileUrl)}
+                                    alt={doc.fileName || `Image ${index + 1}`}
+                                    className="h-32 w-full object-cover transition duration-200 group-hover:scale-105"
+                                  />
+                                </a>
+                              ) : (
+                                <a
+                                  href={toSameOriginFileManagementUrl(doc.fileUrl)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex h-32 flex-col items-center justify-center gap-2"
+                                >
+                                  <FileText className="h-8 w-8 text-destructive" />
+                                  <p className="text-xs text-muted-foreground">
+                                    PDF Document
+                                  </p>
+                                </a>
+                              )}
+
+                              <div className="space-y-1 p-2">
+                                <p className="truncate text-xs font-medium text-foreground">
+                                  {doc.fileName || `File ${index + 1}`}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {doc.uploadedAt
+                                    ? new Date(doc.uploadedAt).toLocaleDateString()
+                                    : "-"}
+                                </p>
+
+                                {doc.fileType === "pdf" && (
+                                  <a
+                                    href={toSameOriginFileManagementUrl(doc.fileUrl)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-block text-xs text-primary hover:underline"
+                                  >
+                                    Open PDF
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No documents uploaded.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </Tabs>
+            </div>
+          )}
+
+          {/* Floating preview and closure panel */}
+          <div className="fixed bottom-6 right-6 z-40 max-w-sm rounded-xl border border-border bg-card p-4 shadow-lg animate-in fade-in slide-in-from-bottom-5 duration-300">
+            <div className="flex flex-col gap-3">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Audit Preview & Closure
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {facilityAuditClosed ? (
+                  "Facility audit is currently closed."
+                ) : UtilityAccounts.length === 0 ? (
+                  "Add at least one utility account, then complete every utility audit before you can close the facility audit."
+                ) : !canCloseFacilityAudit ? (
+                  <>
+                    {utilityAuditPendingCount} utility audit
+                    {utilityAuditPendingCount === 1 ? "" : "s"} still pending.
+                    Complete all utility account audits to enable facility audit closure.
+                  </>
+                ) : (
+                  "All utility audits are completed. You can close the facility audit now."
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <span className="text-[11px] font-medium text-foreground">
+                  Progress: {utilityAuditCompletedCount}/{UtilityAccounts.length} Connected
+                </span>
+                <div className="flex items-center gap-2">
+                  {!facilityAuditClosed ? (
+                    <Button
+                      size="sm"
+                      onClick={() => setCloseAuditDialogOpen(true)}
+                      disabled={
+                        !canCloseFacilityAuditAction ||
+                        !canCloseFacilityAudit ||
+                        closingFacilityAudit ||
+                        openingFacilityAudit
+                      }
+                    >
+                      {closingFacilityAudit ? "Closing..." : "Audit Close"}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpenFacilityAudit}
+                        disabled={
+                          !canReopenFacilityAudit ||
+                          openingFacilityAudit ||
+                          closingFacilityAudit
+                        }
+                      >
+                        {openingFacilityAudit ? "Opening..." : "Open Audit"}
+                      </Button>
+                    </>
+                  )}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No documents uploaded.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+              {facilityAuditClosed && !canReopenFacilityAudit ? (
+                <span className="text-[10px] text-muted-foreground block text-right mt-1">
+                  You do not have permission to open facility audit.
+                </span>
+              ) : null}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1005,19 +1209,210 @@ export default function FacilityWorkspacePage() {
                 ) : null}
               </div>
 
-              <UtilityAccountsTable
-                columns={UtilityAccountColumn}
-                data={paginatedUtilityAccounts}
-                loading={utilitiesLoading}
-                onRowClick={(row?: UtilityAccount) =>
-                  row ? handleConnectionClick(row) : undefined
-                }
-                emptyMessage={
-                  utilitySearchQuery.trim()
-                    ? "No utility accounts match your search"
-                    : "No connections found for this facility"
-                }
-              />
+              {utilitiesLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Card key={i} className="w-full p-4 border border-border bg-card rounded-xl">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3 w-full max-w-md">
+                          <Skeleton className="h-10 w-10 rounded-lg shrink-0 animate-pulse bg-muted" />
+                          <div className="space-y-2 w-full">
+                            <Skeleton className="h-4 w-1/3 animate-pulse bg-muted" />
+                            <Skeleton className="h-3.5 w-1/2 animate-pulse bg-muted" />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                          <Skeleton className="h-8 w-24 animate-pulse bg-muted" />
+                          <Skeleton className="h-8 w-24 animate-pulse bg-muted" />
+                          <Skeleton className="h-8 w-16 animate-pulse bg-muted" />
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : paginatedUtilityAccounts.length === 0 ? (
+                <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed border-border bg-card rounded-xl">
+                  <Plug className="h-12 w-12 text-muted-foreground/50 mb-4 animate-pulse" />
+                  <h3 className="text-lg font-semibold text-foreground">No utility accounts found</h3>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                    {utilitySearchQuery.trim()
+                      ? "No utility accounts match your search query."
+                      : "No connections found for this facility. Add one to get started."}
+                  </p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {paginatedUtilityAccounts.map((row) => {
+                    const isAuditCompleted = isUtilityAuditComplete(row);
+                    const showUtilityActions =
+                      isUtilityAccountWorkspaceRoute &&
+                      !facilityAuditClosed &&
+                      !isAuditCompleted &&
+                      (canUpdateUtilityAccount || canDeleteUtilityAccount);
+
+                    const hasNewDemand = row.sanctioned_demand_value !== undefined && row.sanctioned_demand_value !== null;
+                    const demandText = hasNewDemand
+                      ? `${row.sanctioned_demand_value} ${row.sanctioned_demand_unit || "kVA"}`
+                      : row.sanctioned_demand_kVA != null
+                      ? `${row.sanctioned_demand_kVA} kVA`
+                      : "—";
+
+                    return (
+                      <Card
+                        key={row._id}
+                        onClick={() => handleConnectionClick(row)}
+                        className={cn(
+                          "group w-full p-4 border border-border bg-card rounded-xl hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden border-l-4",
+                          isAuditCompleted
+                            ? "border-l-emerald-500 hover:border-l-emerald-600"
+                            : "border-l-amber-500 hover:border-l-amber-600"
+                        )}
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between min-w-0">
+                          
+                          {/* Left section: Icon + Account info */}
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                              <Plug className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-foreground truncate max-w-[200px]" title={row.account_number}>
+                                  {row.account_number}
+                                </span>
+                                <span className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-foreground">
+                                  {row.connection_type} Connection
+                                </span>
+                                {row.category && (
+                                  <span className="rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-muted-foreground">
+                                    {row.category}
+                                  </span>
+                                )}
+                              </div>
+                              {row.location && (
+                                <p className="text-xs text-muted-foreground mt-1 truncate">
+                                  Location: {row.location}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Middle section: Sanctioned Demand & Provider & Devices */}
+                          <div className="flex flex-wrap items-center gap-4 sm:gap-6 lg:justify-center text-xs text-muted-foreground min-w-0">
+                            <div className="min-w-[100px]">
+                              <span className="block text-[10px] text-muted-foreground/75 uppercase">Demand</span>
+                              <span className="font-medium text-foreground text-sm">{demandText}</span>
+                            </div>
+
+                            {row.provider && (
+                              <div className="min-w-[100px]">
+                                <span className="block text-[10px] text-muted-foreground/75 uppercase">Provider</span>
+                                <span className="font-medium text-foreground text-sm truncate block max-w-[120px]" title={row.provider}>
+                                  {row.provider}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Devices Column */}
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <div
+                                title={row.is_dg_connected ? "DG Connected" : "DG Disconnected"}
+                                className={cn(
+                                  "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
+                                  row.is_dg_connected
+                                    ? "bg-orange-500/10 border-orange-500/20 text-orange-500 dark:bg-orange-500/20"
+                                    : "bg-muted/30 border-transparent text-muted-foreground/30"
+                                )}
+                              >
+                                <Zap className="h-4 w-4" />
+                              </div>
+                              <div
+                                title={row.is_solar_connected ? "Solar Connected" : "Solar Disconnected"}
+                                className={cn(
+                                  "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
+                                  row.is_solar_connected
+                                    ? "bg-amber-500/10 border-amber-500/20 text-amber-500 dark:bg-amber-500/20"
+                                    : "bg-muted/30 border-transparent text-muted-foreground/30"
+                                )}
+                              >
+                                <Sun className="h-4 w-4" />
+                              </div>
+                              <div
+                                title={row.is_transformer_connected ? "Transformer Connected" : "Transformer Disconnected"}
+                                className={cn(
+                                  "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
+                                  row.is_transformer_connected
+                                    ? "bg-blue-500/10 border-blue-500/20 text-blue-500 dark:bg-blue-500/20"
+                                    : "bg-muted/30 border-transparent text-muted-foreground/30"
+                                )}
+                              >
+                                <Cpu className="h-4 w-4" />
+                              </div>
+                              <div
+                                title={row.is_pump_connected ? "Pump Connected" : "Pump Disconnected"}
+                                className={cn(
+                                  "flex h-7 w-7 items-center justify-center rounded-md border transition-colors",
+                                  row.is_pump_connected
+                                    ? "bg-sky-500/10 border-sky-500/20 text-sky-500 dark:bg-sky-500/20"
+                                    : "bg-muted/30 border-transparent text-muted-foreground/30"
+                                )}
+                              >
+                                <Droplet className="h-4 w-4" />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right section: Status & Actions */}
+                          <div className="flex items-center gap-3 shrink-0 justify-between lg:justify-end w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-muted/20">
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                  isAuditCompleted
+                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
+                                    : "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                                }`}
+                              >
+                                {isAuditCompleted ? "Completed" : "Pending"}
+                              </span>
+
+                              <div className="flex items-center text-xs font-semibold text-primary group-hover:underline">
+                                <span>Workspace</span>
+                                <ArrowRight className="ml-1 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                              </div>
+                            </div>
+
+                            {showUtilityActions && (
+                              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                {canUpdateUtilityAccount && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => handleEditUtilityAccount(e, row)}
+                                    className="h-8 px-2 text-xs"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                {canDeleteUtilityAccount && (
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={(e) => handleDeleteUtilityAccount(e, row)}
+                                    className="h-8 px-2 text-xs"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-muted-foreground sm:text-sm">
@@ -1097,132 +1492,41 @@ export default function FacilityWorkspacePage() {
         </div>
       )}
 
-      {activeTab === "preview_closure" && (
-        <div className="space-y-4">
-          <Card className="border-border bg-card">
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-card-foreground">
-                Audit Preview and Closure
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 p-4 pt-0 sm:grid-cols-3 sm:p-6 sm:pt-0">
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">Total Utility Accounts</p>
-                <p className="mt-1 text-lg font-semibold text-foreground">
-                  {UtilityAccounts.length}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">
-                  Utility Audits Completed
-                </p>
-                <p className="mt-1 text-lg font-semibold text-emerald-700 dark:text-emerald-400">
-                  {utilityAuditCompletedCount}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">
-                  Utility Audits Pending
-                </p>
-                <p className="mt-1 text-lg font-semibold text-amber-700 dark:text-amber-400">
-                  {utilityAuditPendingCount}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card">
-            <CardContent className="flex min-w-0 flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-              <div className="min-w-0 text-sm text-muted-foreground">
-                {facilityAuditClosed ? (
-                  "Facility audit is currently closed."
-                ) : UtilityAccounts.length === 0 ? (
-                  "Add at least one utility account, then complete every utility audit before you can close the facility audit."
-                ) : !canCloseFacilityAudit ? (
-                  <>
-                    {utilityAuditPendingCount} utility audit
-                    {utilityAuditPendingCount === 1 ? "" : "s"} still pending.
-                    Complete all utility account audits to enable facility audit
-                    closure.
-                  </>
-                ) : (
-                  "All utility audits are completed. You can close the facility audit now."
-                )}
-              </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                {!facilityAuditClosed ? (
-                  <Button
-                    onClick={() => setCloseAuditDialogOpen(true)}
-                    disabled={
-                      !canCloseFacilityAuditAction ||
-                      !canCloseFacilityAudit ||
-                      closingFacilityAudit ||
-                      openingFacilityAudit
-                    }
-                  >
-                    {closingFacilityAudit ? "Closing..." : "Audit Close"}
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={handleOpenFacilityAudit}
-                      disabled={
-                        !canReopenFacilityAudit ||
-                        openingFacilityAudit ||
-                        closingFacilityAudit
-                      }
-                    >
-                      {openingFacilityAudit ? "Opening..." : "Open Audit"}
-                    </Button>
-                    {!canReopenFacilityAudit ? (
-                      <span className="text-xs text-muted-foreground">
-                        You do not have permission to open facility audit.
-                      </span>
-                    ) : null}
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <AlertDialog
-            open={closeAuditDialogOpen}
-            onOpenChange={setCloseAuditDialogOpen}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Close facility audit?</AlertDialogTitle>
-                <AlertDialogDescription className="space-y-2">
-                  <span className="block">
-                    You are about to close the audit for{" "}
-                    <span className="font-medium text-foreground">
-                      {facility.name}
-                    </span>
-                    . Utility account data will be locked for editing until an
-                    administrator re-opens the facility audit.
-                  </span>
-                  <span className="block text-amber-800 dark:text-amber-200">
-                    Only continue if every utility account audit is finished and
-                    you are ready to finalize this facility.
-                  </span>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={closingFacilityAudit}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={closingFacilityAudit}
-                  onClick={() => void handleCloseFacilityAudit()}
-                >
-                  {closingFacilityAudit ? "Closing..." : "Yes, close audit"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      )}
+      <AlertDialog
+        open={closeAuditDialogOpen}
+        onOpenChange={setCloseAuditDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close facility audit?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                You are about to close the audit for{" "}
+                <span className="font-medium text-foreground">
+                  {facility.name}
+                </span>
+                . Utility account data will be locked for editing until an
+                administrator re-opens the facility audit.
+              </span>
+              <span className="block text-amber-800 dark:text-amber-200">
+                Only continue if every utility account audit is finished and
+                you are ready to finalize this facility.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={closingFacilityAudit}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={closingFacilityAudit}
+              onClick={() => void handleCloseFacilityAudit()}
+            >
+              {closingFacilityAudit ? "Closing..." : "Yes, close audit"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {canCreateUtilityAccount && isElectricalEnergyAuditRoute ? (
         <AddUtilityAccountForm
@@ -1293,6 +1597,33 @@ export default function FacilityWorkspacePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {canUpdateFacility && (
+        <EditFacilityForm
+          open={editFacilityOpen}
+          onOpenChange={setEditFacilityOpen}
+          onComplete={handleEditFacilityComplete}
+          facilityId={facilityId}
+        />
+      )}
+
+      {canUpdateFacility && (
+        <EditBudgetForm
+          open={editBudgetOpen}
+          onOpenChange={setEditBudgetOpen}
+          onComplete={refetchFacility}
+          facilityId={facilityId}
+        />
+      )}
+
+      {canUpdateFacility && (
+        <EditDocumentsForm
+          open={editDocumentsOpen}
+          onOpenChange={setEditDocumentsOpen}
+          onComplete={refetchFacility}
+          facilityId={facilityId}
+        />
+      )}
     </DashboardLayout>
   );
 }

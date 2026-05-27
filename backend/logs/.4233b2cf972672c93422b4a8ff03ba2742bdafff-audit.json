@@ -6,16 +6,6 @@
     "auditLog": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\.4233b2cf972672c93422b4a8ff03ba2742bdafff-audit.json",
     "files": [
         {
-            "date": 1778562995398,
-            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\slow-api-2026-05-12.log",
-            "hash": "8a10d637d37a5063b4e66693b5dd9c18b4461cd8c83404f6845bfb0da1df4693"
-        },
-        {
-            "date": 1778611654879,
-            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\slow-api-2026-05-13.log",
-            "hash": "773761c5e43fa18cfb680fe672150ae472a5fa990a3f77e7161a4c912cfe7d83"
-        },
-        {
             "date": 1778737203991,
             "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\slow-api-2026-05-14.log",
             "hash": "f355761f728b000277a77c5c7901b8d2ec4ddf95e13c24188e33515b2b82c59d"
@@ -44,6 +34,11 @@
             "date": 1779734031817,
             "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\slow-api-2026-05-26.log",
             "hash": "9a3cd2100232a1c4c61582a6c881e12434c1d488b4d5bb0c5d1161cab5959d67"
+        },
+        {
+            "date": 1779857700166,
+            "name": "C:\\Users\\Dell\\Desktop\\power-app\\power-app\\backend\\logs\\slow-api-2026-05-27.log",
+            "hash": "e5d0f14c3addad4a0b7d966dabefd6f204962b283b035c0b781e691137f903a7"
         }
     ],
     "hashType": "sha256"
